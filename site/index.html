@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>myself · a personal knowledge graph in one command · Mansus</title>
+<meta name="description" content="myself is a tiny single-binary CLI that any agent harness calls through Bash to save and query entities, types and relationships. In design, not released.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anybody:wdth,wght@50..150,300..900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+<div class="flash" hidden aria-hidden="true"></div>
+
+<header class="chrome">
+  <a class="mark" href="#top" aria-label="Mansus, back to top">mansus</a>
+  <a class="chrome-link" href="https://github.com/mansus-org/myself">GitHub</a>
+</header>
+
+<main>
+
+  <!-- Front: the m, with the shell it grew out of showing through as a ghost. -->
+  <section class="face face--front" id="top">
+    <h1 class="title">
+      <span class="sr">myself</span>
+      <span class="bitmap" data-bitmap="front" data-sweep aria-hidden="true"></span>
+      <span class="spine" aria-hidden="true">REMEMBER</span>
+      <noscript><span class="fallback" aria-hidden="true">m</span></noscript>
+    </h1>
+    <p class="statement">A personal knowledge graph in one command. The agent you already have does the thinking; myself keeps what it learned.</p>
+  </section>
+
+  <!-- The whole interface, in one block. -->
+  <section class="shell" aria-labelledby="shell-h">
+    <h2 class="h2" id="shell-h">Say it, then ask it.</h2>
+    <div class="term">
+      <p class="term__label">bash</p>
+<pre class="term__body"><code><span class="c"># save</span>
+<span class="p">$</span> myself remember relay is project
+<span class="p">$</span> myself remember relay uses bun
+
+<span class="c"># query</span>
+<span class="p">$</span> myself describe relay
+<span class="o">relay
+  is project
+  uses bun
+  ← felipe works-on relay</span>
+
+<span class="c"># molting</span>
+<span class="p">$</span> myself remember i am "Felipe's coding agent. Prefers bun. Answers tersely."
+<span class="p">$</span> myself history i am</code></pre>
+    </div>
+    <p class="note">One binary written in Go, called through plain Bash. Nothing to host, nothing to log in to.</p>
+  </section>
+
+  <!-- The ideas: ruled rows, each with its own sign. -->
+  <section class="ideas" aria-labelledby="ideas-h">
+    <h2 class="h2" id="ideas-h">Seven decisions</h2>
+    <ol class="rows">
+      <li class="row">
+        <span class="row__sign" data-glyph="agent" aria-hidden="true"></span>
+        <h3 class="row__title">The agent is already the LLM</h3>
+        <p class="row__text">Graph-memory systems such as Graphiti, on Neo4j, spend LLM calls extracting entities and deduplicating them. Inside a harness the agent does that work before it calls the tool. So the store stays dumb, deterministic and offline: no server, no Neo4j, no embeddings, no API keys.</p>
+      </li>
+      <li class="row">
+        <span class="row__sign" data-glyph="cli" aria-hidden="true"></span>
+        <h3 class="row__title">A CLI, not an MCP server</h3>
+        <p class="row__text">Every harness has Bash: Claude Code, Paseo workers, pi. One binary on <code>$PATH</code> plus a skill file that teaches the commands, and any of them can use the brain.</p>
+      </li>
+      <li class="row">
+        <span class="row__sign" data-glyph="triple" aria-hidden="true"></span>
+        <h3 class="row__title">Triples plus time</h3>
+        <p class="row__text">A fact is subject, predicate, object. Facts are never overwritten, only superseded, an idea borrowed from Graphiti's bi-temporal edges. So there is history, and <code>--at</code> asks the graph what it believed on a given day.</p>
+      </li>
+      <li class="row">
+        <span class="row__sign" data-glyph="molt" aria-hidden="true"></span>
+        <h3 class="row__title">Molting</h3>
+        <p class="row__text">The agent keeps one fact, <code>i am "…"</code>, and rewrites it whenever it is corrected. The old shells stay in <code>myself history</code>, so you can read how the agent changed.</p>
+      </li>
+      <li class="row">
+        <span class="row__sign" data-glyph="dream" aria-hidden="true"></span>
+        <h3 class="row__title">Dreaming</h3>
+        <p class="row__text"><code>myself dream</code> reports duplicate entities, near-duplicate predicates and things that have no type. It only reports. The agent decides what to merge and does it with ordinary commands.</p>
+      </li>
+      <li class="row">
+        <span class="row__sign" data-glyph="file" aria-hidden="true"></span>
+        <h3 class="row__title">One file</h3>
+        <p class="row__text">The whole brain is one append-only JSONL file, <code>~/.myself/brain.jsonl</code>. It diffs, it lives in git, and two brains merge like two branches.</p>
+      </li>
+      <li class="row">
+        <span class="row__sign" data-glyph="mirror" aria-hidden="true"></span>
+        <h3 class="row__title">Obsidian as a mirror</h3>
+        <p class="row__text"><code>myself export --obsidian &lt;dir&gt;</code> writes one note per entity with <code>[[wikilinks]]</code>, and Obsidian's graph view shows the brain. It is one-way: the file is the truth, and edits in the vault do not come back.</p>
+      </li>
+    </ol>
+  </section>
+
+  <!-- Molting, drawn: three shells of one sign. -->
+  <section class="molt" aria-labelledby="molt-h">
+    <div class="molt__shells" aria-hidden="true">
+      <span class="shell-bm" data-shell="0"></span>
+      <span class="shell-bm" data-shell="1"></span>
+      <span class="shell-bm" data-shell="2"></span>
+    </div>
+    <div class="molt__text">
+      <h2 class="h2" id="molt-h">Nothing is overwritten.</h2>
+      <p class="lead">A correction does not erase the old fact. It stands behind the new one, fainter, and stays readable.</p>
+    </div>
+  </section>
+
+  <!-- Reference. -->
+  <section class="ref" aria-labelledby="ref-h">
+    <h2 class="h2" id="ref-h">Fourteen commands</h2>
+    <dl class="cmds">
+      <div><dt>remember</dt><dd>save a fact or give an entity a type</dd></div>
+      <div><dt>forget</dt><dd>retire a fact; it stays in the history</dd></div>
+      <div><dt>alias</dt><dd>make a second name point at one entity</dd></div>
+      <div><dt>describe</dt><dd>everything known about one entity, both directions</dd></div>
+      <div><dt>ls</dt><dd>list entities, optionally of one type</dd></div>
+      <div><dt>predicates</dt><dd>the verbs in use, with counts</dd></div>
+      <div><dt>search</dt><dd>find entities and facts by text</dd></div>
+      <div><dt>path</dt><dd>how two entities connect</dd></div>
+      <div><dt>log</dt><dd>what was written, newest first</dd></div>
+      <div><dt>history</dt><dd>every past version of a fact</dd></div>
+      <div><dt>prime</dt><dd>a short brief for the start of a session</dd></div>
+      <div><dt>dream</dt><dd>report duplicates and untyped things</dd></div>
+      <div><dt>export</dt><dd>write the brain out, for example <code>--obsidian</code></dd></div>
+      <div><dt>sync</dt><dd>pull and push the brain file through git</dd></div>
+    </dl>
+  </section>
+
+  <!-- Back: the shell facing the other way. Layout mirrored. -->
+  <section class="face face--back" id="status">
+    <span class="spine spine--back" aria-hidden="true">REMEMBER</span>
+    <div class="handover">
+      <p class="handover__lead">No release yet. The design is on GitHub and the commands above are the plan.</p>
+      <p class="handover__turn">In design.</p>
+      <p class="links"><a href="https://github.com/mansus-org/myself">github.com/mansus-org/myself</a></p>
+      <p class="links links--small">A <a href="https://revolution.mansus.org">Mansus project</a>. The idea started in <a href="https://revolution.mansus.org">the living second brain article</a>.</p>
+    </div>
+    <span class="bitmap" data-bitmap="back" aria-hidden="true"></span>
+  </section>
+
+</main>
+
+<script src="/assets/bitmap.js"></script>
+<script src="/assets/landing.js"></script>
+</body>
+</html>
