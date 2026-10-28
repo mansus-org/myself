@@ -1,0 +1,9 @@
+.git
+.github
+.k3s
+.claude
+paseo.json
+Dockerfile
+.dockerignore
+*.md
+design
