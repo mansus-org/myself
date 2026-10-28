@@ -1,0 +1,15 @@
+# Deploy settings for myself.mansus.org on the mansus.org cluster.
+# All options: charts/app/values.yaml in nemoNoboru/k3s-hetzner-gitops.
+
+ingress:
+  host: myself.mansus.org
+
+port: 8080
+
+healthCheck:
+  path: /
+
+# busybox httpd needs a few MB.
+resources:
+  requests: { cpu: 5m, memory: 8Mi }
+  limits: { memory: 32Mi }
