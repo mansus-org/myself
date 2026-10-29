@@ -2,7 +2,7 @@
 
 Why the landing page looks the way it does. It is built in the (R)Evolution / Consenso language:
 1-bit e-ink, two inks, one typeface. Files: `site/index.html`, `site/assets/style.css`,
-`site/assets/bitmap.js` (the m, its shells and the signs), `site/assets/landing.js` (the load flash).
+`site/assets/bitmap.js` (the m, its shells and the signs), `site/assets/landing.js` (the load flash and the Copy buttons).
 Screenshots at 1440 and 390 wide are in `screenshots/`.
 
 ## The idea
@@ -15,7 +15,11 @@ swaps places: the old shell is inked, the new m is the ghost, and the layout mir
 (R)Evolution.
 
 Design read: a tool announcement for people who run agents, in the Mansus 1-bit language.
-Dials: ENERGY 2 / RHYTHM 3 / MOTION 1.
+Dials: ENERGY 3 / RHYTHM 3 / MOTION 2.
+
+Copy: the page reads as a product page. It says what the agent and you get (memory across sessions, in
+one file you own), and each section heading names a benefit. There is no invented proof: no numbers,
+users or speed claims. The status is stated once, in the Install section: v0.1 is in progress.
 
 ## Decisions, one line each
 
@@ -24,10 +28,16 @@ Dials: ENERGY 2 / RHYTHM 3 / MOTION 1.
   statements, width 108 for reading, width 80 for code (no monospace font).
 - **Bitmaps:** the m, three shells and seven 7×7 signs are drawn cell by cell and rendered as
   crisp SVG. Dither is real squares on a sub-grid, so it stays 1-bit at any size.
-- **Terminal:** a bordered block with an inked label bar and a hard offset shadow. Prompts are
-  heavy, comments dotted-underlined, output marked by a bar. No dark theme, no window dots.
-- **The seven decisions:** ruled rows, not cards. Each has its own sign and a different title
-  length, so the rhythm is a list, not a grid of equals.
+- **Example block:** the first example is two ruled lines around the commands, with a caption and a Copy
+  button. The fake terminal window (title bar, window chrome, offset shadow) was removed (R-05). Prompts
+  are heavy, comments dotted-underlined, output marked by a bar.
+- **Install:** after the first example. The planned methods (install script, `go install`) are marked
+  "Available from v0.1", then three numbered steps for Claude Code (skill, SessionStart hook,
+  `Bash(myself:*)`) and one line for other harnesses. Every block has a Copy button: 44 px tall, 3px focus
+  ring, "Copied" for 1.5 s, and when the Clipboard API is missing or refuses it selects the text instead.
+  Long lines scroll inside the block.
+- **What you get:** the seven ruled rows, each with its own sign, written from the user's side.
+  Titles and text vary in length, so the rhythm is a list, not a grid of equals.
 - **Molting section:** the sign in three shells, sparse dither, half dither, solid.
 - **Commands:** the fourteen commands in two ruled columns, in reading order down each column.
 - **Motion:** two moments, both e-ink: the hero painting in row by row, and one black flash on
@@ -43,5 +53,5 @@ Dials: ENERGY 2 / RHYTHM 3 / MOTION 1.
 
 ## Not done yet
 
-- The tool is not built; the page says so.
+- The tool is not released; the Install section says so and marks every method as available from v0.1.
 - Real Mansus wordmark still to be supplied.
