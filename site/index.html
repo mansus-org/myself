@@ -32,30 +32,83 @@
     <p class="statement">Your agent remembers people, projects and decisions across sessions. What it learns lands in one file you own.</p>
   </section>
 
-  <!-- The whole interface, in one block. -->
+  <!-- The story across sessions: three terminal windows, read in order. -->
   <section class="shell" aria-labelledby="shell-h">
-    <h2 class="h2" id="shell-h">Say it, then ask it.</h2>
-    <figure class="code code--example">
-      <div class="code__head">
-        <figcaption class="code__cap">What the agent runs through Bash</figcaption>
-        <button class="copy" type="button" data-copy="commands" aria-label="Copy the commands of this example">Copy</button>
-      </div>
-<pre class="code__body" tabindex="0"><code><span class="c"># save</span>
-<span class="p">$</span> myself remember relay is project
-<span class="p">$</span> myself remember relay uses bun
+    <h2 class="h2" id="shell-h">Tell it on Monday. It knows on Thursday.</h2>
 
-<span class="c"># query</span>
-<span class="p">$</span> myself describe relay
+    <div class="story">
+      <article class="beat beat--mon">
+        <div class="beat__text">
+          <h3 class="beat__day">Monday</h3>
+          <p class="beat__cap">You mention it once. The agent writes it down.</p>
+          <p class="beat__sub">It runs these through Bash while it works on relay. Friday's session had already saved the npm fact.</p>
+        </div>
+        <figure class="win win--term">
+          <div class="win__bar">
+            <figcaption class="win__title">bash</figcaption>
+            <button class="copy" type="button" aria-label="Copy the commands of the Monday example">Copy</button>
+          </div>
+<pre class="win__body" tabindex="0"><code><span class="c"># saved on Friday: relay uses npm, felipe works-on relay, i am</span>
+<span class="p">$</span> myself remember relay is project
+<span class="o">remembered: relay is project</span>
+<span class="p">$</span> myself remember relay uses bun --src RELY-12
+<span class="o">remembered: relay uses bun</span>
+<span class="p">$</span> myself forget relay uses npm --reason "moved to bun"
+<span class="o">forgot: relay uses npm</span>
+<span class="p">$</span> myself remember felipe prefers "short answers, no emoji"
+<span class="o">remembered: felipe prefers "short answers, no emoji"</span></code></pre>
+        </figure>
+      </article>
+
+      <article class="beat beat--thu">
+        <div class="beat__text">
+          <h3 class="beat__day">Thursday</h3>
+          <p class="beat__cap">A new session starts with the brief. No re-explaining.</p>
+          <p class="beat__sub">A SessionStart hook runs <code>myself prime</code>, so the agent has this before you type a word. <a href="#install">Hook setup is below.</a></p>
+        </div>
+        <figure class="win win--term">
+          <div class="win__bar">
+            <figcaption class="win__title">bash</figcaption>
+            <button class="copy" type="button" aria-label="Copy the command of the Thursday example">Copy</button>
+          </div>
+<pre class="win__body" tabindex="0"><code><span class="p">$</span> myself prime --cwd ~/code/relay
+<span class="o">i am "Felipe's coding agent for relay and consenso."
+felipe prefers "short answers, no emoji"
+here: relay
+  is project
+  uses bun
+recent:
+  mon  + relay uses bun
+  mon  - relay uses npm   (moved to bun)</span></code></pre>
+        </figure>
+      </article>
+
+      <article class="beat beat--later">
+        <div class="beat__text">
+          <h3 class="beat__day">Later</h3>
+          <p class="beat__cap">Ask what it knows, and what changed.</p>
+          <p class="beat__sub">You can run these yourself, too.</p>
+        </div>
+        <figure class="win win--term">
+          <div class="win__bar">
+            <figcaption class="win__title">bash</figcaption>
+            <button class="copy" type="button" aria-label="Copy the commands of the Later example">Copy</button>
+          </div>
+<pre class="win__body" tabindex="0"><code><span class="p">$</span> myself describe relay
 <span class="o">relay
   is project
   uses bun
-  ← felipe works-on relay</span>
-
-<span class="c"># molting</span>
-<span class="p">$</span> myself remember i am "Felipe's coding agent. Prefers bun. Answers tersely."
-<span class="p">$</span> myself history i am</code></pre>
-    </figure>
-    <p class="note">The agent does the thinking. myself keeps what it learned. You can run the same commands yourself.</p>
+  ← felipe works-on</span>
+<span class="p">$</span> myself history relay uses
+<span class="o">fri 16:40  + uses npm
+mon 10:02  + uses bun   (RELY-12)
+mon 10:03  - uses npm   moved to bun</span>
+<span class="p">$</span> myself path bun felipe
+<span class="o">bun ← uses relay ← works-on felipe</span></code></pre>
+        </figure>
+      </article>
+    </div>
+    <p class="note">The agent does the thinking. myself keeps what it learned.</p>
   </section>
 
   <!-- Install: planned methods, available from v0.1. -->
@@ -63,38 +116,38 @@
     <h2 class="h2" id="install-h">Install</h2>
     <p class="status"><strong>Available from v0.1.</strong> The first release is in progress, so none of this installs yet. <a href="https://github.com/mansus-org/myself">Watch the repo on GitHub</a> to hear when it ships.</p>
 
-    <figure class="code">
-      <div class="code__head">
-        <figcaption class="code__cap">Linux and macOS, or Go</figcaption>
+    <figure class="win win--term">
+      <div class="win__bar">
+        <figcaption class="win__title">bash <span class="win__sub">Linux and macOS, or Go</span></figcaption>
         <button class="copy" type="button" aria-label="Copy the install commands">Copy</button>
       </div>
-<pre class="code__body" tabindex="0"><code><span class="c"># one line (Linux, macOS): downloads the release binary into ~/.local/bin</span>
-curl -fsSL https://raw.githubusercontent.com/mansus-org/myself/main/install.sh | sh
+<pre class="win__body" tabindex="0"><code><span class="c"># one line (Linux, macOS): downloads the release binary into ~/.local/bin</span>
+<span class="p">$</span> curl -fsSL https://raw.githubusercontent.com/mansus-org/myself/main/install.sh | sh
 
 <span class="c"># or with Go</span>
-go install github.com/mansus-org/myself@latest</code></pre>
+<span class="p">$</span> go install github.com/mansus-org/myself@latest</code></pre>
     </figure>
 
     <h3 class="h3">Use it from Claude Code</h3>
     <ol class="steps">
       <li class="step">
         <p class="step__text"><span class="step__n">1</span>Install the skill. Copy <code>skill/myself</code> from the repo into <code>~/.claude/skills/</code>.</p>
-        <figure class="code">
-          <div class="code__head">
-            <figcaption class="code__cap">From a clone of the repo</figcaption>
+        <figure class="win win--term">
+          <div class="win__bar">
+            <figcaption class="win__title">bash <span class="win__sub">from a clone of the repo</span></figcaption>
             <button class="copy" type="button" aria-label="Copy the skill install command">Copy</button>
           </div>
-<pre class="code__body" tabindex="0"><code>cp -r skill/myself ~/.claude/skills/</code></pre>
+<pre class="win__body" tabindex="0"><code><span class="p">$</span> cp -r skill/myself ~/.claude/skills/</code></pre>
         </figure>
       </li>
       <li class="step">
         <p class="step__text"><span class="step__n">2</span>Start every session with the brief. Add a SessionStart hook to <code>~/.claude/settings.json</code> that runs <code>myself prime</code>.</p>
-        <figure class="code">
-          <div class="code__head">
-            <figcaption class="code__cap">~/.claude/settings.json</figcaption>
+        <figure class="win win--file">
+          <div class="win__bar">
+            <figcaption class="win__title">~/.claude/settings.json <span class="win__sub">file</span></figcaption>
             <button class="copy" type="button" aria-label="Copy the settings.json snippet">Copy</button>
           </div>
-<pre class="code__body" tabindex="0"><code>{
+<pre class="win__body" tabindex="0"><code>{
   "env": { "MYSELF_AGENT": "claude-code" },
   "hooks": {
     "SessionStart": [
@@ -106,12 +159,12 @@ go install github.com/mansus-org/myself@latest</code></pre>
       </li>
       <li class="step">
         <p class="step__text"><span class="step__n">3</span>Allow <code>Bash(myself:*)</code> so permission prompts do not stop the agent.</p>
-        <figure class="code">
-          <div class="code__head">
-            <figcaption class="code__cap">~/.claude/settings.json</figcaption>
+        <figure class="win win--file">
+          <div class="win__bar">
+            <figcaption class="win__title">~/.claude/settings.json <span class="win__sub">file</span></figcaption>
             <button class="copy" type="button" aria-label="Copy the permissions snippet">Copy</button>
           </div>
-<pre class="code__body" tabindex="0"><code>{
+<pre class="win__body" tabindex="0"><code>{
   "permissions": { "allow": [ "Bash(myself:*)" ] }
 }</code></pre>
         </figure>
