@@ -94,29 +94,60 @@ code {
   font-size: clamp(1.125rem, 1.8vw, 1.75rem); line-height: 1.14;
 }
 
-/* ---------- example and code blocks ---------- */
+/* ---------- story and windows ---------- */
 .shell { padding: clamp(72px, 11vw, 168px) var(--pad) 0; }
-.code { margin: 0; max-width: 960px; min-width: 0; }
-.code__head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
-.code__cap { font-variation-settings: "wdth" 125; font-weight: 700; font-size: 0.875rem; min-width: 0; overflow-wrap: anywhere; }
-/* The block is two rules and a body. Long lines scroll inside it, never the page. */
-.code__body {
-  margin: 0; padding: 1.1em 0.2em 1.3em;
-  border-top: 4px solid var(--ink); border-bottom: 2px solid var(--ink);
-  overflow-x: auto; max-width: 100%; font: inherit;
+.shell .h2 { max-width: 12ch; }
+.story { display: grid; gap: clamp(48px, 8vw, 120px); margin-top: clamp(32px, 5vw, 64px); }
+.beat { display: grid; align-items: start; column-gap: clamp(24px, 4vw, 64px); row-gap: 20px; min-width: 0; }
+.beat__text { min-width: 0; }
+.beat__day {
+  margin: 0 0 0.2em;
+  font-variation-settings: "wdth" 50; font-weight: 900;
+  font-size: clamp(2rem, 4vw, 3.25rem); line-height: 0.9;
 }
-.code__body code {
+.beat__cap {
+  margin: 0 0 0.6em; max-width: 20ch;
+  font-variation-settings: "wdth" 150; font-weight: 330;
+  font-size: clamp(1.25rem, 2.1vw, 2rem); line-height: 1.12;
+}
+.beat__sub { margin: 0; max-width: 34ch; font-size: 0.9375rem; line-height: 1.4; }
+.beat__sub a { display: inline-block; padding: 10px 0; }
+/* Staggered, so the story reads down the page: text left, then window left, then a narrower window. */
+@media (min-width: 761px) {
+  .beat--mon { grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); }
+  .beat--thu { grid-template-columns: minmax(0, 8fr) minmax(0, 4fr); }
+  .beat--thu .beat__text { grid-column: 2; grid-row: 1; }
+  .beat--thu .win { grid-column: 1; grid-row: 1; }
+  .beat--later { grid-template-columns: minmax(0, 3fr) minmax(0, 6fr); margin-left: 16.666%; }
+}
+
+/* A window is a title bar and a ruled body. Terminals have an ink bar, files a paper one. */
+.win { margin: 0; max-width: 960px; min-width: 0; border: 3px solid var(--ink); background: var(--paper); }
+.win__bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 5px 5px 5px 14px; }
+.win__title { min-width: 0; overflow-wrap: anywhere; font-variation-settings: "wdth" 80; font-weight: 800; font-size: 0.9375rem; }
+.win__sub { margin-left: 0.6em; font-variation-settings: "wdth" 108; font-weight: 420; }
+.win__body { margin: 0; padding: 1.1em 1.2em 1.3em; overflow-x: auto; max-width: 100%; font: inherit; }
+.win__body code {
   display: block; outline: none; padding: 0; width: max-content; min-width: 100%; white-space: pre;
   font-variation-settings: "wdth" 80; font-weight: 520;
   font-size: clamp(0.8125rem, 1.5vw, 1.0625rem); line-height: 1.65; tab-size: 2;
 }
-.code .p { font-weight: 900; margin-right: 0.2em; }
+.win--term { box-shadow: 8px 8px 0 -2px var(--paper), 8px 8px 0 0 var(--ink); }
+.win--term .win__bar { background: var(--ink); color: var(--paper); }
+.win--term .copy { border-color: var(--paper); }
+.win--term .copy:hover, .win--term .copy[data-state] { background: var(--paper); color: var(--ink); }
+.win--term .copy:focus-visible { outline: 3px solid var(--paper); outline-offset: 2px; }
+.win--file { border-width: 2px; }
+.win--file .win__bar { border-bottom: 2px dotted var(--ink); }
+.win--file .win__title { font-weight: 520; }
+.win--file .win__body code { font-weight: 480; }
+.win .p { font-weight: 900; margin-right: 0.2em; }
 /* Comments and output share the ink; weight, a dotted underline and a bar set them apart. */
-.code .c { font-weight: 360; font-style: normal; text-decoration: underline; text-decoration-style: dotted; text-decoration-thickness: 2px; }
-.code .o { display: inline-block; padding-left: 1em; border-left: 6px solid var(--ink); font-weight: 400; }
+.win .c { font-weight: 360; font-style: normal; text-decoration: underline; text-decoration-style: dotted; text-decoration-thickness: 2px; }
+.win .o { display: inline-block; padding-left: 1em; border-left: 6px solid var(--ink); font-weight: 400; }
 
 .copy {
-  flex: none; min-width: 7.5em; min-height: 44px; padding: 0 1em;
+  flex: none; min-width: 6.5em; min-height: 44px; padding: 0 1em;
   border: 3px solid var(--ink); background: var(--paper); color: var(--ink); cursor: pointer;
   font-family: inherit; font-variation-settings: "wdth" 125; font-weight: 800; font-size: 0.9375rem;
 }
