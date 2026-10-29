@@ -3,8 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>myself · a personal knowledge graph in one command · Mansus</title>
-<meta name="description" content="myself is a tiny single-binary CLI that any agent harness calls through Bash to save and query entities, types and relationships. In design, not released.">
+<title>myself · your agent remembers, in one file you own · Mansus</title>
+<meta name="description" content="myself is a small command-line tool that lets your coding agent remember people, projects and decisions across sessions. What it learns lands in one JSONL file you own. First release (v0.1) is in progress.">
+<link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anybody:wdth,wght@50..150,300..900&display=swap" rel="stylesheet">
@@ -28,15 +29,18 @@
       <span class="spine" aria-hidden="true">REMEMBER</span>
       <noscript><span class="fallback" aria-hidden="true">m</span></noscript>
     </h1>
-    <p class="statement">A personal knowledge graph in one command. The agent you already have does the thinking; myself keeps what it learned.</p>
+    <p class="statement">Your agent remembers people, projects and decisions across sessions. What it learns lands in one file you own.</p>
   </section>
 
   <!-- The whole interface, in one block. -->
   <section class="shell" aria-labelledby="shell-h">
     <h2 class="h2" id="shell-h">Say it, then ask it.</h2>
-    <div class="term">
-      <p class="term__label">bash</p>
-<pre class="term__body"><code><span class="c"># save</span>
+    <figure class="code code--example">
+      <div class="code__head">
+        <figcaption class="code__cap">What the agent runs through Bash</figcaption>
+        <button class="copy" type="button" data-copy="commands" aria-label="Copy the commands of this example">Copy</button>
+      </div>
+<pre class="code__body" tabindex="0"><code><span class="c"># save</span>
 <span class="p">$</span> myself remember relay is project
 <span class="p">$</span> myself remember relay uses bun
 
@@ -50,48 +54,110 @@
 <span class="c"># molting</span>
 <span class="p">$</span> myself remember i am "Felipe's coding agent. Prefers bun. Answers tersely."
 <span class="p">$</span> myself history i am</code></pre>
-    </div>
-    <p class="note">One binary written in Go, called through plain Bash. Nothing to host, nothing to log in to.</p>
+    </figure>
+    <p class="note">The agent does the thinking. myself keeps what it learned. You can run the same commands yourself.</p>
   </section>
 
-  <!-- The ideas: ruled rows, each with its own sign. -->
+  <!-- Install: planned methods, available from v0.1. -->
+  <section class="install" id="install" aria-labelledby="install-h">
+    <h2 class="h2" id="install-h">Install</h2>
+    <p class="status"><strong>Available from v0.1.</strong> The first release is in progress, so none of this installs yet. <a href="https://github.com/mansus-org/myself">Watch the repo on GitHub</a> to hear when it ships.</p>
+
+    <figure class="code">
+      <div class="code__head">
+        <figcaption class="code__cap">Linux and macOS, or Go</figcaption>
+        <button class="copy" type="button" aria-label="Copy the install commands">Copy</button>
+      </div>
+<pre class="code__body" tabindex="0"><code><span class="c"># one line (Linux, macOS): downloads the release binary into ~/.local/bin</span>
+curl -fsSL https://raw.githubusercontent.com/mansus-org/myself/main/install.sh | sh
+
+<span class="c"># or with Go</span>
+go install github.com/mansus-org/myself@latest</code></pre>
+    </figure>
+
+    <h3 class="h3">Use it from Claude Code</h3>
+    <ol class="steps">
+      <li class="step">
+        <p class="step__text"><span class="step__n">1</span>Install the skill. Copy <code>skill/myself</code> from the repo into <code>~/.claude/skills/</code>.</p>
+        <figure class="code">
+          <div class="code__head">
+            <figcaption class="code__cap">From a clone of the repo</figcaption>
+            <button class="copy" type="button" aria-label="Copy the skill install command">Copy</button>
+          </div>
+<pre class="code__body" tabindex="0"><code>cp -r skill/myself ~/.claude/skills/</code></pre>
+        </figure>
+      </li>
+      <li class="step">
+        <p class="step__text"><span class="step__n">2</span>Start every session with the brief. Add a SessionStart hook to <code>~/.claude/settings.json</code> that runs <code>myself prime</code>.</p>
+        <figure class="code">
+          <div class="code__head">
+            <figcaption class="code__cap">~/.claude/settings.json</figcaption>
+            <button class="copy" type="button" aria-label="Copy the settings.json snippet">Copy</button>
+          </div>
+<pre class="code__body" tabindex="0"><code>{
+  "env": { "MYSELF_AGENT": "claude-code" },
+  "hooks": {
+    "SessionStart": [
+      { "hooks": [ { "type": "command", "command": "myself prime --cwd \"$CLAUDE_PROJECT_DIR\"" } ] }
+    ]
+  }
+}</code></pre>
+        </figure>
+      </li>
+      <li class="step">
+        <p class="step__text"><span class="step__n">3</span>Allow <code>Bash(myself:*)</code> so permission prompts do not stop the agent.</p>
+        <figure class="code">
+          <div class="code__head">
+            <figcaption class="code__cap">~/.claude/settings.json</figcaption>
+            <button class="copy" type="button" aria-label="Copy the permissions snippet">Copy</button>
+          </div>
+<pre class="code__body" tabindex="0"><code>{
+  "permissions": { "allow": [ "Bash(myself:*)" ] }
+}</code></pre>
+        </figure>
+      </li>
+    </ol>
+    <p class="note">Other harnesses: any agent that can run shell commands can use myself. <code>myself prime</code> prints a brief to paste into its system prompt.</p>
+  </section>
+
+  <!-- What you get: ruled rows, each with its own sign. -->
   <section class="ideas" aria-labelledby="ideas-h">
-    <h2 class="h2" id="ideas-h">Seven decisions</h2>
+    <h2 class="h2" id="ideas-h">What you get</h2>
     <ol class="rows">
       <li class="row">
         <span class="row__sign" data-glyph="agent" aria-hidden="true"></span>
-        <h3 class="row__title">The agent is already the LLM</h3>
-        <p class="row__text">Graph-memory systems such as Graphiti, on Neo4j, spend LLM calls extracting entities and deduplicating them. Inside a harness the agent does that work before it calls the tool. So the store stays dumb, deterministic and offline: no server, no Neo4j, no embeddings, no API keys.</p>
+        <h3 class="row__title">Works with the agent you already run</h3>
+        <p class="row__text">The agent does the extracting before it calls myself. So there are no extra LLM calls, no server and no API keys, and it works offline.</p>
       </li>
       <li class="row">
         <span class="row__sign" data-glyph="cli" aria-hidden="true"></span>
-        <h3 class="row__title">A CLI, not an MCP server</h3>
-        <p class="row__text">Every harness has Bash: Claude Code, Paseo workers, pi. One binary on <code>$PATH</code> plus a skill file that teaches the commands, and any of them can use the brain.</p>
+        <h3 class="row__title">One binary, called from Bash</h3>
+        <p class="row__text">Claude Code, pi and Paseo workers all have Bash. Put the binary on your <code>$PATH</code>, add a skill file, and any of them can use it.</p>
       </li>
       <li class="row">
         <span class="row__sign" data-glyph="triple" aria-hidden="true"></span>
-        <h3 class="row__title">Triples plus time</h3>
-        <p class="row__text">A fact is subject, predicate, object. Facts are never overwritten, only superseded, an idea borrowed from Graphiti's bi-temporal edges. So there is history, and <code>--at</code> asks the graph what it believed on a given day.</p>
+        <h3 class="row__title">Facts carry time</h3>
+        <p class="row__text">A correction supersedes the old fact, it does not erase it. Add <code>--at</code> to see what was true on a given date.</p>
       </li>
       <li class="row">
         <span class="row__sign" data-glyph="molt" aria-hidden="true"></span>
-        <h3 class="row__title">Molting</h3>
-        <p class="row__text">The agent keeps one fact, <code>i am "…"</code>, and rewrites it whenever it is corrected. The old shells stay in <code>myself history</code>, so you can read how the agent changed.</p>
+        <h3 class="row__title">Molting: the agent rewrites who it is</h3>
+        <p class="row__text">The agent keeps one fact, <code>i am "…"</code>, and rewrites it when you correct it. <code>myself history i am</code> shows how it changed.</p>
       </li>
       <li class="row">
         <span class="row__sign" data-glyph="dream" aria-hidden="true"></span>
-        <h3 class="row__title">Dreaming</h3>
-        <p class="row__text"><code>myself dream</code> reports duplicate entities, near-duplicate predicates and things that have no type. It only reports. The agent decides what to merge and does it with ordinary commands.</p>
+        <h3 class="row__title">Dreaming tidies up</h3>
+        <p class="row__text"><code>myself dream</code> lists duplicate entities and near-duplicate predicates. The agent merges them with ordinary commands.</p>
       </li>
       <li class="row">
         <span class="row__sign" data-glyph="file" aria-hidden="true"></span>
-        <h3 class="row__title">One file</h3>
-        <p class="row__text">The whole brain is one append-only JSONL file, <code>~/.myself/brain.jsonl</code>. It diffs, it lives in git, and two brains merge like two branches.</p>
+        <h3 class="row__title">One file, in git</h3>
+        <p class="row__text">The memory is <code>~/.myself/brain.jsonl</code>. It diffs, it lives in git, and two memories merge like two branches.</p>
       </li>
       <li class="row">
         <span class="row__sign" data-glyph="mirror" aria-hidden="true"></span>
-        <h3 class="row__title">Obsidian as a mirror</h3>
-        <p class="row__text"><code>myself export --obsidian &lt;dir&gt;</code> writes one note per entity with <code>[[wikilinks]]</code>, and Obsidian's graph view shows the brain. It is one-way: the file is the truth, and edits in the vault do not come back.</p>
+        <h3 class="row__title">See it in Obsidian</h3>
+        <p class="row__text"><code>myself export --obsidian &lt;dir&gt;</code> writes one note per entity with <code>[[wikilinks]]</code>, and Obsidian's graph view draws the graph. It is a one-way mirror: edits in the vault do not come back.</p>
       </li>
     </ol>
   </section>
@@ -134,9 +200,9 @@
   <section class="face face--back" id="status">
     <span class="spine spine--back" aria-hidden="true">REMEMBER</span>
     <div class="handover">
-      <p class="handover__lead">No release yet. The design is on GitHub and the commands above are the plan.</p>
-      <p class="handover__turn">In design.</p>
-      <p class="links"><a href="https://github.com/mansus-org/myself">github.com/mansus-org/myself</a></p>
+      <p class="handover__lead">The design and the command list are public.</p>
+      <p class="handover__turn">Follow along.</p>
+      <p class="links"><a href="https://github.com/mansus-org/myself">Watch the repo on GitHub</a></p>
       <p class="links links--small">A <a href="https://revolution.mansus.org">Mansus project</a>. The idea started in <a href="https://revolution.mansus.org/articles/living-second-brain/">the living second brain article</a>.</p>
     </div>
     <span class="bitmap" data-bitmap="back" aria-hidden="true"></span>
