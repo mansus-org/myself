@@ -89,30 +89,58 @@ code {
 }
 .statement {
   grid-area: statement; justify-self: start;
-  margin: 0 0 0.2em; max-width: 17ch;
+  margin: 0 0 0.2em; max-width: 19ch;
   font-variation-settings: "wdth" 150; font-weight: 330;
   font-size: clamp(1.125rem, 1.8vw, 1.75rem); line-height: 1.14;
 }
 
-/* ---------- terminal ---------- */
+/* ---------- example and code blocks ---------- */
 .shell { padding: clamp(72px, 11vw, 168px) var(--pad) 0; }
-.term { border: 3px solid var(--ink); max-width: 960px; background: var(--paper); box-shadow: 10px 10px 0 -2px var(--paper), 10px 10px 0 0 var(--ink); }
-.term__label {
-  margin: 0; padding: 0.3em 0.9em;
-  background: var(--ink); color: var(--paper);
-  font-variation-settings: "wdth" 112; font-weight: 700; font-size: 0.8125rem;
+.code { margin: 0; max-width: 960px; min-width: 0; }
+.code__head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
+.code__cap { font-variation-settings: "wdth" 125; font-weight: 700; font-size: 0.875rem; min-width: 0; overflow-wrap: anywhere; }
+/* The block is two rules and a body. Long lines scroll inside it, never the page. */
+.code__body {
+  margin: 0; padding: 1.1em 0.2em 1.3em;
+  border-top: 4px solid var(--ink); border-bottom: 2px solid var(--ink);
+  overflow-x: auto; max-width: 100%; font: inherit;
 }
-.term__body { margin: 0; padding: 1.1em 1.2em 1.3em; overflow-x: auto; font: inherit; }
-.term__body code {
-  display: block; outline: none; padding: 0; white-space: pre;
+.code__body code {
+  display: block; outline: none; padding: 0; width: max-content; min-width: 100%; white-space: pre;
   font-variation-settings: "wdth" 80; font-weight: 520;
   font-size: clamp(0.8125rem, 1.5vw, 1.0625rem); line-height: 1.65; tab-size: 2;
 }
-.term .p { font-weight: 900; margin-right: 0.2em; }
+.code .p { font-weight: 900; margin-right: 0.2em; }
 /* Comments and output share the ink; weight, a dotted underline and a bar set them apart. */
-.term .c { font-weight: 360; font-style: normal; text-decoration: underline; text-decoration-style: dotted; text-decoration-thickness: 2px; }
-.term .o { display: inline-block; padding-left: 1em; border-left: 6px solid var(--ink); font-weight: 400; }
-.note { margin: 28px 0 0; max-width: 46ch; font-variation-settings: "wdth" 125; font-weight: 700; font-size: 1rem; }
+.code .c { font-weight: 360; font-style: normal; text-decoration: underline; text-decoration-style: dotted; text-decoration-thickness: 2px; }
+.code .o { display: inline-block; padding-left: 1em; border-left: 6px solid var(--ink); font-weight: 400; }
+
+.copy {
+  flex: none; min-width: 7.5em; min-height: 44px; padding: 0 1em;
+  border: 3px solid var(--ink); background: var(--paper); color: var(--ink); cursor: pointer;
+  font-family: inherit; font-variation-settings: "wdth" 125; font-weight: 800; font-size: 0.9375rem;
+}
+.copy:hover, .copy[data-state] { background: var(--ink); color: var(--paper); }
+.note { margin: 28px 0 0; max-width: 52ch; font-variation-settings: "wdth" 125; font-weight: 700; font-size: 1rem; }
+.note code { font-weight: 800; }
+
+/* ---------- install ---------- */
+.install { padding: clamp(72px, 11vw, 168px) var(--pad) 0; }
+.status { margin: 0 0 40px; max-width: 46ch; padding-left: 1em; border-left: 6px solid var(--ink); font-variation-settings: "wdth" 125; font-weight: 700; font-size: 1.0625rem; }
+.status a { display: inline-block; padding: 10px 0; }
+.h3 {
+  margin: clamp(48px, 7vw, 96px) 0 20px;
+  font-variation-settings: "wdth" 50; font-weight: 900;
+  font-size: clamp(2rem, 4vw, 3.25rem); line-height: 0.9;
+}
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 36px; }
+.step { min-width: 0; }
+.step__text { margin: 0 0 14px; max-width: 62ch; }
+.step__n {
+  display: inline-block; min-width: 1.6em; margin-right: 0.6em; text-align: center;
+  background: var(--ink); color: var(--paper);
+  font-variation-settings: "wdth" 80; font-weight: 900;
+}
 
 /* ---------- ideas ---------- */
 .ideas { padding: clamp(72px, 11vw, 168px) var(--pad) 0; }
