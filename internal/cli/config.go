@@ -1,9 +1,6 @@
 package cli
 
-import (
-	"os"
-	"path/filepath"
-)
+import "github.com/mansus-org/myself/internal/store"
 
 // Config is the resolved global configuration handed to every command.
 type Config struct {
@@ -12,24 +9,9 @@ type Config struct {
 }
 
 // EnvFile is the environment variable that overrides the default store path.
-const EnvFile = "MYSELF_FILE"
-
-// defaultFile returns ~/.myself/brain.jsonl.
-func defaultFile() (string, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(home, ".myself", "brain.jsonl"), nil
-}
+const EnvFile = store.EnvFile
 
 // resolveFile applies the precedence --file > MYSELF_FILE > default.
 func resolveFile(flagValue string, flagSet bool) (string, error) {
-	if flagSet {
-		return flagValue, nil
-	}
-	if v := os.Getenv(EnvFile); v != "" {
-		return v, nil
-	}
-	return defaultFile()
+	return store.ResolvePath(flagValue, flagSet)
 }
