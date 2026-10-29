@@ -4,6 +4,8 @@
 
 Status: in design, not released.
 
+The contract for the CLI is in [SPEC.md](SPEC.md).
+
 ## Landing page
 
 The site lives in `site/` (plain HTML, CSS and JS, no build step) and deploys to https://myself.mansus.org on merge to `main`: the `Dockerfile` serves `site/` with busybox httpd, `.k3s/values.yaml` holds the cluster settings, `.github/workflows/deploy.yml` builds the image. Pull requests get a preview at `myself-pr-<number>.mansus.org`. The design rationale is in `design/README.md`.
