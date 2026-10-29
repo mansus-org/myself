@@ -41,22 +41,22 @@
         <div class="beat__text">
           <h3 class="beat__day">Monday</h3>
           <p class="beat__cap">You mention it once. The agent writes it down.</p>
-          <p class="beat__sub">It runs these through Bash while it works on relay. Friday's session had already saved the npm fact.</p>
+          <p class="beat__sub">The agent runs these through Bash while it works on storefront. A session last week had already saved the npm fact.</p>
         </div>
         <figure class="win win--term">
           <div class="win__bar">
             <figcaption class="win__title">bash</figcaption>
             <button class="copy" type="button" aria-label="Copy the commands of the Monday example">Copy</button>
           </div>
-<pre class="win__body" tabindex="0"><code><span class="c"># saved on Friday: relay uses npm, felipe works-on relay, i am</span>
-<span class="p">$</span> myself remember relay is project
-<span class="o">remembered: relay is project</span>
-<span class="p">$</span> myself remember relay uses bun --src RELY-12
-<span class="o">remembered: relay uses bun</span>
-<span class="p">$</span> myself forget relay uses npm --reason "moved to bun"
-<span class="o">forgot: relay uses npm</span>
-<span class="p">$</span> myself remember felipe prefers "short answers, no emoji"
-<span class="o">remembered: felipe prefers "short answers, no emoji"</span></code></pre>
+<pre class="win__body" tabindex="0"><code><span class="c"># saved last week: storefront uses npm, alice owns storefront</span>
+<span class="p">$</span> myself remember storefront is project
+<span class="o">remembered: storefront is project</span>
+<span class="p">$</span> myself remember storefront uses bun --src "PR #218"
+<span class="o">remembered: storefront uses bun</span>
+<span class="p">$</span> myself forget storefront uses npm --reason "moved to bun"
+<span class="o">forgot: storefront uses npm</span>
+<span class="p">$</span> myself remember user prefers "short answers, no emoji"
+<span class="o">remembered: user prefers "short answers, no emoji"</span></code></pre>
         </figure>
       </article>
 
@@ -71,15 +71,15 @@
             <figcaption class="win__title">bash</figcaption>
             <button class="copy" type="button" aria-label="Copy the command of the Thursday example">Copy</button>
           </div>
-<pre class="win__body" tabindex="0"><code><span class="p">$</span> myself prime --cwd ~/code/relay
-<span class="o">i am "Felipe's coding agent for relay and consenso."
-felipe prefers "short answers, no emoji"
-here: relay
+<pre class="win__body" tabindex="0"><code><span class="p">$</span> myself prime --cwd ~/code/storefront
+<span class="o">i am "Coding agent for the storefront repo."
+user prefers "short answers, no emoji"
+here: storefront
   is project
   uses bun
 recent:
-  mon  + relay uses bun
-  mon  - relay uses npm   (moved to bun)</span></code></pre>
+  mon  + storefront uses bun
+  mon  - storefront uses npm   (moved to bun)</span></code></pre>
         </figure>
       </article>
 
@@ -94,17 +94,17 @@ recent:
             <figcaption class="win__title">bash</figcaption>
             <button class="copy" type="button" aria-label="Copy the commands of the Later example">Copy</button>
           </div>
-<pre class="win__body" tabindex="0"><code><span class="p">$</span> myself describe relay
-<span class="o">relay
+<pre class="win__body" tabindex="0"><code><span class="p">$</span> myself describe storefront
+<span class="o">storefront
   is project
   uses bun
-  ← felipe works-on</span>
-<span class="p">$</span> myself history relay uses
+  ← alice owns</span>
+<span class="p">$</span> myself history storefront uses
 <span class="o">fri 16:40  + uses npm
-mon 10:02  + uses bun   (RELY-12)
+mon 10:02  + uses bun   (PR #218)
 mon 10:03  - uses npm   moved to bun</span>
-<span class="p">$</span> myself path bun felipe
-<span class="o">bun ← uses relay ← works-on felipe</span></code></pre>
+<span class="p">$</span> myself path bun alice
+<span class="o">bun ← uses storefront ← owns alice</span></code></pre>
         </figure>
       </article>
     </div>
@@ -185,7 +185,7 @@ mon 10:03  - uses npm   moved to bun</span>
       <li class="row">
         <span class="row__sign" data-glyph="cli" aria-hidden="true"></span>
         <h3 class="row__title">One binary, called from Bash</h3>
-        <p class="row__text">Claude Code, pi and Paseo workers all have Bash. Put the binary on your <code>$PATH</code>, add a skill file, and any of them can use it.</p>
+        <p class="row__text">Claude Code, Codex, pi, or any agent that can run a shell command can call it. Put the binary on your <code>$PATH</code>, add a skill file, and the agent can use it.</p>
       </li>
       <li class="row">
         <span class="row__sign" data-glyph="triple" aria-hidden="true"></span>
