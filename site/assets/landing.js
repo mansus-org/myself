@@ -16,8 +16,8 @@
   document.body.append(live);
 
   const textOf = (btn, code) => {
-    if (btn.dataset.copy !== "commands") return code.textContent;
-    // The example mixes commands, comments and output: copy only the commands.
+    if (!btn.closest(".win--term")) return code.textContent;
+    // A terminal mixes commands, comments and output: copy only the commands.
     return code.textContent.split("\n").filter((l) => l.startsWith("$ ")).map((l) => l.slice(2)).join("\n");
   };
   const select = (code) => {
@@ -36,7 +36,7 @@
   };
 
   document.querySelectorAll(".copy").forEach((btn) => {
-    const code = btn.closest(".code").querySelector("code");
+    const code = btn.closest(".win").querySelector("code");
     btn.addEventListener("click", async () => {
       const text = textOf(btn, code);
       try {
