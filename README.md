@@ -1,6 +1,6 @@
 # myself
 
-`myself` is a tiny single-binary CLI (Go) that any agent harness (Claude Code, Paseo workers, pi) calls through plain Bash to save and query entities, types and relationships: a personal knowledge graph in one command. Facts are triples that are superseded, never overwritten; the whole brain is one append-only JSONL file.
+`myself` is a tiny single-binary CLI (Go) that any agent harness (Claude Code, Codex, pi) calls through plain Bash to save and query entities, types and relationships: a personal knowledge graph in one command. Facts are triples that are superseded, never overwritten; the whole brain is one append-only JSONL file.
 
 Status: in design, not released.
 

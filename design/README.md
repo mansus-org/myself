@@ -1,6 +1,6 @@
 # myself, design notes
 
-Why the landing page looks the way it does. It is built in the (R)Evolution / Consenso language:
+Why the landing page looks the way it does. It is built in the (R)Evolution language:
 1-bit e-ink, two inks, one typeface. Files: `site/index.html`, `site/assets/style.css`,
 `site/assets/bitmap.js` (the m, its shells and the signs), `site/assets/landing.js` (the load flash and the Copy buttons).
 Screenshots at 1440 and 390 wide are in `screenshots/`.
@@ -36,7 +36,7 @@ users or speed claims. The status is stated once, in the Install section: v0.1 i
   path and a dotted rule, no shadow. Ink bar means "you type this", paper bar means "you paste this into a file".
 - **Cross-session example:** the hero example is a story in three windows, staggered down the page (stacked on mobile):
   Monday the agent saves facts, Thursday a fresh session starts from `myself prime`, later the user asks with
-  `describe`, `history` and `path`. All three show the same facts (relay, bun, npm, felipe), so the value is visible: nothing is re-explained.
+  `describe`, `history` and `path`. All three show the same facts (storefront, bun, npm, alice), so the value is visible: nothing is re-explained.
 - **Install:** after the first example. The planned methods (install script, `go install`) are marked
   "Available from v0.1", then three numbered steps for Claude Code (skill, SessionStart hook,
   `Bash(myself:*)`) and one line for other harnesses. Every block has a Copy button (terminals copy commands only): 44 px tall, 3px focus
