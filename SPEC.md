@@ -91,13 +91,13 @@ Global flags: `--file PATH`, `--json`, `--at TIME` (only on commands that list i
 
 - `remember -` is all-or-nothing: every line is validated first; on any error nothing is written, and the error names the line number.
 - `forget <uuid>` is used when exactly one argument is given and it is a UUID. Otherwise the arguments are `<subject> <relation> [<object...>]`: it forgets every live record with that subject and relation, narrowed to those whose normalized object equals the given object if one is given. Exit 2 if nothing matches.
-- `describe <entity>`: records where the entity is subject (`out`) or the linked object (`in`). `--depth` defaults to 1; depth N also expands entities reachable in N hops, breadth-first.
+- `describe <entity>`: records where the entity is subject (`out`) or the linked object (`in`). `--depth` defaults to 0 (only that entity); depth N also shows every entity reachable within N hops, breadth-first.
 - `ls <type>`: every entity that reaches `<type>` through a chain of live `is` records (transitive subtypes). `ls` with no argument lists every entity that is the object of a live `is` record. **Decision:** the original text said "either direction"; only the subtype direction is listed, since the supertypes of an entity are already visible with `describe`, and mixing both directions makes `ls software` ambiguous.
 - `path <a> <b>`: shortest chain of live records connecting `a` to `b`, edges walked in either direction; `--max-depth` defaults to 6.
 - `search <text>`: case-insensitive substring match on subject, relation or object of live records.
 - `log`: every record, forgets included, in uuid order. `--since` filters by time, `-n N` keeps the last N.
 - `history <subject> [<relation>]`: every record, forgotten or not, for that subject (and relation), plus the `forget` records pointing at them, in uuid order.
-- `prime`: a compact summary of the brain to paste into an agent context: entities ordered by live record count (descending, then name), each rendered as `describe` at depth 1, cut at a line boundary to fit `--budget` characters (default 2000).
+- `prime`: a compact summary of the brain to paste into an agent context: entities ordered by live record count (descending, then name), each rendered as `describe` at depth 0, cut at a line boundary to fit `--budget` characters (default 2000).
 - `dream`: read-only report of near-duplicate subjects (equal after removing `-` and a trailing `s`). Writes nothing.
 - `export --obsidian <dir>`: writes one `<entity>.md` per entity (live state only), overwriting existing files of the same name. Note format is shown in section 9.
 
@@ -162,7 +162,7 @@ $ myself describe relay
 relay
   is project
   uses bun for the backend, biome for linting, deployed on k3s
-$ myself describe relay --depth 2
+$ myself describe relay --depth 1
 relay
   is project
   uses bun for the backend, biome for linting, deployed on k3s
@@ -177,7 +177,7 @@ relay is project
 project is software
 ```
 
-`describe` prints `<relation> <object>` for each outgoing record and `<- <subject> <relation>` for each incoming one, entities flush left, records indented two spaces. At depth 2 `project` appears because `relay is project` makes it a neighbour; `software` is a third hop away.
+`describe` prints `<relation> <object>` for each outgoing record and `<- <subject> <relation>` for each incoming one, entities flush left, records indented two spaces. With `--depth 1`, `project` appears because `relay is project` makes it one hop away; `software` would need `--depth 2`.
 
 ```
 $ myself forget relay uses --reason "moved off bun"
@@ -215,4 +215,4 @@ vault/project.md        vault/relay.md        vault/software.md
 - [[relay]] is
 ```
 
-(Columns are only for display here; each file is separate. A note's lines are: `# <entity>`, blank line, one `- <relation> <object>` per outgoing record, and if there are incoming records a blank line, `## Linked from`, and one `- [[<subject>]] <relation>` per incoming record. Sections are omitted when empty.)
+(Columns are only for display here; each file is separate. A note's lines are: `# <entity>`, blank line, one `- <relation> <object>` per outgoing record, and, if there are incoming records, `## Linked from` and one `- [[<subject>]] <relation>` per incoming record. Non-empty sections are separated by one blank line and empty ones are omitted.)
