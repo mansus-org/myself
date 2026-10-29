@@ -28,12 +28,18 @@ users or speed claims. The status is stated once, in the Install section: v0.1 i
   statements, width 108 for reading, width 80 for code (no monospace font).
 - **Bitmaps:** the m, three shells and seven 7×7 signs are drawn cell by cell and rendered as
   crisp SVG. Dither is real squares on a sub-grid, so it stays 1-bit at any size.
-- **Example block:** the first example is two ruled lines around the commands, with a caption and a Copy
-  button. The fake terminal window (title bar, window chrome, offset shadow) was removed (R-05). Prompts
-  are heavy, comments dotted-underlined, output marked by a bar.
+- **Terminal windows:** kept by owner decision (overrides antislop R-05); myself is a CLI and the terminal is the product.
+  A window is a 3px ink frame with an ink title bar (`bash`, plus the Copy button) over a paper body, with a small
+  offset shadow for the elevation of "this is where you type". No traffic-light dots, no dark theme. Copy takes only
+  the lines after `$`, never output or comments.
+- **Files are not terminals:** the `~/.claude/settings.json` snippets use a lighter panel: 2px frame, paper title bar with the
+  path and a dotted rule, no shadow. Ink bar means "you type this", paper bar means "you paste this into a file".
+- **Cross-session example:** the hero example is a story in three windows, staggered down the page (stacked on mobile):
+  Monday the agent saves facts, Thursday a fresh session starts from `myself prime`, later the user asks with
+  `describe`, `history` and `path`. All three show the same facts (relay, bun, npm, felipe), so the value is visible: nothing is re-explained.
 - **Install:** after the first example. The planned methods (install script, `go install`) are marked
   "Available from v0.1", then three numbered steps for Claude Code (skill, SessionStart hook,
-  `Bash(myself:*)`) and one line for other harnesses. Every block has a Copy button: 44 px tall, 3px focus
+  `Bash(myself:*)`) and one line for other harnesses. Every block has a Copy button (terminals copy commands only): 44 px tall, 3px focus
   ring, "Copied" for 1.5 s, and when the Clipboard API is missing or refuses it selects the text instead.
   Long lines scroll inside the block.
 - **What you get:** the seven ruled rows, each with its own sign, written from the user's side.
