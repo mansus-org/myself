@@ -9,6 +9,7 @@ $ myself describe relay
 relay
   is project
   uses bun for the backend, biome for linting
+$ myself remember i does "plan work from tickets"
 $ myself remember i does "plan work and review PRs" --replace
 $ myself history i
 01a19418-81e9-7770-a08a-3822cf999776 2026-10-31T22:33:16Z self does plan work from tickets
