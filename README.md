@@ -92,3 +92,20 @@ go build -ldflags "-X github.com/mansus-org/myself/internal/cli.Version=v0.1.0 \
   -X github.com/mansus-org/myself/internal/cli.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" ./cmd/myself
 ```
 
+
+## Backup
+
+Keep the store in a private git repository and sync it with one command:
+
+```sh
+cd ~/.myself && git init && git remote add origin <private repo url>
+myself sync            # commits, pulls (rebase), pushes
+```
+
+`myself sync` configures a git merge driver (`myself merge-driver`) so two hosts that both appended resolve to the union of their records, sorted by uuid. It never creates a remote or sets a git identity. To sync every 15 minutes and refresh an Obsidian vault:
+
+```sh
+*/15 * * * * myself sync --export ~/vault/myself
+```
+
+or a systemd timer whose service runs `myself sync --export %h/vault/myself` with `OnCalendar=*:0/15`. `myself` must be on the timer's PATH, since git calls it for merges.
