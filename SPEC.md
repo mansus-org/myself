@@ -93,7 +93,7 @@ myself merge-driver <base> <ours> <theirs>
 
 Global flags: `--file PATH`, `--json`, `--at TIME` (only on commands that list it above).
 
-- `remember -` is all-or-nothing: every line is validated first; on any error nothing is written, and the error names the line number.
+- `remember -` is all-or-nothing: every line is validated first; on any error nothing is written, and the error names the line number. In bulk mode only, if the object (after joining) is wrapped in one matching pair of `'...'` or `"..."`, that pair is stripped, since nothing else has removed it (the shell does that for the single-argument form, which is unchanged).
 - `forget <uuid>` is used when exactly one argument is given and it is a UUID. Otherwise the arguments are `<subject> <relation> [<object...>]`: it forgets every live record with that subject and relation, narrowed to those whose normalized object equals the given object if one is given. Exit 2 if nothing matches.
 - `describe <entity>`: records where the entity is subject (`out`) or the linked object (`in`). `--depth` defaults to 0 (only that entity); depth N also shows every entity reachable within N hops, breadth-first.
 - `ls <type>`: every entity that reaches `<type>` through a chain of live `is` records (transitive subtypes). `ls` with no argument lists every entity that is the object of a live `is` record. **Decision:** the original text said "either direction"; only the subtype direction is listed, since the supertypes of an entity are already visible with `describe`, and mixing both directions makes `ls software` ambiguous.
@@ -101,7 +101,7 @@ Global flags: `--file PATH`, `--json`, `--at TIME` (only on commands that list i
 - `search <text>`: case-insensitive substring match on subject, relation or object of live records.
 - `log`: every record, forgets included, in uuid order. `--since` filters by time, `-n N` keeps the last N.
 - `history <subject> [<relation>]`: every record, forgotten or not, for that subject (and relation), plus the `forget` records pointing at them, in uuid order.
-- `prime`: a compact summary of the brain to paste into an agent context: entities ordered by live record count (descending, then name), each rendered as `describe` at depth 0, cut at a line boundary to fit `--budget` characters (default 2000).
+- `prime`: a compact summary of the brain to paste into an agent context, cut at a line boundary to fit `--budget` characters (default 2000). Entities are ordered `self` first (if it exists), then the entities directly linked to `self` (one hop, breadth-first order), then the rest by live record count (descending, then name). Each is rendered as `describe` at depth 0, except that incoming `is` records are folded into one line `  <- is: a, b, c` (subjects sorted, comma-separated) instead of one `<- x is` line each.
 - `dream`: read-only report of near-duplicate subjects (equal after removing `-` and a trailing `s`). Writes nothing.
 - `export --obsidian <dir>`: writes one `<entity>.md` per entity (live state only), overwriting existing files of the same name. Note format is shown in section 9.
 - `sync [--export DIR]`: backs the store up with git. The store directory (that of the resolved file) must be a git work tree, else it prints setup instructions on stderr and exits 1. It sets the merge driver config and the `.gitattributes` line, commits the store as `myself: N records since last sync`, then `git pull --rebase` (falling back to a merge) and `git push` if a remote exists. `--export DIR` runs `export --obsidian DIR` after pulling. Git missing or failing exits 3.
@@ -110,7 +110,7 @@ Global flags: `--file PATH`, `--json`, `--at TIME` (only on commands that list i
 ## 6. Output
 
 - Default output is terse plain text for LLM token cost: no colors, no box drawing, no headers beyond what is shown in section 9. Ordering is stable: records by uuid, entities by name unless stated otherwise.
-- Errors go to stderr as a single line `error: ...`. Warnings go to stderr as `warning: ...`.
+- Errors go to stderr as a single line `error: ...`. Warnings go to stderr as `warning: ...`. `remember` (single and bulk) warns `warning: "is" object looks like a sentence; use a short type name and put details in has or does` when the relation is `is` or `are` and the object has more than 3 words; the fact is still written.
 - `--json` writes one JSON value to stdout, keys as listed below, same ordering rules. Errors stay plain text on stderr and stdout is empty. `record` below means the five-field object from section 1.
 
 | command | `--json` stdout |

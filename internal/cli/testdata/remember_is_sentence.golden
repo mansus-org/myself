@@ -1,0 +1,44 @@
+$ myself remember relay is project
+--- stdout
+remembered <uuid-1>
+--- stderr
+--- exit
+0
+$ myself remember relay is a micro social network
+--- stdout
+remembered <uuid-2>
+--- stderr
+warning: "is" object looks like a sentence; use a short type name and put details in has or does
+--- exit
+0
+$ myself remember project ARE things you make often
+--- stdout
+remembered <uuid-3>
+--- stderr
+warning: "is" object looks like a sentence; use a short type name and put details in has or does
+--- exit
+0
+$ myself remember relay does a micro social network
+--- stdout
+remembered <uuid-4>
+--- stderr
+--- exit
+0
+$ myself remember -
+--- stdin
+qa is a scratch project here
+qa is project
+--- stdout
+remembered <uuid-5>
+remembered <uuid-6>
+--- stderr
+warning: "is" object looks like a sentence; use a short type name and put details in has or does
+--- exit
+0
+--- file
+{"uuid":"<uuid-1>","subject":"relay","relation":"is","object":"project","time":"<time>"}
+{"uuid":"<uuid-2>","subject":"relay","relation":"is","object":"a micro social network","time":"<time>"}
+{"uuid":"<uuid-3>","subject":"project","relation":"is","object":"things you make often","time":"<time>"}
+{"uuid":"<uuid-4>","subject":"relay","relation":"does","object":"a micro social network","time":"<time>"}
+{"uuid":"<uuid-5>","subject":"qa","relation":"is","object":"a scratch project here","time":"<time>"}
+{"uuid":"<uuid-6>","subject":"qa","relation":"is","object":"project","time":"<time>"}

@@ -1,0 +1,38 @@
+$ myself remember -
+--- stdin
+relay has 'repo at /tmp/x'
+relay does "a b"
+relay uses 'mismatched"
+relay has it's fine
+relay has ''
+--- stdout
+--- stderr
+error: line 5: empty object. give the object as free text
+--- exit
+1
+$ myself remember -
+--- stdin
+relay has 'repo at /tmp/x'
+relay does "a b"
+relay uses 'mismatched"
+relay has it's fine
+--- stdout
+remembered <uuid-1>
+remembered <uuid-2>
+remembered <uuid-3>
+remembered <uuid-4>
+--- stderr
+--- exit
+0
+$ myself remember relay has "'kept'"
+--- stdout
+remembered <uuid-5>
+--- stderr
+--- exit
+0
+--- file
+{"uuid":"<uuid-1>","subject":"relay","relation":"has","object":"repo at /tmp/x","time":"<time>"}
+{"uuid":"<uuid-2>","subject":"relay","relation":"does","object":"a b","time":"<time>"}
+{"uuid":"<uuid-3>","subject":"relay","relation":"uses","object":"'mismatched\"","time":"<time>"}
+{"uuid":"<uuid-4>","subject":"relay","relation":"has","object":"it's fine","time":"<time>"}
+{"uuid":"<uuid-5>","subject":"relay","relation":"has","object":"'kept'","time":"<time>"}

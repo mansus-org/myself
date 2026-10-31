@@ -12,7 +12,7 @@ remembered <uuid-2>
 0
 $ myself prime --json
 --- stdout
-{"budget":2000,"truncated":false,"text":"a\n  uses x < y && z > w\n  <- b is\nb\n  is a\n"}
+{"budget":2000,"truncated":false,"text":"a\n  uses x < y && z > w\n  <- is: b\nb\n  is a\n"}
 --- stderr
 --- exit
 0
