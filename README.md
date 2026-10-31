@@ -6,6 +6,16 @@ Status: in design, not released.
 
 The contract for the CLI is in [SPEC.md](SPEC.md).
 
+## Install
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/mansus-org/myself/main/install.sh | sh
+```
+
+This installs the latest release to `~/.local/bin` (Linux and macOS, amd64 and arm64) after verifying its sha256 checksum. Set `MYSELF_VERSION=v0.1.0` to pin a release and `MYSELF_INSTALL_DIR` to change the target directory.
+
+Or with Go: `go install github.com/mansus-org/myself/cmd/myself@latest`.
+
 ## Landing page
 
 The site lives in `site/` (plain HTML, CSS and JS, no build step) and deploys to https://myself.mansus.org on merge to `main`: the `Dockerfile` serves `site/` with busybox httpd, `.k3s/values.yaml` holds the cluster settings, `.github/workflows/deploy.yml` builds the image. Pull requests get a preview at `myself-pr-<number>.mansus.org`. The design rationale is in `design/README.md`.
@@ -33,4 +43,3 @@ go build -ldflags "-X github.com/mansus-org/myself/internal/cli.Version=v0.1.0 \
   -X github.com/mansus-org/myself/internal/cli.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" ./cmd/myself
 ```
 
-Install: `go install github.com/mansus-org/myself/cmd/myself@latest`.
