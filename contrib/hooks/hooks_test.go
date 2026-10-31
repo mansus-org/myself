@@ -102,16 +102,21 @@ func (e *env) hook(script, stdin string) string {
 	return stdout.String()
 }
 
-// startInput is SessionStart hook JSON, pretty-printed like Claude Code may
-// send it, so the sed fallback has to cope with newlines.
-func startInput(sid string) string {
+// startInput is SessionStart hook JSON for a new session, pretty-printed like
+// Claude Code may send it, so the sed fallback has to cope with newlines.
+func startInput(sid string) string { return sessionStartInput(sid, "startup") }
+
+// resumeInput is SessionStart hook JSON for `claude --resume`.
+func resumeInput(sid string) string { return sessionStartInput(sid, "resume") }
+
+func sessionStartInput(sid, source string) string {
 	return fmt.Sprintf(`{
   "session_id": %q,
   "transcript_path": "/nonexistent/transcript.jsonl",
   "cwd": "/",
   "hook_event_name": "SessionStart",
-  "source": "startup"
-}`, sid)
+  "source": %q
+}`, sid, source)
 }
 
 func stopInput(sid, transcript, cwd string, active bool) string {
@@ -125,11 +130,19 @@ func stopInput(sid, transcript, cwd string, active bool) string {
 }`, sid, transcript, cwd, active)
 }
 
-// transcript writes a transcript file with n lines.
-func transcript(t *testing.T, n int) string {
+// transcript writes a transcript file shaped like Claude Code's: a request
+// line listing the tool definitions (which mention every tool name), some
+// filler lines, then one assistant tool_use line per entry of tools.
+func transcript(t *testing.T, tools ...string) string {
 	t.Helper()
+	var b strings.Builder
+	b.WriteString(`{"type":"api-request","tools":[{"name":"Bash","description":"x"},{"name":"Edit","description":"x"},{"name":"Write","description":"x"},{"name":"Read","description":"x"}]}` + "\n")
+	b.WriteString(strings.Repeat(`{"type":"attachment"}`+"\n", 40))
+	for i, name := range tools {
+		fmt.Fprintf(&b, `{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_%02d","name":%q,"input":{}}]}}`+"\n", i, name)
+	}
 	path := filepath.Join(t.TempDir(), "transcript.jsonl")
-	if err := os.WriteFile(path, []byte(strings.Repeat("{\"type\":\"user\"}\n", n)), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(b.String()), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	return path
@@ -195,7 +208,7 @@ func TestSessionStartKeepsFirstStartTime(t *testing.T) {
 	}
 	e.hook("session-start.sh", startInput("s1"))
 	if raw, _ := os.ReadFile(marker); string(raw) != "2026-01-01T00:00:00Z\n" {
-		t.Errorf("resume overwrote the start marker: %q", raw)
+		t.Errorf("a second startup overwrote the start marker: %q", raw)
 	}
 }
 
@@ -205,7 +218,7 @@ func TestMyselfMissing(t *testing.T) {
 		if out := e.hook("session-start.sh", startInput("s1")); out != "" {
 			t.Errorf("session-start: want no output, got %q", out)
 		}
-		if out := e.hook("stop-nudge.sh", stopInput("s1", transcript(t, 50), "/", false)); out != "" {
+		if out := e.hook("stop-nudge.sh", stopInput("s1", transcript(t, "Write"), "/", false)); out != "" {
 			t.Errorf("stop-nudge: want no output, got %q", out)
 		}
 	})
@@ -217,7 +230,7 @@ func TestStopNudgesOnce(t *testing.T) {
 		e.myself("remember", "relay", "is", "project") // before the session: must not count
 		time.Sleep(1100 * time.Millisecond)            // start marker has second precision
 		e.hook("session-start.sh", startInput("s1"))
-		tr := transcript(t, 50)
+		tr := transcript(t, "Write")
 
 		out := e.hook("stop-nudge.sh", stopInput("s1", tr, "/", false))
 		var got struct{ Decision, Reason string }
@@ -237,7 +250,7 @@ func TestStopSilentWhenActive(t *testing.T) {
 	parsers(t, func(t *testing.T, e *env) {
 		e.requireCommand("log")
 		e.hook("session-start.sh", startInput("s1"))
-		if out := e.hook("stop-nudge.sh", stopInput("s1", transcript(t, 50), "/", true)); out != "" {
+		if out := e.hook("stop-nudge.sh", stopInput("s1", transcript(t, "Write"), "/", true)); out != "" {
 			t.Errorf("stop_hook_active: want no output, got %q", out)
 		}
 	})
@@ -248,7 +261,7 @@ func TestStopSilentWhenRemembered(t *testing.T) {
 		e.requireCommand("log")
 		e.hook("session-start.sh", startInput("s1"))
 		e.myself("remember", "relay", "uses", "bun")
-		if out := e.hook("stop-nudge.sh", stopInput("s1", transcript(t, 50), "/", false)); out != "" {
+		if out := e.hook("stop-nudge.sh", stopInput("s1", transcript(t, "Write"), "/", false)); out != "" {
 			t.Errorf("facts written this session: want no output, got %q", out)
 		}
 	})
@@ -258,8 +271,8 @@ func TestStopSilentWhenIdle(t *testing.T) {
 	parsers(t, func(t *testing.T, e *env) {
 		e.requireCommand("log")
 		e.hook("session-start.sh", startInput("s1"))
-		if out := e.hook("stop-nudge.sh", stopInput("s1", transcript(t, 3), t.TempDir(), false)); out != "" {
-			t.Errorf("short transcript, no git changes: want no output, got %q", out)
+		if out := e.hook("stop-nudge.sh", stopInput("s1", transcript(t, "Read", "Bash", "Bash"), t.TempDir(), false)); out != "" {
+			t.Errorf("read-only transcript, no git changes: want no output, got %q", out)
 		}
 	})
 }
@@ -267,7 +280,7 @@ func TestStopSilentWhenIdle(t *testing.T) {
 func TestStopSilentWithoutStartMarker(t *testing.T) {
 	e := newEnv(t)
 	e.requireCommand("log")
-	if out := e.hook("stop-nudge.sh", stopInput("s1", transcript(t, 50), "/", false)); out != "" {
+	if out := e.hook("stop-nudge.sh", stopInput("s1", transcript(t, "Write"), "/", false)); out != "" {
 		t.Errorf("no session-start marker: want no output, got %q", out)
 	}
 }
@@ -295,10 +308,78 @@ func TestStopNudgesOnGitChanges(t *testing.T) {
 func TestBadSessionID(t *testing.T) {
 	e := newEnv(t)
 	e.hook("session-start.sh", startInput("../escape"))
-	if out := e.hook("stop-nudge.sh", stopInput("../escape", transcript(t, 50), "/", false)); out != "" {
+	if out := e.hook("stop-nudge.sh", stopInput("../escape", transcript(t, "Write"), "/", false)); out != "" {
 		t.Errorf("unsafe session id: want no output, got %q", out)
 	}
 	if _, err := os.Stat(filepath.Join(e.tmp, "escape.start")); err == nil {
 		t.Error("unsafe session id wrote a marker outside myself-hooks")
 	}
+}
+
+// expectNudge fails unless out is the block JSON with the nudge reason.
+func expectNudge(t *testing.T, what, out string) {
+	t.Helper()
+	var got struct{ Decision, Reason string }
+	if err := json.Unmarshal([]byte(out), &got); err != nil {
+		t.Fatalf("%s: want block JSON, got %q: %v", what, out, err)
+	}
+	if got.Decision != "block" || got.Reason != nudge {
+		t.Errorf("%s: got %+v", what, got)
+	}
+}
+
+func TestStopSilentWhenReadOnly(t *testing.T) {
+	parsers(t, func(t *testing.T, e *env) {
+		e.requireCommand("log")
+		e.hook("session-start.sh", startInput("s1"))
+		// No tool uses at all, though the tool definitions name Write and Edit.
+		if out := e.hook("stop-nudge.sh", stopInput("s1", transcript(t), "/", false)); out != "" {
+			t.Errorf("zero-tool transcript: want no output, got %q", out)
+		}
+		if out := e.hook("stop-nudge.sh", stopInput("s1", transcript(t, "Read", "Grep", "Skill"), "/", false)); out != "" {
+			t.Errorf("read-only transcript: want no output, got %q", out)
+		}
+	})
+}
+
+func TestStopNudgesOnEditTools(t *testing.T) {
+	for _, tool := range []string{"Write", "Edit", "MultiEdit", "NotebookEdit"} {
+		t.Run(tool, func(t *testing.T) {
+			e := newEnv(t)
+			e.requireCommand("log")
+			e.hook("session-start.sh", startInput("s1"))
+			expectNudge(t, tool, e.hook("stop-nudge.sh", stopInput("s1", transcript(t, "Read", tool), "/", false)))
+		})
+	}
+}
+
+func TestStopNudgesOnBashUses(t *testing.T) {
+	e := newEnv(t)
+	e.requireCommand("log")
+	e.hook("session-start.sh", startInput("s1"))
+	if out := e.hook("stop-nudge.sh", stopInput("s1", transcript(t, "Bash", "Bash"), "/", false)); out != "" {
+		t.Errorf("2 Bash uses: want no output, got %q", out)
+	}
+	expectNudge(t, "3 Bash uses", e.hook("stop-nudge.sh", stopInput("s1", transcript(t, "Bash", "Bash", "Bash"), "/", false)))
+}
+
+func TestResumeAllowsAnotherNudge(t *testing.T) {
+	parsers(t, func(t *testing.T, e *env) {
+		e.requireCommand("log")
+		e.hook("session-start.sh", startInput("s1"))
+		tr := transcript(t, "Write")
+		expectNudge(t, "first stop", e.hook("stop-nudge.sh", stopInput("s1", tr, "/", false)))
+		if out := e.hook("stop-nudge.sh", stopInput("s1", tr, "/", false)); out != "" {
+			t.Errorf("second stop: want no output, got %q", out)
+		}
+
+		// A fact written before the resume must not silence the resumed session.
+		e.myself("remember", "relay", "is", "project")
+		time.Sleep(1100 * time.Millisecond) // start marker has second precision
+		e.hook("session-start.sh", resumeInput("s1"))
+		expectNudge(t, "stop after resume", e.hook("stop-nudge.sh", stopInput("s1", tr, "/", false)))
+		if out := e.hook("stop-nudge.sh", stopInput("s1", tr, "/", false)); out != "" {
+			t.Errorf("second stop after resume: want no output, got %q", out)
+		}
+	})
 }

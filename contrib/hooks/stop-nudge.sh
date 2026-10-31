@@ -10,21 +10,22 @@
 #     ${TMPDIR:-/tmp}/myself-hooks/<session_id>.nudged);
 #   - session-start.sh recorded a start time for the session, and
 #     `myself log --since <start> -n 1` prints nothing (no record written since);
-#   - the session did something: its transcript has at least
-#     MYSELF_NUDGE_MIN_LINES lines (default 10), or cwd is a git work tree with
-#     uncommitted changes.
+#   - the session did something: its transcript has a Write, Edit, MultiEdit
+#     or NotebookEdit tool use, or at least MYSELF_NUDGE_MIN_BASH Bash tool
+#     uses (default 3), or cwd is a git work tree with uncommitted changes.
+#     Read-only sessions are not nudged.
 # Otherwise, and on any error (myself missing, bad input), it exits 0 silently.
 # The marker is written before the nudge is printed, so it can never loop.
 #
 # Environment:
 #   MYSELF_BIN              myself binary (default: myself on PATH)
-#   MYSELF_NUDGE_MIN_LINES  transcript lines that count as activity (default 10)
+#   MYSELF_NUDGE_MIN_BASH   Bash tool uses that count as activity (default 3)
 #   MYSELF_FILE             brain file, passed through to myself
 #   MYSELF_HOOKS_JQ         jq binary (default: jq); without it a sed fallback parses stdin
 
 bin=${MYSELF_BIN:-myself}
 jq=${MYSELF_HOOKS_JQ:-jq}
-min_lines=${MYSELF_NUDGE_MIN_LINES:-10}
+min_bash=${MYSELF_NUDGE_MIN_BASH:-3}
 dir="${TMPDIR:-/tmp}/myself-hooks"
 
 input=$(cat 2>/dev/null) || input=
@@ -65,9 +66,15 @@ transcript=$(field transcript_path)
 case $transcript in
 "~/"*) transcript="$HOME/${transcript#"~/"}" ;;
 esac
+# Match tool_use blocks only: transcripts also carry the tool definitions.
+tool_use='"type":"tool_use","id":"[^"]*","name":'
 if [ -n "$transcript" ] && [ -f "$transcript" ]; then
-	lines=$(wc -l <"$transcript" 2>/dev/null | tr -d ' ')
-	[ "${lines:-0}" -ge "$min_lines" ] 2>/dev/null && did_something=1
+	if grep -qE "$tool_use\"(Write|Edit|MultiEdit|NotebookEdit)\"" "$transcript" 2>/dev/null; then
+		did_something=1
+	else
+		bash_uses=$(grep -oE "$tool_use\"Bash\"" "$transcript" 2>/dev/null | wc -l | tr -d ' ')
+		[ "${bash_uses:-0}" -ge "$min_bash" ] 2>/dev/null && did_something=1
+	fi
 fi
 if [ -z "$did_something" ]; then
 	cwd=$(field cwd)

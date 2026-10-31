@@ -1,6 +1,6 @@
 ---
 name: myself
-description: Long-term memory across sessions via the `myself` CLI, a personal knowledge graph of facts about people, projects, tools and the agent itself. Use when you learn a durable fact or decision, when the user mentions a person, project or tool you might know about, when they say "remember that…", "don't forget…", "what do you know about…", "who is…", or "what changed lately", when the user corrects how you work, and at session start and end. Also use before answering "I don't know" about any person, project or tool.
+description: Your long-term memory across sessions, via the `myself` CLI, a personal knowledge graph of facts about people, projects, tools and the agent itself. Use it, not CLAUDE.md or a memory file, whenever the user says "remember…", "remember that…", "don't forget…", or corrects how you work ("don't do X", "always Y", "I hate X"). Also use when you learn a durable fact or decision, when the user mentions a person, project or tool you might know about, when they ask "what do you know about…", "who is…" or "what changed lately", and at session start and end. Use before answering "I don't know" about any person, project or tool.
 ---
 
 # myself
@@ -8,6 +8,8 @@ description: Long-term memory across sessions via the `myself` CLI, a personal k
 `myself` stores facts as `subject relation object` triples in one append-only log (`~/.myself/brain.jsonl`). Facts are superseded, never edited. Call it with Bash. The full contract is SPEC.md in github.com/mansus-org/myself.
 
 ## When to use
+
+`myself` is your long-term memory. When the user says "remember…" or corrects you, write it with `myself`, not to CLAUDE.md or a file-based memory directory.
 
 - **Recall** before guessing: a name you don't recognise, "what do you know about X", "how does X relate to Y", "what happened lately".
 - **Write** when something durable is learned: a new project, person or tool and how they relate, a decision with lasting effect, a correction to how you work.
@@ -59,8 +61,9 @@ Relations are a closed set. Pick the closest; the object sentence carries the nu
 | `prefers` | preferences, rules, constraints | `felipe prefers 'small PRs, one ticket each'` |
 | `related` | any other link between two entities | `relay related consenso` |
 
-- **Type every new entity with `is`** the first time you write it: `myself remember hono is library`. `is` objects become entities, so keep them short names, never sentences.
+- **Type every new entity with `is`** the first time you write it: `myself remember hono is library`. An `is` object is a short type name (`project`, `tool`), never a sentence; details go in `has` or `does`.
 - **Object = entity name when you'd want the link** (`relay uses bun` connects relay to bun), **a sentence otherwise** (`relay uses 'bun for the backend, biome for linting'`). Check the spelling of existing names with `describe`/`search` first; don't invent a variant.
+- **Versions and details of a link go in `has`**, so the link survives: keep `relay uses postgres` and add `relay has 'postgres 17'`. Don't write a second `uses` whose object repeats an entity name inside a sentence; if the old fact is now wrong, use `--replace` or `forget`.
 - **Provenance:** when a ticket or context matters, put it in the object: `relay prefers 'bun over npm (BRAIN-12)'`.
 - **3+ facts:** one bulk write.
 
@@ -69,8 +72,11 @@ myself remember - <<'EOF'
 consenso is project
 consenso uses hono
 hono is library
+relay has repo at github.com/nemoNoboru/relay
 EOF
 ```
+
+  Don't quote objects inside `remember -`: each line's object is everything after the relation, as written.
 
 - **Mistakes:** `myself forget <uuid>` (uuid from `describe --json`, `history` or `log`), or `myself remember x has 'new value' --replace` to supersede every live `x has`.
 - **Self-model:** `i`, `me`, `myself` all mean the entity `self`.
@@ -94,7 +100,7 @@ One fact per `remember`, bulk `remember -` for 3+. If nothing is durable, write 
 
 Molting is updating your own self-model (`self`). Molt when:
 
-1. **The user corrects your behaviour** ("don't do X", "always Y"): add `i prefers`, and fold it into the identity paragraph if it changes who you are.
+1. **The user corrects your behaviour** ("don't do X", "always Y"): add `i prefers`, then `myself describe i` and rewrite the identity paragraph with `myself remember i does '<paragraph>' --replace` so it includes the new rule in one clause. Do both in the same turn. Skip the rewrite only for a rule about one repo or one task; rules about how you commit, write or work in general (even "in all X repos") get the rewrite.
 2. **The same lesson shows up a second time**: check `myself history i` for a near-duplicate first.
 3. **`dream` or `describe i` shows contradictions** in your self facts: forget the stale one.
 
@@ -102,7 +108,7 @@ Don't molt for one-off task instructions, things CLAUDE.md already says, or gues
 
 Examples:
 
-- *Correction:* "Stop opening PRs stacked on other branches." → `myself remember i prefers 'never stack PRs on other branches; always target main'`.
+- *Correction:* "Stop opening PRs stacked on other branches." → `myself remember i prefers 'never stack PRs on other branches; always target main'`, then `myself describe i` and rewrite the identity paragraph with "I always open PRs against main" folded in (`myself remember i does '…' --replace`).
 - *Repeated lesson:* you're reminded a second time to run gofmt before pushing. `myself history i` shows `prefers 'run gofmt before committing'` already. → `myself describe i`, then rewrite the identity paragraph to include "I run the repo's formatter and linters before every push" with `myself remember i does '…' --replace`.
 - *Non-trigger:* "Use port 8081 for this preview." That's a task instruction, so remember nothing.
 
@@ -112,7 +118,7 @@ When asked to dream (consolidate the brain):
 
 1. `myself dream --json` lists near-duplicate subjects, e.g. `{"near_duplicates":[["relay","relays"]]}`.
 2. For each group, pick the name to keep (more facts, the one used as an object elsewhere: check `describe`). Move each fact of the other name with `myself remember <kept> <relation> <object>`, then `myself forget <other> <relation>` (or by uuid). Re-point incoming facts too (the `<-` lines of `describe <other>`): write them again with `<kept>` as the object and forget the old ones. Ask the user when the merge is not obvious.
-3. Run `myself ls` and `describe` the entities: any entity with no `is` fact is untyped; add one.
+3. Run `myself ls` and `describe` every subject: any entity with no `is` fact is untyped. Type it with its obvious general category (`grafana is tool`, `postgres is database`); types are cheap to change. Ask only when the name is ambiguous. List anything you left untyped in the summary.
 4. Finish with a one-paragraph summary of what you merged, typed and left alone.
 
 Richer reports (untyped entities, stale facts, self-model size) are future work in BRAIN-32; until then do those checks by hand.
@@ -120,6 +126,6 @@ Richer reports (untyped entities, stale facts, self-model size) are future work 
 ## Never store
 
 - Secrets, passwords, API keys, tokens, or config files that contain them.
-- The user's work email, or any email address unless explicitly asked.
+- The user's work email. Other email addresses only when the user gives one as an identity to use (e.g. a commit author): then store it whole, `i prefers 'commit in nemoNoboru repos as felipetavres <felipetavres@gmail.com>'`.
 - Other people's private data (health, finances, personal contact details).
 - Anything derivable from the repo, or ephemeral task state.
