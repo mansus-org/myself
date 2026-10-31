@@ -66,6 +66,8 @@ git add brain.jsonl
 
   That is: concatenate both sides, dedupe by `uuid` (identical lines collapse), sort by `uuid`. A `.gitattributes` line `brain.jsonl merge=union` gets the concatenate-and-dedupe part automatically, but not the sort, which readers do anyway.
 
+  `myself sync` automates this: it sets `.gitattributes` to `brain.jsonl merge=myself` and `git config merge.myself.driver "myself merge-driver %O %A %B"`, and the driver does the union, dedupe and uuid sort (lines that are not records are kept, last).
+
 ## 5. CLI grammar
 
 Positional arguments, no `< >` (the shell eats them as redirections). Everything after the relation is the object, joined with single spaces, so quotes are optional. Flags may appear anywhere.
@@ -85,6 +87,8 @@ myself history <subject> [<relation>]
 myself prime [--budget CHARS]
 myself dream
 myself export --obsidian <dir>
+myself sync [--export DIR]
+myself merge-driver <base> <ours> <theirs>
 ```
 
 Global flags: `--file PATH`, `--json`, `--at TIME` (only on commands that list it above).
@@ -100,6 +104,8 @@ Global flags: `--file PATH`, `--json`, `--at TIME` (only on commands that list i
 - `prime`: a compact summary of the brain to paste into an agent context: entities ordered by live record count (descending, then name), each rendered as `describe` at depth 0, cut at a line boundary to fit `--budget` characters (default 2000).
 - `dream`: read-only report of near-duplicate subjects (equal after removing `-` and a trailing `s`). Writes nothing.
 - `export --obsidian <dir>`: writes one `<entity>.md` per entity (live state only), overwriting existing files of the same name. Note format is shown in section 9.
+- `sync [--export DIR]`: backs the store up with git. The store directory (that of the resolved file) must be a git work tree, else it prints setup instructions on stderr and exits 1. It sets the merge driver config and the `.gitattributes` line, commits the store as `myself: N records since last sync`, then `git pull --rebase` (falling back to a merge) and `git push` if a remote exists. `--export DIR` runs `export --obsidian DIR` after pulling. Git missing or failing exits 3.
+- `merge-driver <base> <ours> <theirs>`: git merge driver (`%O %A %B`); writes the union of the complete lines of all three, sorted by `uuid`, to `<ours>`. Exit 1 on I/O errors.
 
 ## 6. Output
 
@@ -121,6 +127,7 @@ Global flags: `--file PATH`, `--json`, `--at TIME` (only on commands that list i
 | `prime` | `{"budget":2000,"truncated":false,"text":"..."}` |
 | `dream` | `{"near_duplicates":[["relay","relays"],...]}` |
 | `export` | `{"dir":"./vault","entities":3,"files":["project.md",...]}` |
+| `sync` | `{"committed":3,"pulled":true,"pushed":true,"exported":null}` (`exported` is the entity count with `--export`) |
 
 - **Exit codes:**
   - `0` ok (including searches and listings with no results).

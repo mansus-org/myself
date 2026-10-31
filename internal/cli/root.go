@@ -48,6 +48,8 @@ func newRoot(stdout, stderr io.Writer) *cobra.Command {
 		newPrimeCmd(cfg),
 		newDreamCmd(cfg),
 		newExportCmd(cfg),
+		newSyncCmd(cfg),
+		newMergeDriverCmd(),
 	)
 	return root
 }
