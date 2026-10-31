@@ -155,6 +155,12 @@ var cases = []struct {
 		run("history", "relay", "--json"),
 		dumping("vault", "export", "--obsidian", "./vault"),
 	}},
+	{"json_no_html_escape", []step{
+		run("remember", "a", "uses", "x < y && z > w", "--json"),
+		run("remember", "b", "is", "a"),
+		run("prime", "--json"),
+		run("log", "--json"),
+	}},
 	{"describe_json", []step{
 		run("remember", "relay", "is", "project"),
 		run("remember", "project", "is", "software"),

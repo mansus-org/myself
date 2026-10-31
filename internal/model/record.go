@@ -4,6 +4,8 @@
 package model
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"strings"
 	"time"
@@ -66,3 +68,16 @@ func NewForget(target, reason string, now time.Time) Record {
 
 // IsForget reports whether r is a retraction.
 func (r Record) IsForget() bool { return r.Relation == RelationForget }
+
+// Marshal is json.Marshal without HTML escaping: `<`, `>` and `&` stay
+// literal in the log and in --json output (SPEC sections 4 and 6), where
+// "<" would only cost tokens and break the canonical line form.
+func Marshal(v any) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(v); err != nil {
+		return nil, err
+	}
+	return bytes.TrimSuffix(buf.Bytes(), []byte("\n")), nil
+}
