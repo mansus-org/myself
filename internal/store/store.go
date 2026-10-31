@@ -4,7 +4,6 @@ package store
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -68,7 +67,7 @@ func Append(path string, recs ...model.Record) error {
 	}
 	var buf bytes.Buffer
 	for _, rec := range recs {
-		b, err := json.Marshal(rec)
+		b, err := model.Marshal(rec)
 		if err != nil {
 			return err
 		}

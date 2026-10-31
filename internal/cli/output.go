@@ -1,14 +1,14 @@
 package cli
 
 import (
-	"encoding/json"
 	"fmt"
+	"github.com/mansus-org/myself/internal/model"
 	"io"
 )
 
 // printJSON writes v as one compact JSON value followed by a newline.
 func printJSON(w io.Writer, v any) error {
-	b, err := json.Marshal(v)
+	b, err := model.Marshal(v)
 	if err != nil {
 		return err
 	}

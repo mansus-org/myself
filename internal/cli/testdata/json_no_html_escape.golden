@@ -1,0 +1,27 @@
+$ myself remember a uses "x < y && z > w" --json
+--- stdout
+{"remembered":[{"uuid":"<uuid-1>","subject":"a","relation":"uses","object":"x < y && z > w","time":"<time>"}],"forgotten":[]}
+--- stderr
+--- exit
+0
+$ myself remember b is a
+--- stdout
+remembered <uuid-2>
+--- stderr
+--- exit
+0
+$ myself prime --json
+--- stdout
+{"budget":2000,"truncated":false,"text":"a\n  uses x < y && z > w\n  <- b is\nb\n  is a\n"}
+--- stderr
+--- exit
+0
+$ myself log --json
+--- stdout
+{"records":[{"uuid":"<uuid-1>","subject":"a","relation":"uses","object":"x < y && z > w","time":"<time>"},{"uuid":"<uuid-2>","subject":"b","relation":"is","object":"a","time":"<time>"}]}
+--- stderr
+--- exit
+0
+--- file
+{"uuid":"<uuid-1>","subject":"a","relation":"uses","object":"x < y && z > w","time":"<time>"}
+{"uuid":"<uuid-2>","subject":"b","relation":"is","object":"a","time":"<time>"}
