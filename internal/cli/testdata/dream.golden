@@ -1,0 +1,61 @@
+$ myself dream
+--- stdout
+--- stderr
+--- exit
+0
+$ myself remember relay is project
+--- stdout
+remembered <uuid-1>
+--- stderr
+--- exit
+0
+$ myself remember relays is project
+--- stdout
+remembered <uuid-2>
+--- stderr
+--- exit
+0
+$ myself remember web-app has tests
+--- stdout
+remembered <uuid-3>
+--- stderr
+--- exit
+0
+$ myself remember webapp has docs
+--- stdout
+remembered <uuid-4>
+--- stderr
+--- exit
+0
+$ myself remember webapps has docs
+--- stdout
+remembered <uuid-5>
+--- stderr
+--- exit
+0
+$ myself remember bun is tool
+--- stdout
+remembered <uuid-6>
+--- stderr
+--- exit
+0
+$ myself dream
+--- stdout
+relay relays
+web-app webapp webapps
+--- stderr
+--- exit
+0
+$ myself dream --json
+--- stdout
+{"near_duplicates":[["relay","relays"],["web-app","webapp","webapps"]]}
+--- stderr
+--- exit
+0
+--- file
+{"uuid":"<uuid-1>","subject":"relay","relation":"is","object":"project","time":"<time>"}
+{"uuid":"<uuid-2>","subject":"relays","relation":"is","object":"project","time":"<time>"}
+{"uuid":"<uuid-3>","subject":"web-app","relation":"has","object":"tests","time":"<time>"}
+{"uuid":"<uuid-4>","subject":"webapp","relation":"has","object":"docs","time":"<time>"}
+{"uuid":"<uuid-5>","subject":"webapps","relation":"has","object":"docs","time":"<time>"}
+{"uuid":"<uuid-6>","subject":"bun","relation":"is","object":"tool","time":"<time>"}

@@ -17,6 +17,8 @@ import (
 
 var update = flag.Bool("update", false, "regenerate testdata/*.golden")
 
+const uuidPat = `[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`
+
 const ldflags = "-X github.com/mansus-org/myself/internal/cli.Version=v0.0.0-test " +
 	"-X github.com/mansus-org/myself/internal/cli.Commit=abc1234 " +
 	"-X github.com/mansus-org/myself/internal/cli.BuildDate=2026-01-01T00:00:00Z"
@@ -54,11 +56,15 @@ func TestMain(m *testing.M) {
 type step struct {
 	args  []string
 	stdin string
+	dump  string // directory (under $TMP) whose files are printed after the step
 }
 
 func run(args ...string) step { return step{args: args} }
 
 func pipe(stdin string, args ...string) step { return step{args: args, stdin: stdin} }
+
+// dumping runs the step, then prints every file of dir (under $TMP).
+func dumping(dir string, args ...string) step { return step{args: args, dump: dir} }
 
 var cases = []struct {
 	name  string
@@ -219,6 +225,66 @@ var cases = []struct {
 		run("path", "relay", "docs", "--max-depth", "0"),
 	}},
 
+	{"log", []step{
+		run("log"),
+		run("remember", "relay", "is", "project"),
+		run("remember", "relay", "uses", "bun for the backend"),
+		run("forget", "relay", "uses", "--reason", "moved off bun"),
+		run("log"),
+		run("log", "-n", "2"),
+		run("log", "--since", "2999-01-01"),
+		run("log", "--since", "2000-01-01", "--json"),
+		run("log", "--since", "yesterday"),
+		run("log", "-n", "0"),
+		run("log", "extra"),
+	}},
+	{"history", []step{
+		run("remember", "relay", "is", "project"),
+		run("remember", "relay", "uses", "bun for the backend, biome for linting, deployed on k3s"),
+		run("remember", "project", "are", "software"),
+		run("forget", "relay", "uses", "--reason", "moved off bun"),
+		run("history", "relay"),
+		run("history", "Relay", "uses"),
+		run("history", "relay", "are"),
+		run("history", "relay", "--json"),
+		run("history", "project"),
+		run("history", "software"),
+		run("history", "relay", "built-with"),
+		run("history"),
+	}},
+	{"prime", []step{
+		run("prime"),
+		run("remember", "relay", "is", "project"),
+		run("remember", "relay", "uses", "bun"),
+		run("remember", "project", "are", "software"),
+		run("prime"),
+		run("prime", "--budget", "40"),
+		run("prime", "--budget", "40", "--json"),
+		run("prime", "--json"),
+		run("prime", "--budget", "0"),
+	}},
+	{"dream", []step{
+		run("dream"),
+		run("remember", "relay", "is", "project"),
+		run("remember", "relays", "is", "project"),
+		run("remember", "web-app", "has", "tests"),
+		run("remember", "webapp", "has", "docs"),
+		run("remember", "webapps", "has", "docs"),
+		run("remember", "bun", "is", "tool"),
+		run("dream"),
+		run("dream", "--json"),
+	}},
+	{"export", []step{
+		run("export", "--obsidian", "$TMP/vault", "--json"),
+		run("remember", "relay", "is", "project"),
+		run("remember", "relay", "uses", "bun for the backend, biome for linting, deployed on k3s"),
+		run("remember", "project", "are", "software"),
+		run("forget", "relay", "uses"),
+		run("remember", "relay", "has", "Project"),
+		dumping("vault", "export", "--obsidian", "$TMP/vault"),
+		run("export", "--obsidian", "$TMP/vault", "--json"),
+		run("export"),
+	}},
 	{"store_errors", []step{
 		run("remember", "relay", "is", "project", "--file", "/dev/null/brain.jsonl"),
 		run("remember", "relay", "is", "project", "--json", "--file", "/dev/null/brain.jsonl"),
@@ -227,24 +293,25 @@ var cases = []struct {
 }
 
 var (
-	uuidRe = regexp.MustCompile(`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`)
-	timeRe = regexp.MustCompile(`"time":"[^"]*"`)
-	// A text line "<uuid> <time> ..." (search, log, history).
-	bareTimeRe = regexp.MustCompile(`([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}) \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z`)
-	refRe      = regexp.MustCompile(`<uuid-\d+>`)
+	uuidRe = regexp.MustCompile(uuidPat)
+	// timeRe matches a record time: the JSON "time" value, or the column after
+	// the uuid in log, history and search lines.
+	timeRe = regexp.MustCompile(`("time":"|` + uuidPat + ` )\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z`)
+	refRe  = regexp.MustCompile(`<uuid-\d+>`)
 )
 
 // normalizer maps real uuids to <uuid-N> and back within one case.
 type normalizer struct {
 	store string
+	tmp   string
 	names map[string]string // uuid -> <uuid-N>
 	uuids map[string]string // <uuid-N> -> uuid
 }
 
 func (n *normalizer) text(s string) string {
 	s = strings.ReplaceAll(s, n.store, "$STORE")
-	s = timeRe.ReplaceAllString(s, `"time":"<time>"`)
-	s = bareTimeRe.ReplaceAllString(s, "$1 <time>")
+	s = strings.ReplaceAll(s, n.tmp, "$TMP")
+	s = timeRe.ReplaceAllString(s, "${1}<time>")
 	return uuidRe.ReplaceAllStringFunc(s, func(u string) string {
 		if name, ok := n.names[u]; ok {
 			return name
@@ -268,12 +335,12 @@ func TestGolden(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			file := filepath.Join(t.TempDir(), "brain.jsonl")
-			n := &normalizer{store: file, names: map[string]string{}, uuids: map[string]string{}}
+			n := &normalizer{store: file, tmp: filepath.Dir(file), names: map[string]string{}, uuids: map[string]string{}}
 			var got strings.Builder
 			for _, st := range tc.steps {
 				args := make([]string, len(st.args))
 				for i, a := range st.args {
-					args[i] = n.arg(a)
+					args[i] = strings.ReplaceAll(n.arg(a), "$TMP", n.tmp)
 				}
 				var stdout, stderr bytes.Buffer
 				cmd := exec.Command(binary, args...)
@@ -294,6 +361,9 @@ func TestGolden(t *testing.T) {
 				}
 				fmt.Fprintf(&got, "--- stdout\n%s--- stderr\n%s--- exit\n%d\n",
 					n.text(stdout.String()), n.text(stderr.String()), code)
+				if st.dump != "" {
+					got.WriteString(dumpDir(t, n, filepath.Join(n.tmp, st.dump)))
+				}
 			}
 			if b, err := os.ReadFile(file); err == nil {
 				fmt.Fprintf(&got, "--- file\n%s", n.text(string(b)))
@@ -332,4 +402,22 @@ func shellJoin(args []string) string {
 		out[i] = a
 	}
 	return strings.Join(out, " ")
+}
+
+// dumpDir prints each file of dir, sorted, as "--- <name>" and its content.
+func dumpDir(t *testing.T, n *normalizer, dir string) string {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var b strings.Builder
+	for _, e := range entries {
+		data, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		fmt.Fprintf(&b, "--- file %s\n%s", e.Name(), n.text(string(data)))
+	}
+	return b.String()
 }

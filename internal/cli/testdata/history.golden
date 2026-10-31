@@ -1,0 +1,80 @@
+$ myself remember relay is project
+--- stdout
+remembered <uuid-1>
+--- stderr
+--- exit
+0
+$ myself remember relay uses "bun for the backend, biome for linting, deployed on k3s"
+--- stdout
+remembered <uuid-2>
+--- stderr
+--- exit
+0
+$ myself remember project are software
+--- stdout
+remembered <uuid-3>
+--- stderr
+--- exit
+0
+$ myself forget relay uses --reason "moved off bun"
+--- stdout
+forgot <uuid-2>
+--- stderr
+--- exit
+0
+$ myself history relay
+--- stdout
+<uuid-1> <time> relay is project
+<uuid-2> <time> relay uses bun for the backend, biome for linting, deployed on k3s
+<uuid-4> <time> forget <uuid-2> moved off bun
+--- stderr
+--- exit
+0
+$ myself history Relay uses
+--- stdout
+<uuid-2> <time> relay uses bun for the backend, biome for linting, deployed on k3s
+<uuid-4> <time> forget <uuid-2> moved off bun
+--- stderr
+--- exit
+0
+$ myself history relay are
+--- stdout
+<uuid-1> <time> relay is project
+--- stderr
+--- exit
+0
+$ myself history relay --json
+--- stdout
+{"records":[{"uuid":"<uuid-1>","subject":"relay","relation":"is","object":"project","time":"<time>"},{"uuid":"<uuid-2>","subject":"relay","relation":"uses","object":"bun for the backend, biome for linting, deployed on k3s","time":"<time>"},{"uuid":"<uuid-4>","subject":"<uuid-2>","relation":"forget","object":"moved off bun","time":"<time>"}]}
+--- stderr
+--- exit
+0
+$ myself history project
+--- stdout
+<uuid-3> <time> project is software
+--- stderr
+--- exit
+0
+$ myself history software
+--- stdout
+--- stderr
+error: unknown subject "software"
+--- exit
+2
+$ myself history relay built-with
+--- stdout
+--- stderr
+error: unknown relation "built-with". use one of: is, are, has, uses, does, prefers, related
+--- exit
+1
+$ myself history
+--- stdout
+--- stderr
+error: accepts between 1 and 2 arg(s), received 0
+--- exit
+1
+--- file
+{"uuid":"<uuid-1>","subject":"relay","relation":"is","object":"project","time":"<time>"}
+{"uuid":"<uuid-2>","subject":"relay","relation":"uses","object":"bun for the backend, biome for linting, deployed on k3s","time":"<time>"}
+{"uuid":"<uuid-3>","subject":"project","relation":"is","object":"software","time":"<time>"}
+{"uuid":"<uuid-4>","subject":"<uuid-2>","relation":"forget","object":"moved off bun","time":"<time>"}
