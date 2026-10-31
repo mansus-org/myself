@@ -2,12 +2,14 @@ package store
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strings"
 	"syscall"
 	"testing"
@@ -273,5 +275,98 @@ func TestResolvePath(t *testing.T) {
 	t.Setenv("HOME", "/home/x")
 	if p, _ := ResolvePath("", false); p != "/home/x/.myself/brain.jsonl" {
 		t.Errorf("default: %s", p)
+	}
+}
+
+// referenceDecode is the pre-BRAIN-153 per-line decoder.
+func referenceDecode(line string) (model.Record, bool) {
+	var rec model.Record
+	dec := json.NewDecoder(strings.NewReader(line))
+	dec.DisallowUnknownFields()
+	if dec.Decode(&rec) != nil || dec.More() || rec.UUID == "" {
+		return model.Record{}, false
+	}
+	return rec, true
+}
+
+func TestReadLineEdgeCases(t *testing.T) {
+	good := `{"uuid":"a","subject":"s","relation":"is","object":"o","time":"t"}`
+	lines := []string{
+		good,
+		`{"uuid":"b","subject":"s","relation":"is","object":"o","time":"t","extra":1}`,
+		`{"uuid":"c","subject":"s","relation":"is","object":"o","time":"t"} garbage`,
+		`{"uuid":"d","subject":"s","relation":"is","object":"o","time":"t"}{}`,
+		`{"uuid":"","subject":"s","relation":"is","object":"o","time":"t"}`,
+		`{"subject":"s","relation":"is","object":"o","time":"t"}`,
+		`{"uuid":"e","subject":"s","relation":"is","object":"o"}`,
+		`{"uuid":"f","subject":"s\"q\\ é \n","relation":"is","object":"café 😀","time":"t"}`,
+		`{"uuid":"g","subject":"é 日本 😀","relation":"is","object":"o","time":"t"}`,
+		`{"relation":"is","uuid":"h","subject":"s","object":"o","time":"t"}`,
+		`{ "uuid" : "i", "subject":"s","relation":"is","object":"o","time":"t" }`,
+		`{"UUID":"j","subject":"s","relation":"is","object":"o","time":"t"}`,
+		`{"uuid":"k","uuid":"k2","subject":"s","relation":"is","object":"o","time":"t"}`,
+		`{"uuid":"l","subject":null,"relation":"is","object":"o","time":"t"}`,
+		`{"uuid":"m","subject":"s","relation":"is","object":"o","time":"t"`,
+		`{"uuid":"n","subject":"s","relation":"is","object":"bad` + "\x01" + `ctl","time":"t"}`,
+		`{"uuid":"o","subject":"s","relation":"is","object":"bad` + "\xff" + `utf8","time":"t"}`,
+		`{"uuid":"p","subject":"s","relation":"is","object":"a","time":"t","x":"b","time":"u"}`,
+		`{"uuid":"q","subject":"s","relation":"is","object":"x\",\"time\":\"y","time":"t"}`,
+		`{"uuid":"r","subject":"s","relation":"is","object":"o","time":"t"}` + "\r",
+		`[]`, `null`, `42`, `{}`, `   `, ``,
+		good,
+	}
+	for i, line := range lines {
+		var warn bytes.Buffer
+		got, err := Read(strings.NewReader(line+"\n"), &warn)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want, ok := referenceDecode(line)
+		switch {
+		case ok && (len(got) != 1 || got[0] != want):
+			t.Errorf("line %d %q: got %+v, want %+v", i, line, got, want)
+		case !ok && len(got) != 0:
+			t.Errorf("line %d %q: got %+v, want none", i, line, got)
+		case !ok && strings.TrimSpace(line) != "" && warn.String() != "warning: line 1: corrupt, skipped\n":
+			t.Errorf("line %d %q: warn = %q", i, line, warn.String())
+		case !ok && strings.TrimSpace(line) == "" && warn.Len() != 0:
+			t.Errorf("blank line %d warned: %q", i, warn.String())
+		}
+	}
+}
+
+// TestReadParallelMatchesSequential feeds enough lines, with corrupt ones
+// sprinkled in, to take the parallel path and checks order and line numbers.
+func TestReadParallelMatchesSequential(t *testing.T) {
+	var in bytes.Buffer
+	var want []model.Record
+	var wantWarn bytes.Buffer
+	for i := 0; i < 20000; i++ {
+		line := fmt.Sprintf(`{"uuid":"%08d","subject":"s","relation":"is","object":"oé","time":"t"}`, (i*7919)%20000)
+		switch {
+		case i%997 == 0:
+			line = "garbage"
+		case i%1013 == 0:
+			line = ""
+		}
+		in.WriteString(line + "\n")
+		if rec, ok := referenceDecode(line); ok {
+			want = append(want, rec)
+		} else if line != "" {
+			fmt.Fprintf(&wantWarn, "warning: line %d: corrupt, skipped\n", i+1)
+		}
+	}
+	in.WriteString(`{"uuid":"partial"`) // no newline: ignored
+	sort.SliceStable(want, func(i, j int) bool { return want[i].UUID < want[j].UUID })
+	var warn bytes.Buffer
+	got, err := Read(&in, &warn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("records differ: got %d, want %d", len(got), len(want))
+	}
+	if warn.String() != wantWarn.String() {
+		t.Errorf("warnings differ:\n%s\nwant:\n%s", warn.String(), wantWarn.String())
 	}
 }
