@@ -11,3 +11,26 @@ The contract for the CLI is in [SPEC.md](SPEC.md).
 The site lives in `site/` (plain HTML, CSS and JS, no build step) and deploys to https://myself.mansus.org on merge to `main`: the `Dockerfile` serves `site/` with busybox httpd, `.k3s/values.yaml` holds the cluster settings, `.github/workflows/deploy.yml` builds the image. Pull requests get a preview at `myself-pr-<number>.mansus.org`. The design rationale is in `design/README.md`.
 
 Preview locally: `bunx serve site -l 8080`.
+
+## Development
+
+Go (see `go.mod` for the version) and no other tooling.
+
+```sh
+go build ./...                 # build everything
+go run ./cmd/myself version    # run the CLI
+go test ./...                  # unit and golden CLI tests
+go test ./internal/cli -update # regenerate internal/cli/testdata/*.golden
+```
+
+CLI tests build the binary once and run it against a temp store; add a row to `cases` in `internal/cli/e2e_test.go` for each new command, then run with `-update` and review the golden diff.
+
+Build info is injected with `-ldflags`:
+
+```sh
+go build -ldflags "-X github.com/mansus-org/myself/internal/cli.Version=v0.1.0 \
+  -X github.com/mansus-org/myself/internal/cli.Commit=$(git rev-parse --short HEAD) \
+  -X github.com/mansus-org/myself/internal/cli.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" ./cmd/myself
+```
+
+Install: `go install github.com/mansus-org/myself/cmd/myself@latest`.

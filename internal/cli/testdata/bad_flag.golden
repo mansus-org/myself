@@ -1,0 +1,5 @@
+--- stdout
+--- stderr
+error: unknown flag: --nope
+--- exit
+1

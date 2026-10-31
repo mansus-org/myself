@@ -1,0 +1,5 @@
+--- stdout
+{"version":"v0.0.0-test","commit":"abc1234","date":"2026-01-01T00:00:00Z"}
+--- stderr
+--- exit
+0

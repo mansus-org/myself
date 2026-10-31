@@ -1,0 +1,5 @@
+--- stdout
+--- stderr
+error: unknown command "frobnicate" for "myself"
+--- exit
+1
