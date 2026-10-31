@@ -29,7 +29,7 @@ func newRoot(stdout, stderr io.Writer) *cobra.Command {
 	root.SetOut(stdout)
 	root.SetErr(stderr)
 	root.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
-		return &ExitError{ExitUsage, err}
+		return &ExitError{Code: ExitUsage, Err: err}
 	})
 	root.PersistentFlags().StringVar(&file, "file", "", "path to the brain file (default ~/.myself/brain.jsonl, env MYSELF_FILE)")
 	root.PersistentFlags().BoolVar(&cfg.JSON, "json", false, "write JSON to stdout")

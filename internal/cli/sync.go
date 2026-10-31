@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/mansus-org/myself/internal/brain"
 	"github.com/mansus-org/myself/internal/gitsync"
 	"github.com/spf13/cobra"
 )
@@ -82,7 +83,7 @@ func runSync(cmd *cobra.Command, cfg *Config, exportDir string) (*syncResult, er
 	dir, base := filepath.Dir(file), filepath.Base(file)
 	g := gitsync.Git{Dir: dir}
 	if out, err := g.Run("rev-parse", "--is-inside-work-tree"); err != nil || out != "true" {
-		return nil, &ExitError{ExitUsage, fmt.Errorf(setupHelp, dir, dir, base)}
+		return nil, &ExitError{Code: ExitUsage, Err: fmt.Errorf(setupHelp, dir, dir, base)}
 	}
 
 	if err := ensureDriver(g); err != nil {
@@ -106,7 +107,7 @@ func runSync(cmd *cobra.Command, cfg *Config, exportDir string) (*syncResult, er
 		res.Pulled = true
 	}
 	if exportDir != "" {
-		ex, err := runExport(cmd, cfg, exportDir)
+		ex, err := brain.ExportObsidian(storeFor(cmd, cfg), exportDir)
 		if err != nil {
 			return nil, err
 		}

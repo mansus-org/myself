@@ -5,30 +5,10 @@ import (
 	"io"
 	"strings"
 
-	"github.com/mansus-org/myself/internal/graph"
+	"github.com/mansus-org/myself/internal/brain"
 	"github.com/mansus-org/myself/internal/model"
-	"github.com/mansus-org/myself/internal/store"
 	"github.com/spf13/cobra"
 )
-
-// loadGraph loads the records (honoring --at when at is non-nil), keeps the
-// live ones and returns them with the graph built from them.
-func loadGraph(cmd *cobra.Command, cfg *Config, at *atFlag) ([]model.Record, *graph.Graph, error) {
-	recs, err := loadRecords(cmd, cfg, at)
-	if err != nil {
-		return nil, nil, err
-	}
-	live := store.Live(recs)
-	return live, graph.Build(live), nil
-}
-
-// nonNil keeps empty record lists as [] in JSON.
-func nonNil(recs []model.Record) []model.Record {
-	if recs == nil {
-		return []model.Record{}
-	}
-	return recs
-}
 
 func writeLines(w io.Writer, lines []string) error {
 	for _, l := range lines {
@@ -48,17 +28,12 @@ func recordLine(r model.Record) string {
 	return fmt.Sprintf("%s %s %s %s %s", r.UUID, r.Time, r.Subject, r.Relation, r.Object)
 }
 
-type describedEntity struct {
-	Name  string         `json:"name"`
-	Depth int            `json:"depth"`
-	Out   []model.Record `json:"out"`
-	In    []model.Record `json:"in"`
-}
-
-type describeResult struct {
-	Entity   string            `json:"entity"`
-	At       *string           `json:"at"`
-	Entities []describedEntity `json:"entities"`
+func writeRecordLines(w io.Writer, recs []model.Record) error {
+	lines := make([]string, len(recs))
+	for i, r := range recs {
+		lines[i] = recordLine(r)
+	}
+	return writeLines(w, lines)
 }
 
 func newDescribeCmd(cfg *Config) *cobra.Command {
@@ -76,36 +51,19 @@ func newDescribeCmd(cfg *Config) *cobra.Command {
 	at := addAtFlag(cmd)
 	cmd.Flags().IntVar(&depth, "depth", 0, "also show entities reachable within N hops")
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		if depth < 0 {
-			return Usagef("--depth must not be negative")
-		}
-		_, g, err := loadGraph(cmd, cfg, at)
+		res, err := brain.Describe(storeFor(cmd, cfg), args[0], depth, at.value())
 		if err != nil {
 			return err
-		}
-		if !g.Has(args[0]) {
-			return NotFoundf("unknown entity %q", args[0])
-		}
-		res := describeResult{Entity: model.NormalizeName(args[0]), At: at.JSON(), Entities: []describedEntity{}}
-		for _, st := range g.BFS(args[0], depth) {
-			res.Entities = append(res.Entities, describedEntity{
-				Name: st.Name, Depth: st.Depth, Out: nonNil(g.Out(st.Name)), In: nonNil(g.In(st.Name)),
-			})
 		}
 		return emit(cmd, cfg, res, func(w io.Writer) error {
 			var lines []string
 			for _, e := range res.Entities {
-				lines = append(lines, renderEntity(e.Name, e.Out, e.In)...)
+				lines = append(lines, brain.RenderEntity(e.Name, e.Out, e.In)...)
 			}
 			return writeLines(w, lines)
 		})
 	}
 	return cmd
-}
-
-type lsResult struct {
-	Type     *string  `json:"type"`
-	Entities []string `json:"entities"`
 }
 
 func newLsCmd(cfg *Config) *cobra.Command {
@@ -121,23 +79,13 @@ func newLsCmd(cfg *Config) *cobra.Command {
 	}
 	at := addAtFlag(cmd)
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		_, g, err := loadGraph(cmd, cfg, at)
+		var typ *string
+		if len(args) == 1 {
+			typ = &args[0]
+		}
+		res, err := brain.Ls(storeFor(cmd, cfg), typ, at.value())
 		if err != nil {
 			return err
-		}
-		res := lsResult{}
-		if len(args) == 0 {
-			res.Entities = g.Types()
-		} else {
-			if !g.Has(args[0]) {
-				return NotFoundf("unknown type %q", args[0])
-			}
-			t := model.NormalizeName(args[0])
-			res.Type = &t
-			res.Entities = g.SubtypesOf(args[0])
-		}
-		if res.Entities == nil {
-			res.Entities = []string{}
 		}
 		return emit(cmd, cfg, res, func(w io.Writer) error { return writeLines(w, res.Entities) })
 	}
@@ -155,10 +103,8 @@ func newRelationsCmd(cfg *Config) *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			rels := model.Relations()
-			return emit(cmd, cfg, struct {
-				Relations []string `json:"relations"`
-			}{rels}, func(w io.Writer) error { return writeLines(w, rels) })
+			res := brain.Relations()
+			return emit(cmd, cfg, res, func(w io.Writer) error { return writeLines(w, res.Relations) })
 		},
 	}
 }
@@ -176,40 +122,13 @@ func newSearchCmd(cfg *Config) *cobra.Command {
 	}
 	at := addAtFlag(cmd)
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		live, _, err := loadGraph(cmd, cfg, at)
+		res, err := brain.Search(storeFor(cmd, cfg), joinObject(args), at.value())
 		if err != nil {
 			return err
 		}
-		needle := strings.ToLower(joinObject(args))
-		matches := []model.Record{}
-		for _, r := range live {
-			if r.IsForget() {
-				continue
-			}
-			if strings.Contains(strings.ToLower(r.Subject), needle) ||
-				strings.Contains(strings.ToLower(r.Relation), needle) ||
-				strings.Contains(strings.ToLower(r.Object), needle) {
-				matches = append(matches, r)
-			}
-		}
-		return emit(cmd, cfg, struct {
-			Matches []model.Record `json:"matches"`
-		}{matches}, func(w io.Writer) error {
-			for _, r := range matches {
-				if _, err := fmt.Fprintln(w, recordLine(r)); err != nil {
-					return err
-				}
-			}
-			return nil
-		})
+		return emit(cmd, cfg, res, func(w io.Writer) error { return writeRecordLines(w, res.Matches) })
 	}
 	return cmd
-}
-
-type pathResult struct {
-	From string         `json:"from"`
-	To   string         `json:"to"`
-	Path []model.Record `json:"path"`
 }
 
 func newPathCmd(cfg *Config) *cobra.Command {
@@ -224,23 +143,10 @@ func newPathCmd(cfg *Config) *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if maxDepth < 1 {
-				return Usagef("--max-depth must be at least 1")
-			}
-			_, g, err := loadGraph(cmd, cfg, nil)
+			res, err := brain.Path(storeFor(cmd, cfg), args[0], args[1], maxDepth)
 			if err != nil {
 				return err
 			}
-			for _, a := range args {
-				if !g.Has(a) {
-					return NotFoundf("unknown entity %q", a)
-				}
-			}
-			p, ok := g.ShortestPath(args[0], args[1], maxDepth)
-			if !ok {
-				return NotFoundf("no path from %q to %q within %d hops", args[0], args[1], maxDepth)
-			}
-			res := pathResult{From: model.NormalizeName(args[0]), To: model.NormalizeName(args[1]), Path: nonNil(p)}
 			return emit(cmd, cfg, res, func(w io.Writer) error {
 				for _, r := range res.Path {
 					if _, err := fmt.Fprintf(w, "%s %s %s\n", r.Subject, r.Relation, r.Object); err != nil {
@@ -251,6 +157,6 @@ func newPathCmd(cfg *Config) *cobra.Command {
 			})
 		},
 	}
-	cmd.Flags().IntVar(&maxDepth, "max-depth", 6, "longest chain to look for")
+	cmd.Flags().IntVar(&maxDepth, "max-depth", brain.DefaultMaxDepth, "longest chain to look for")
 	return cmd
 }

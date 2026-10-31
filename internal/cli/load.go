@@ -3,17 +3,17 @@ package cli
 import (
 	"io"
 	"strings"
-	"time"
 
+	"github.com/mansus-org/myself/internal/brain"
 	"github.com/mansus-org/myself/internal/model"
 	"github.com/mansus-org/myself/internal/store"
 	"github.com/spf13/cobra"
 )
 
 // Commands follow one pattern: parse args and flags (usage errors, exit 1),
-// load the records with loadRecords (store errors, exit 3), compute, then
-// print once with emit. Nothing is written to stdout before the last step,
-// so with --json stdout stays empty on error.
+// call the brain function with the command's store, then print once with
+// emit. Nothing is written to stdout before the last step, so with --json
+// stdout stays empty on error.
 
 // atFlag is the --at TIME flag of the commands that list it in SPEC section 5
 // (describe, ls, search). Register it with addAtFlag.
@@ -28,59 +28,37 @@ func addAtFlag(cmd *cobra.Command) *atFlag {
 	return a
 }
 
-// set reports whether --at was given.
-func (a *atFlag) set() bool { return a != nil && a.cmd.Flags().Changed("at") }
-
-// time parses --at. ok is false when the flag was not given. A bad value is a
-// usage error.
-func (a *atFlag) time() (t time.Time, ok bool, err error) {
-	if !a.set() {
-		return time.Time{}, false, nil
-	}
-	t, err = store.ParseAt(a.raw)
-	if err != nil {
-		return time.Time{}, false, Usagef("--at: %w", err)
-	}
-	return t, true, nil
-}
-
-// JSON returns the --at string as given, or nil without the flag: the "at"
-// field of `describe --json`.
-func (a *atFlag) JSON() *string {
-	if !a.set() {
+// value returns the --at string as given, or nil without the flag.
+func (a *atFlag) value() *string {
+	if a == nil || !a.cmd.Flags().Changed("at") {
 		return nil
 	}
 	s := a.raw
 	return &s
 }
 
-// loadRecords reads cfg.File, uuid-sorted, forgets included. Corrupt lines
-// are reported as warnings on the command's stderr. If at is non-nil and
-// --at was given, only records with time <= TIME are kept. Pass a nil at for
-// commands without the flag.
-func loadRecords(cmd *cobra.Command, cfg *Config, at *atFlag) ([]model.Record, error) {
-	t, ok, err := at.time()
+// fileStore is the CLI's brain.Store: it reads cfg.File on every Load and
+// writes warnings, corrupt lines included, to the command's stderr.
+type fileStore struct {
+	file string
+	warn io.Writer
+}
+
+func storeFor(cmd *cobra.Command, cfg *Config) brain.Store {
+	return fileStore{cfg.File, cmd.ErrOrStderr()}
+}
+
+func (s fileStore) Load() (*brain.Snapshot, error) {
+	recs, err := store.ReadFile(s.file, s.warn)
 	if err != nil {
 		return nil, err
 	}
-	recs, err := store.ReadFile(cfg.File, cmd.ErrOrStderr())
-	if err != nil {
-		return nil, StoreErr(err)
-	}
-	if ok {
-		recs = store.AsOf(recs, t)
-	}
-	return recs, nil
+	return brain.NewSnapshot(recs), nil
 }
 
-// appendRecords writes recs in one store.Append call. Write and lock errors
-// exit 3.
-func appendRecords(cfg *Config, recs ...model.Record) error {
-	if err := store.Append(cfg.File, recs...); err != nil {
-		return StoreErr(err)
-	}
-	return nil
-}
+func (s fileStore) Append(recs ...model.Record) error { return store.Append(s.file, recs...) }
+
+func (s fileStore) Warn(msg string) { Warnf(s.warn, "%s", msg) }
 
 // emit prints the command's result: v as one JSON value with --json,
 // otherwise the plain text written by text.

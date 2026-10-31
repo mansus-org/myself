@@ -5,14 +5,10 @@ import (
 	"io"
 	"time"
 
+	"github.com/mansus-org/myself/internal/brain"
 	"github.com/mansus-org/myself/internal/model"
-	"github.com/mansus-org/myself/internal/store"
 	"github.com/spf13/cobra"
 )
-
-type forgetResult struct {
-	Forgotten []model.Record `json:"forgotten"`
-}
 
 func newForgetCmd(cfg *Config) *cobra.Command {
 	var reason string
@@ -23,25 +19,13 @@ func newForgetCmd(cfg *Config) *cobra.Command {
 			"every live record with that subject and relation, narrowed to those whose object\n" +
 			"matches when one is given. Exits 2 if nothing matches.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			match, err := forgetMatcher(args)
+			a, err := forgetArgs(args)
 			if err != nil {
 				return err
 			}
-			recs, err := loadRecords(cmd, cfg, nil)
+			a.Reason = reason
+			res, err := brain.Forget(storeFor(cmd, cfg), a, time.Now())
 			if err != nil {
-				return err
-			}
-			now := time.Now()
-			res := forgetResult{Forgotten: []model.Record{}}
-			for _, r := range store.Live(recs) {
-				if match.fn(r) {
-					res.Forgotten = append(res.Forgotten, model.NewForget(r.UUID, reason, now))
-				}
-			}
-			if len(res.Forgotten) == 0 {
-				return NotFoundf("no live record matches %s", match.desc)
-			}
-			if err := appendRecords(cfg, res.Forgotten...); err != nil {
 				return err
 			}
 			return emit(cmd, cfg, res, func(w io.Writer) error {
@@ -58,38 +42,20 @@ func newForgetCmd(cfg *Config) *cobra.Command {
 	return cmd
 }
 
-type matcher struct {
-	fn   func(model.Record) bool
-	desc string // for the not-found error
-}
-
-// forgetMatcher picks the form of SPEC section 5: `forget <uuid>` when there
-// is exactly one argument and it is a uuid, else `<subject> <relation>
-// [<object...>]` compared after normalization.
-func forgetMatcher(args []string) (matcher, error) {
+// forgetArgs picks the form of SPEC section 5: `forget <uuid>` when there is
+// exactly one argument and it is a uuid, else `<subject> <relation>
+// [<object...>]`.
+func forgetArgs(args []string) (brain.ForgetArgs, error) {
 	if len(args) == 1 && model.IsUUID(args[0]) {
-		id := args[0]
-		return matcher{func(r model.Record) bool { return r.UUID == id }, "uuid " + id}, nil
+		return brain.ForgetArgs{UUID: args[0]}, nil
 	}
 	if len(args) < 2 {
-		return matcher{}, Usagef("forget needs <uuid>, or <subject> <relation> [<object...>]")
+		return brain.ForgetArgs{}, Usagef("%s", brain.ForgetUsage)
 	}
-	rel, err := model.ParseRelation(args[1])
-	if err != nil {
-		return matcher{}, Usagef("%w", err)
+	a := brain.ForgetArgs{Subject: args[0], Relation: args[1]}
+	if len(args) > 2 {
+		obj := joinObject(args[2:])
+		a.Object = &obj
 	}
-	subj := model.NormalizeName(args[0])
-	if subj == "" {
-		return matcher{}, Usagef("empty subject. give a name as the subject")
-	}
-	desc := fmt.Sprintf("%q", subj+" "+rel)
-	if len(args) == 2 {
-		return matcher{func(r model.Record) bool { return r.Subject == subj && r.Relation == rel }, desc}, nil
-	}
-	obj := joinObject(args[2:])
-	norm := model.NormalizeName(obj)
-	desc = fmt.Sprintf("%q", subj+" "+rel+" "+obj)
-	return matcher{func(r model.Record) bool {
-		return r.Subject == subj && r.Relation == rel && model.NormalizeName(r.Object) == norm
-	}, desc}, nil
+	return a, nil
 }
