@@ -1,0 +1,6 @@
+$ myself remember relay
+--- stdout
+--- stderr
+error: remember needs <subject> <relation> <object...>, or - to read stdin
+--- exit
+1

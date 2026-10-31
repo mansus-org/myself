@@ -1,0 +1,18 @@
+$ myself forget relay
+--- stdout
+--- stderr
+error: forget needs <uuid>, or <subject> <relation> [<object...>]
+--- exit
+1
+$ myself forget relay forget
+--- stdout
+--- stderr
+error: relation "forget" is reserved, use the forget command. use one of: is, are, has, uses, does, prefers, related
+--- exit
+1
+$ myself forget 00000000-0000-7000-8000-000000000000
+--- stdout
+--- stderr
+error: no live record matches uuid <uuid-1>
+--- exit
+2

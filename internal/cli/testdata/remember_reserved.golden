@@ -1,0 +1,6 @@
+$ myself remember relay forget bun
+--- stdout
+--- stderr
+error: relation "forget" is reserved, use the forget command. use one of: is, are, has, uses, does, prefers, related
+--- exit
+1

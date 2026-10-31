@@ -1,0 +1,15 @@
+$ myself remember "Relay App" is project
+--- stdout
+remembered <uuid-1>
+--- stderr
+--- exit
+0
+$ myself remember relay uses bun for the backend, "biome for linting"
+--- stdout
+remembered <uuid-2>
+--- stderr
+--- exit
+0
+--- file
+{"uuid":"<uuid-1>","subject":"relay-app","relation":"is","object":"project","time":"<time>"}
+{"uuid":"<uuid-2>","subject":"relay","relation":"uses","object":"bun for the backend, biome for linting","time":"<time>"}

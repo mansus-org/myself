@@ -1,0 +1,48 @@
+$ myself remember relay uses bun
+--- stdout
+remembered <uuid-1>
+--- stderr
+--- exit
+0
+$ myself remember relay uses deno
+--- stdout
+remembered <uuid-2>
+--- stderr
+--- exit
+0
+$ myself remember relay is project
+--- stdout
+remembered <uuid-3>
+--- stderr
+--- exit
+0
+$ myself remember relay uses node --replace
+--- stdout
+forgot <uuid-1>
+forgot <uuid-2>
+remembered <uuid-4>
+--- stderr
+--- exit
+0
+$ myself remember --replace --json relay uses go
+--- stdout
+{"remembered":[{"uuid":"<uuid-5>","subject":"relay","relation":"uses","object":"go","time":"<time>"}],"forgotten":[{"uuid":"<uuid-6>","subject":"<uuid-4>","relation":"forget","object":"","time":"<time>"}]}
+--- stderr
+--- exit
+0
+$ myself remember relay has tests --replace --json
+--- stdout
+{"remembered":[{"uuid":"<uuid-7>","subject":"relay","relation":"has","object":"tests","time":"<time>"}],"forgotten":[]}
+--- stderr
+--- exit
+0
+--- file
+{"uuid":"<uuid-1>","subject":"relay","relation":"uses","object":"bun","time":"<time>"}
+{"uuid":"<uuid-2>","subject":"relay","relation":"uses","object":"deno","time":"<time>"}
+{"uuid":"<uuid-3>","subject":"relay","relation":"is","object":"project","time":"<time>"}
+{"uuid":"<uuid-8>","subject":"<uuid-1>","relation":"forget","object":"","time":"<time>"}
+{"uuid":"<uuid-9>","subject":"<uuid-2>","relation":"forget","object":"","time":"<time>"}
+{"uuid":"<uuid-4>","subject":"relay","relation":"uses","object":"node","time":"<time>"}
+{"uuid":"<uuid-6>","subject":"<uuid-4>","relation":"forget","object":"","time":"<time>"}
+{"uuid":"<uuid-5>","subject":"relay","relation":"uses","object":"go","time":"<time>"}
+{"uuid":"<uuid-7>","subject":"relay","relation":"has","object":"tests","time":"<time>"}

@@ -1,0 +1,15 @@
+$ myself remember relay uses "bun for the backend"
+--- stdout
+remembered <uuid-1>
+--- stderr
+--- exit
+0
+$ myself forget relay uses --reason "moved off bun"
+--- stdout
+forgot <uuid-1>
+--- stderr
+--- exit
+0
+--- file
+{"uuid":"<uuid-1>","subject":"relay","relation":"uses","object":"bun for the backend","time":"<time>"}
+{"uuid":"<uuid-2>","subject":"<uuid-1>","relation":"forget","object":"moved off bun","time":"<time>"}

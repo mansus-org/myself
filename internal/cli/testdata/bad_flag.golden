@@ -1,3 +1,4 @@
+$ myself version --nope
 --- stdout
 --- stderr
 error: unknown flag: --nope
