@@ -100,7 +100,7 @@ One fact per `remember`, bulk `remember -` for 3+. If nothing is durable, write 
 
 Molting is updating your own self-model (`self`). Molt when:
 
-1. **The user corrects your behaviour** ("don't do X", "always Y"): add `i prefers`, then `myself describe i` and rewrite the identity paragraph with `myself remember i does '<paragraph>' --replace` so it includes the new rule in one clause. Skip the rewrite only for narrow, project-specific rules.
+1. **The user corrects your behaviour** ("don't do X", "always Y"): add `i prefers`, then `myself describe i` and rewrite the identity paragraph with `myself remember i does '<paragraph>' --replace` so it includes the new rule in one clause. Do both in the same turn. Skip the rewrite only for a rule about one repo or one task; rules about how you commit, write or work in general (even "in all X repos") get the rewrite.
 2. **The same lesson shows up a second time**: check `myself history i` for a near-duplicate first.
 3. **`dream` or `describe i` shows contradictions** in your self facts: forget the stale one.
 
