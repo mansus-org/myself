@@ -151,6 +151,9 @@ var cases = []struct {
 		run("path", "relay", "software"),
 		run("forget", "relay", "uses", "--reason", "moved off bun"),
 		run("describe", "relay"),
+		run("history", "relay"),
+		run("history", "relay", "--json"),
+		dumping("vault", "export", "--obsidian", "./vault"),
 	}},
 	{"describe_json", []step{
 		run("remember", "relay", "is", "project"),
@@ -344,6 +347,7 @@ func TestGolden(t *testing.T) {
 				}
 				var stdout, stderr bytes.Buffer
 				cmd := exec.Command(binary, args...)
+				cmd.Dir = n.tmp
 				cmd.Stdin = strings.NewReader(st.stdin)
 				cmd.Stdout, cmd.Stderr = &stdout, &stderr
 				cmd.Env = append(os.Environ(), "MYSELF_FILE="+file)
