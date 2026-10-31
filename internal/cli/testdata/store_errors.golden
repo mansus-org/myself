@@ -1,0 +1,18 @@
+$ myself remember relay is project --file /dev/null/brain.jsonl
+--- stdout
+--- stderr
+error: mkdir /dev/null: not a directory
+--- exit
+3
+$ myself remember relay is project --json --file /dev/null/brain.jsonl
+--- stdout
+--- stderr
+error: mkdir /dev/null: not a directory
+--- exit
+3
+$ myself forget relay is --file /dev/null/brain.jsonl
+--- stdout
+--- stderr
+error: open /dev/null/brain.jsonl: not a directory
+--- exit
+3

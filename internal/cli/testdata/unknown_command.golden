@@ -1,3 +1,4 @@
+$ myself frobnicate
 --- stdout
 --- stderr
 error: unknown command "frobnicate" for "myself"

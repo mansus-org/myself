@@ -1,0 +1,28 @@
+$ myself remember relay is project
+--- stdout
+remembered <uuid-1>
+--- stderr
+--- exit
+0
+$ myself remember relay is "Web App"
+--- stdout
+remembered <uuid-2>
+--- stderr
+--- exit
+0
+$ myself forget relay are web app
+--- stdout
+forgot <uuid-2>
+--- stderr
+--- exit
+0
+$ myself forget relay is nothing
+--- stdout
+--- stderr
+error: no live record matches "relay is nothing"
+--- exit
+2
+--- file
+{"uuid":"<uuid-1>","subject":"relay","relation":"is","object":"project","time":"<time>"}
+{"uuid":"<uuid-2>","subject":"relay","relation":"is","object":"Web App","time":"<time>"}
+{"uuid":"<uuid-3>","subject":"<uuid-2>","relation":"forget","object":"","time":"<time>"}

@@ -1,0 +1,8 @@
+$ myself remember project ARE software
+--- stdout
+remembered <uuid-1>
+--- stderr
+--- exit
+0
+--- file
+{"uuid":"<uuid-1>","subject":"project","relation":"is","object":"software","time":"<time>"}

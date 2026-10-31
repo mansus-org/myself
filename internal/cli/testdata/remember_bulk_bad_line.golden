@@ -1,0 +1,19 @@
+$ myself remember -
+--- stdin
+relay is project
+project is software
+relay built-with bun
+--- stdout
+--- stderr
+error: line 3: unknown relation "built-with". use one of: is, are, has, uses, does, prefers, related
+--- exit
+1
+$ myself remember -
+--- stdin
+relay is project
+lonely
+--- stdout
+--- stderr
+error: line 2: want "subject relation object..."
+--- exit
+1

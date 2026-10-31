@@ -1,0 +1,21 @@
+$ myself remember relay uses bun
+--- stdout
+remembered <uuid-1>
+--- stderr
+--- exit
+0
+$ myself forget <uuid-1>
+--- stdout
+forgot <uuid-1>
+--- stderr
+--- exit
+0
+$ myself forget <uuid-1>
+--- stdout
+--- stderr
+error: no live record matches uuid <uuid-1>
+--- exit
+2
+--- file
+{"uuid":"<uuid-1>","subject":"relay","relation":"uses","object":"bun","time":"<time>"}
+{"uuid":"<uuid-2>","subject":"<uuid-1>","relation":"forget","object":"","time":"<time>"}

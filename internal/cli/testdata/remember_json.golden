@@ -1,0 +1,14 @@
+$ myself --json remember relay is project
+--- stdout
+{"remembered":[{"uuid":"<uuid-1>","subject":"relay","relation":"is","object":"project","time":"<time>"}],"forgotten":[]}
+--- stderr
+--- exit
+0
+$ myself remember relay nope x --json
+--- stdout
+--- stderr
+error: unknown relation "nope". use one of: is, are, has, uses, does, prefers, related
+--- exit
+1
+--- file
+{"uuid":"<uuid-1>","subject":"relay","relation":"is","object":"project","time":"<time>"}

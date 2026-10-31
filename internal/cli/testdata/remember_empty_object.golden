@@ -1,0 +1,12 @@
+$ myself remember relay uses
+--- stdout
+--- stderr
+error: empty object. give the object as free text
+--- exit
+1
+$ myself remember relay uses "  "
+--- stdout
+--- stderr
+error: empty object. give the object as free text
+--- exit
+1

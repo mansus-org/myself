@@ -1,0 +1,17 @@
+$ myself remember -
+--- stdin
+relay is project
+
+  project are   software  
+relay uses bun
+--- stdout
+remembered <uuid-1>
+remembered <uuid-2>
+remembered <uuid-3>
+--- stderr
+--- exit
+0
+--- file
+{"uuid":"<uuid-1>","subject":"relay","relation":"is","object":"project","time":"<time>"}
+{"uuid":"<uuid-2>","subject":"project","relation":"is","object":"software","time":"<time>"}
+{"uuid":"<uuid-3>","subject":"relay","relation":"uses","object":"bun","time":"<time>"}
