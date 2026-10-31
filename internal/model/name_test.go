@@ -55,3 +55,28 @@ func TestNormalizeNameIdempotent(t *testing.T) {
 		}
 	}
 }
+
+// TestNormalizeNameMatchesReference checks the ASCII fast path against the
+// general implementation over every short string from a nasty alphabet.
+func TestNormalizeNameMatchesReference(t *testing.T) {
+	alphabet := []string{"a", "Z", "i", "-", ".", " ", "\t", "\v", "\n", "$", "_", "é", " ", "9"}
+	var walk func(prefix string, depth int)
+	walk = func(prefix string, depth int) {
+		if got, want := NormalizeName(prefix), normalizeSlow(prefix); got != want {
+			t.Fatalf("NormalizeName(%q) = %q, want %q", prefix, got, want)
+		}
+		if depth == 0 {
+			return
+		}
+		for _, a := range alphabet {
+			walk(prefix+a, depth-1)
+		}
+	}
+	walk("", 5)
+	for c := 0; c < 128; c++ {
+		s := "x" + string(rune(c)) + "Y" + string(rune(c))
+		if got, want := NormalizeName(s), normalizeSlow(s); got != want {
+			t.Fatalf("NormalizeName(%q) = %q, want %q", s, got, want)
+		}
+	}
+}
