@@ -47,6 +47,12 @@ func newRememberCmd(cfg *Config) *cobra.Command {
 				return Usagef("remember needs <subject> <relation> <object...>, or - to read stdin")
 			}
 
+			for _, f := range facts {
+				if rel, _ := model.ParseRelation(f.relation); (rel == "is" || rel == "are") && len(strings.Fields(f.object)) > 3 {
+					Warnf(cmd.ErrOrStderr(), "\"is\" object looks like a sentence; use a short type name and put details in has or does")
+				}
+			}
+
 			res := rememberResult{Remembered: []model.Record{}, Forgotten: []model.Record{}}
 			if replace && len(facts) > 0 {
 				existing, err := loadRecords(cmd, cfg, nil)
@@ -101,7 +107,7 @@ func readBulk(r io.Reader, now time.Time) ([]fact, error) {
 			if len(words) < 2 {
 				return nil, Usagef("line %d: want \"subject relation object...\"", n)
 			}
-			f := fact{words[0], words[1], joinObject(words[2:])}
+			f := fact{words[0], words[1], unquote(joinObject(words[2:]))}
 			if _, ferr := f.record(now); ferr != nil {
 				return nil, Usagef("line %d: %w", n, ferr)
 			}
@@ -130,4 +136,13 @@ func replaced(live []model.Record, facts []fact, now time.Time) []model.Record {
 		}
 	}
 	return forgets
+}
+
+// unquote strips one matching pair of surrounding '...' or "..." from a bulk
+// object, which the shell would have stripped in single-argument mode.
+func unquote(s string) string {
+	if n := len(s); n >= 2 && (s[0] == '\'' || s[0] == '"') && s[n-1] == s[0] {
+		return s[1 : n-1]
+	}
+	return s
 }

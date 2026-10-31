@@ -25,12 +25,12 @@ $ myself prime
 --- stdout
 project
   is software
-  <- relay is
+  <- is: relay
 relay
   is project
   uses bun
 software
-  <- project is
+  <- is: project
 --- stderr
 --- exit
 0
@@ -38,19 +38,19 @@ $ myself prime --budget 40
 --- stdout
 project
   is software
-  <- relay is
+  <- is: relay
 --- stderr
 --- exit
 0
 $ myself prime --budget 40 --json
 --- stdout
-{"budget":40,"truncated":true,"text":"project\n  is software\n  <- relay is\n"}
+{"budget":40,"truncated":true,"text":"project\n  is software\n  <- is: relay\n"}
 --- stderr
 --- exit
 0
 $ myself prime --json
 --- stdout
-{"budget":2000,"truncated":false,"text":"project\n  is software\n  <- relay is\nrelay\n  is project\n  uses bun\nsoftware\n  <- project is\n"}
+{"budget":2000,"truncated":false,"text":"project\n  is software\n  <- is: relay\nrelay\n  is project\n  uses bun\nsoftware\n  <- is: project\n"}
 --- stderr
 --- exit
 0

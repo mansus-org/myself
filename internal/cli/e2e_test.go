@@ -94,6 +94,18 @@ var cases = []struct {
 	{"remember_bulk", []step{
 		pipe("relay is project\n\n  project are   software  \nrelay uses bun", "remember", "-"),
 	}},
+	{"remember_bulk_quotes", []step{
+		pipe("relay has 'repo at /tmp/x'\nrelay does \"a b\"\nrelay uses 'mismatched\"\nrelay has it's fine\nrelay has ''\n", "remember", "-"),
+		pipe("relay has 'repo at /tmp/x'\nrelay does \"a b\"\nrelay uses 'mismatched\"\nrelay has it's fine\n", "remember", "-"),
+		run("remember", "relay", "has", "'kept'"),
+	}},
+	{"remember_is_sentence", []step{
+		run("remember", "relay", "is", "project"),
+		run("remember", "relay", "is", "a", "micro", "social", "network"),
+		run("remember", "project", "ARE", "things", "you", "make", "often"),
+		run("remember", "relay", "does", "a", "micro", "social", "network"),
+		pipe("qa is a scratch project here\nqa is project\n", "remember", "-"),
+	}},
 	{"remember_bulk_bad_line", []step{
 		pipe("relay is project\nproject is software\nrelay built-with bun\n", "remember", "-"),
 		pipe("relay is project\nlonely\n", "remember", "-"),
@@ -271,6 +283,11 @@ var cases = []struct {
 		run("prime", "--budget", "40", "--json"),
 		run("prime", "--json"),
 		run("prime", "--budget", "0"),
+	}},
+	{"prime_order", []step{
+		pipe("zeta has a\nzeta has b\nzeta has c\nzeta has d\nalpha is tool\nbeta is tool\ngamma is tool\nrelay is project\nself is agent\nself related felipe\nfelipe is person\nself related mansus\nmansus is org\nsolo related self\n", "remember", "-"),
+		run("prime"),
+		run("prime", "--budget", "60"),
 	}},
 	{"dream", []step{
 		run("dream"),

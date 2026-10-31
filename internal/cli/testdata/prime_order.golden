@@ -1,0 +1,99 @@
+$ myself remember -
+--- stdin
+zeta has a
+zeta has b
+zeta has c
+zeta has d
+alpha is tool
+beta is tool
+gamma is tool
+relay is project
+self is agent
+self related felipe
+felipe is person
+self related mansus
+mansus is org
+solo related self
+--- stdout
+remembered <uuid-1>
+remembered <uuid-2>
+remembered <uuid-3>
+remembered <uuid-4>
+remembered <uuid-5>
+remembered <uuid-6>
+remembered <uuid-7>
+remembered <uuid-8>
+remembered <uuid-9>
+remembered <uuid-10>
+remembered <uuid-11>
+remembered <uuid-12>
+remembered <uuid-13>
+remembered <uuid-14>
+--- stderr
+--- exit
+0
+$ myself prime
+--- stdout
+self
+  is agent
+  related felipe
+  related mansus
+  <- solo related
+agent
+  <- is: self
+felipe
+  is person
+  <- self related
+mansus
+  is org
+  <- self related
+solo
+  related self
+zeta
+  has a
+  has b
+  has c
+  has d
+tool
+  <- is: alpha, beta, gamma
+alpha
+  is tool
+beta
+  is tool
+gamma
+  is tool
+org
+  <- is: mansus
+person
+  <- is: felipe
+project
+  <- is: relay
+relay
+  is project
+--- stderr
+--- exit
+0
+$ myself prime --budget 60
+--- stdout
+self
+  is agent
+  related felipe
+  related mansus
+--- stderr
+--- exit
+0
+--- file
+{"uuid":"<uuid-1>","subject":"zeta","relation":"has","object":"a","time":"<time>"}
+{"uuid":"<uuid-2>","subject":"zeta","relation":"has","object":"b","time":"<time>"}
+{"uuid":"<uuid-3>","subject":"zeta","relation":"has","object":"c","time":"<time>"}
+{"uuid":"<uuid-4>","subject":"zeta","relation":"has","object":"d","time":"<time>"}
+{"uuid":"<uuid-5>","subject":"alpha","relation":"is","object":"tool","time":"<time>"}
+{"uuid":"<uuid-6>","subject":"beta","relation":"is","object":"tool","time":"<time>"}
+{"uuid":"<uuid-7>","subject":"gamma","relation":"is","object":"tool","time":"<time>"}
+{"uuid":"<uuid-8>","subject":"relay","relation":"is","object":"project","time":"<time>"}
+{"uuid":"<uuid-9>","subject":"self","relation":"is","object":"agent","time":"<time>"}
+{"uuid":"<uuid-10>","subject":"self","relation":"related","object":"felipe","time":"<time>"}
+{"uuid":"<uuid-11>","subject":"felipe","relation":"is","object":"person","time":"<time>"}
+{"uuid":"<uuid-12>","subject":"self","relation":"related","object":"mansus","time":"<time>"}
+{"uuid":"<uuid-13>","subject":"mansus","relation":"is","object":"org","time":"<time>"}
+{"uuid":"<uuid-14>","subject":"solo","relation":"related","object":"self","time":"<time>"}

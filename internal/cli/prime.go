@@ -44,9 +44,9 @@ func newPrimeCmd(cfg *Config) *cobra.Command {
 	return cmd
 }
 
-// primeText renders entities by live record count (descending, then name),
-// stopping before the first line that would push the text past budget
-// characters.
+// primeText renders `self` first, then the entities directly linked to it,
+// then the rest by live record count (descending, then name), stopping before
+// the first line that would push the text past budget characters.
 func primeText(g *graph.Graph, budget int) (text string, truncated bool) {
 	names := g.Entities()
 	count := make(map[string]int, len(names))
@@ -55,10 +55,22 @@ func primeText(g *graph.Graph, budget int) (text string, truncated bool) {
 	}
 	sort.SliceStable(names, func(i, j int) bool { return count[names[i]] > count[names[j]] })
 
+	order := make([]string, 0, len(names))
+	placed := make(map[string]bool, len(names))
+	for _, s := range g.BFS("self", 1) {
+		order = append(order, s.Name)
+		placed[s.Name] = true
+	}
+	for _, n := range names {
+		if !placed[n] {
+			order = append(order, n)
+		}
+	}
+
 	var b strings.Builder
 	used := 0
-	for _, n := range names {
-		for _, line := range renderEntity(n, g.Out(n), g.In(n)) {
+	for _, n := range order {
+		for _, line := range renderPrimeEntity(n, g.Out(n), g.In(n)) {
 			size := utf8.RuneCountInString(line) + 1
 			if used+size > budget {
 				return b.String(), true
