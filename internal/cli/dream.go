@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/mansus-org/myself/internal/graph"
-	"github.com/mansus-org/myself/internal/store"
 	"github.com/spf13/cobra"
 )
 
@@ -21,11 +20,11 @@ func newDreamCmd(cfg *Config) *cobra.Command {
 		Short: "Report near-duplicate subjects (read-only)",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			recs, err := loadRecords(cmd, cfg, nil)
+			_, g, err := loadGraph(cmd, cfg, nil)
 			if err != nil {
 				return err
 			}
-			res := dreamResult{nearDuplicates(graph.Build(store.Live(recs)))}
+			res := dreamResult{nearDuplicates(g)}
 			return emit(cmd, cfg, res, func(w io.Writer) error {
 				for _, grp := range res.NearDuplicates {
 					if _, err := fmt.Fprintln(w, strings.Join(grp, " ")); err != nil {

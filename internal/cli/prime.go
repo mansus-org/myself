@@ -8,7 +8,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/mansus-org/myself/internal/graph"
-	"github.com/mansus-org/myself/internal/store"
 	"github.com/spf13/cobra"
 )
 
@@ -30,11 +29,10 @@ func newPrimeCmd(cfg *Config) *cobra.Command {
 			if budget < 1 {
 				return Usagef("--budget must be at least 1")
 			}
-			recs, err := loadRecords(cmd, cfg, nil)
+			_, g, err := loadGraph(cmd, cfg, nil)
 			if err != nil {
 				return err
 			}
-			g := graph.Build(store.Live(recs))
 			text, truncated := primeText(g, budget)
 			return emit(cmd, cfg, primeResult{budget, truncated, text}, func(w io.Writer) error {
 				_, err := io.WriteString(w, text)
@@ -60,7 +58,7 @@ func primeText(g *graph.Graph, budget int) (text string, truncated bool) {
 	var b strings.Builder
 	used := 0
 	for _, n := range names {
-		for _, line := range renderEntity(g, n) {
+		for _, line := range renderEntity(n, g.Out(n), g.In(n)) {
 			size := utf8.RuneCountInString(line) + 1
 			if used+size > budget {
 				return b.String(), true

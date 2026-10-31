@@ -1,0 +1,71 @@
+$ myself log
+--- stdout
+--- stderr
+--- exit
+0
+$ myself remember relay is project
+--- stdout
+remembered <uuid-1>
+--- stderr
+--- exit
+0
+$ myself remember relay uses "bun for the backend"
+--- stdout
+remembered <uuid-2>
+--- stderr
+--- exit
+0
+$ myself forget relay uses --reason "moved off bun"
+--- stdout
+forgot <uuid-2>
+--- stderr
+--- exit
+0
+$ myself log
+--- stdout
+<uuid-1> <time> relay is project
+<uuid-2> <time> relay uses bun for the backend
+<uuid-3> <time> forget <uuid-2> moved off bun
+--- stderr
+--- exit
+0
+$ myself log -n 2
+--- stdout
+<uuid-2> <time> relay uses bun for the backend
+<uuid-3> <time> forget <uuid-2> moved off bun
+--- stderr
+--- exit
+0
+$ myself log --since 2999-01-01
+--- stdout
+--- stderr
+--- exit
+0
+$ myself log --since 2000-01-01 --json
+--- stdout
+{"records":[{"uuid":"<uuid-1>","subject":"relay","relation":"is","object":"project","time":"<time>"},{"uuid":"<uuid-2>","subject":"relay","relation":"uses","object":"bun for the backend","time":"<time>"},{"uuid":"<uuid-3>","subject":"<uuid-2>","relation":"forget","object":"moved off bun","time":"<time>"}]}
+--- stderr
+--- exit
+0
+$ myself log --since yesterday
+--- stdout
+--- stderr
+error: --since: bad time "yesterday": use RFC 3339 or YYYY-MM-DD
+--- exit
+1
+$ myself log -n 0
+--- stdout
+--- stderr
+error: -n must be at least 1
+--- exit
+1
+$ myself log extra
+--- stdout
+--- stderr
+error: unknown command "extra" for "myself log"
+--- exit
+1
+--- file
+{"uuid":"<uuid-1>","subject":"relay","relation":"is","object":"project","time":"<time>"}
+{"uuid":"<uuid-2>","subject":"relay","relation":"uses","object":"bun for the backend","time":"<time>"}
+{"uuid":"<uuid-3>","subject":"<uuid-2>","relation":"forget","object":"moved off bun","time":"<time>"}

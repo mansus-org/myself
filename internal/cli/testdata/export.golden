@@ -1,0 +1,78 @@
+$ myself export --obsidian $TMP/vault --json
+--- stdout
+{"dir":"$TMP/vault","entities":0,"files":[]}
+--- stderr
+--- exit
+0
+$ myself remember relay is project
+--- stdout
+remembered <uuid-1>
+--- stderr
+--- exit
+0
+$ myself remember relay uses "bun for the backend, biome for linting, deployed on k3s"
+--- stdout
+remembered <uuid-2>
+--- stderr
+--- exit
+0
+$ myself remember project are software
+--- stdout
+remembered <uuid-3>
+--- stderr
+--- exit
+0
+$ myself forget relay uses
+--- stdout
+forgot <uuid-2>
+--- stderr
+--- exit
+0
+$ myself remember relay has Project
+--- stdout
+remembered <uuid-4>
+--- stderr
+--- exit
+0
+$ myself export --obsidian $TMP/vault
+--- stdout
+exported 3 entities to $TMP/vault
+--- stderr
+--- exit
+0
+--- file project.md
+# project
+
+- is [[software]]
+
+## Linked from
+- [[relay]] is
+- [[relay]] has
+--- file relay.md
+# relay
+
+- is [[project]]
+- has [[project]]
+--- file software.md
+# software
+
+## Linked from
+- [[project]] is
+$ myself export --obsidian $TMP/vault --json
+--- stdout
+{"dir":"$TMP/vault","entities":3,"files":["project.md","relay.md","software.md"]}
+--- stderr
+--- exit
+0
+$ myself export
+--- stdout
+--- stderr
+error: export needs --obsidian <dir>
+--- exit
+1
+--- file
+{"uuid":"<uuid-1>","subject":"relay","relation":"is","object":"project","time":"<time>"}
+{"uuid":"<uuid-2>","subject":"relay","relation":"uses","object":"bun for the backend, biome for linting, deployed on k3s","time":"<time>"}
+{"uuid":"<uuid-3>","subject":"project","relation":"is","object":"software","time":"<time>"}
+{"uuid":"<uuid-5>","subject":"<uuid-2>","relation":"forget","object":"","time":"<time>"}
+{"uuid":"<uuid-4>","subject":"relay","relation":"has","object":"Project","time":"<time>"}

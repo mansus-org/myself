@@ -39,7 +39,12 @@ func writeLines(w io.Writer, lines []string) error {
 	return nil
 }
 
+// recordLine renders a record as a log line (SPEC section 9). A forget record
+// reads `<uuid> <time> forget <target-uuid> <reason>`.
 func recordLine(r model.Record) string {
+	if r.IsForget() {
+		return strings.TrimSpace(fmt.Sprintf("%s %s forget %s %s", r.UUID, r.Time, r.Subject, r.Object))
+	}
 	return fmt.Sprintf("%s %s %s %s %s", r.UUID, r.Time, r.Subject, r.Relation, r.Object)
 }
 
@@ -90,13 +95,7 @@ func newDescribeCmd(cfg *Config) *cobra.Command {
 		return emit(cmd, cfg, res, func(w io.Writer) error {
 			var lines []string
 			for _, e := range res.Entities {
-				lines = append(lines, e.Name)
-				for _, r := range e.Out {
-					lines = append(lines, fmt.Sprintf("  %s %s", r.Relation, r.Object))
-				}
-				for _, r := range e.In {
-					lines = append(lines, fmt.Sprintf("  <- %s %s", r.Subject, r.Relation))
-				}
+				lines = append(lines, renderEntity(e.Name, e.Out, e.In)...)
 			}
 			return writeLines(w, lines)
 		})
