@@ -1,0 +1,80 @@
+$ myself remember relay is project
+--- stdout
+remembered <uuid-1>
+--- stderr
+--- exit
+0
+$ myself remember relay uses "Bun for the backend"
+--- stdout
+remembered <uuid-2>
+--- stderr
+--- exit
+0
+$ myself remember docs uses markdown
+--- stdout
+remembered <uuid-3>
+--- stderr
+--- exit
+0
+$ myself search BUN
+--- stdout
+<uuid-2> <time> relay uses Bun for the backend
+--- stderr
+--- exit
+0
+$ myself search for the
+--- stdout
+<uuid-2> <time> relay uses Bun for the backend
+--- stderr
+--- exit
+0
+$ myself search is
+--- stdout
+<uuid-1> <time> relay is project
+--- stderr
+--- exit
+0
+$ myself search relay --json
+--- stdout
+{"matches":[{"uuid":"<uuid-1>","subject":"relay","relation":"is","object":"project","time":"<time>"},{"uuid":"<uuid-2>","subject":"relay","relation":"uses","object":"Bun for the backend","time":"<time>"}]}
+--- stderr
+--- exit
+0
+$ myself search zzz
+--- stdout
+--- stderr
+--- exit
+0
+$ myself search zzz --json
+--- stdout
+{"matches":[]}
+--- stderr
+--- exit
+0
+$ myself search bun --at 2000-01-01
+--- stdout
+--- stderr
+--- exit
+0
+$ myself search
+--- stdout
+--- stderr
+error: search needs <text>
+--- exit
+1
+$ myself forget relay uses
+--- stdout
+forgot <uuid-2>
+--- stderr
+--- exit
+0
+$ myself search bun
+--- stdout
+--- stderr
+--- exit
+0
+--- file
+{"uuid":"<uuid-1>","subject":"relay","relation":"is","object":"project","time":"<time>"}
+{"uuid":"<uuid-2>","subject":"relay","relation":"uses","object":"Bun for the backend","time":"<time>"}
+{"uuid":"<uuid-3>","subject":"docs","relation":"uses","object":"markdown","time":"<time>"}
+{"uuid":"<uuid-4>","subject":"<uuid-2>","relation":"forget","object":"","time":"<time>"}

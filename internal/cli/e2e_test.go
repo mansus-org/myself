@@ -134,6 +134,91 @@ var cases = []struct {
 		run("forget", "00000000-0000-7000-8000-000000000000"),
 	}},
 
+	{"worked_example", []step{
+		run("remember", "relay", "is", "project"),
+		run("remember", "relay", "uses", "bun for the backend, biome for linting, deployed on k3s"),
+		run("remember", "relay", "built-with", "bun"),
+		run("remember", "project", "are", "software"),
+		run("describe", "relay"),
+		run("describe", "relay", "--depth", "1"),
+		run("ls", "software"),
+		run("path", "relay", "software"),
+		run("forget", "relay", "uses", "--reason", "moved off bun"),
+		run("describe", "relay"),
+	}},
+	{"describe_json", []step{
+		run("remember", "relay", "is", "project"),
+		run("remember", "project", "is", "software"),
+		run("describe", "Relay", "--depth", "2", "--json"),
+		run("describe", "software", "--json", "--at", "2999-01-01"),
+	}},
+	{"describe_at", []step{
+		run("remember", "relay", "is", "project"),
+		run("describe", "relay", "--at", "2999-01-01"),
+		run("describe", "relay", "--at", "2000-01-01"),
+		run("describe", "relay", "--at", "2000-01-01", "--json"),
+		run("describe", "relay", "--at", "yesterday"),
+	}},
+	{"describe_errors", []step{
+		run("remember", "relay", "is", "project"),
+		run("describe"),
+		run("describe", "a", "b"),
+		run("describe", "relay", "--depth", "-1"),
+		run("describe", "nothing", "--json"),
+	}},
+	{"ls", []step{
+		run("remember", "relay", "is", "project"),
+		run("remember", "project", "are", "software"),
+		run("remember", "tool", "is", "software"),
+		run("remember", "relay", "uses", "bun"),
+		run("ls"),
+		run("ls", "software"),
+		run("ls", "relay"),
+		run("ls", "nothing"),
+		run("ls", "software", "--json"),
+		run("ls", "--json"),
+		run("ls", "relay", "--json"),
+		run("ls", "software", "--at", "2000-01-01"),
+		run("ls", "--at", "2000-01-01", "--json"),
+		run("ls", "a", "b"),
+	}},
+	{"relations", []step{
+		run("relations"),
+		run("relations", "--json"),
+		run("relations", "x"),
+	}},
+	{"search", []step{
+		run("remember", "relay", "is", "project"),
+		run("remember", "relay", "uses", "Bun for the backend"),
+		run("remember", "docs", "uses", "markdown"),
+		run("search", "BUN"),
+		run("search", "for", "the"),
+		run("search", "is"),
+		run("search", "relay", "--json"),
+		run("search", "zzz"),
+		run("search", "zzz", "--json"),
+		run("search", "bun", "--at", "2000-01-01"),
+		run("search"),
+		run("forget", "relay", "uses"),
+		run("search", "bun"),
+	}},
+	{"path", []step{
+		run("remember", "relay", "is", "project"),
+		run("remember", "project", "is", "software"),
+		run("remember", "docs", "has", "software"),
+		run("remember", "lonely", "is", "thing"),
+		run("path", "relay", "software"),
+		run("path", "software", "relay"),
+		run("path", "relay", "docs", "--json"),
+		run("path", "relay", "docs", "--max-depth", "2"),
+		run("path", "relay", "docs", "--max-depth", "3"),
+		run("path", "relay", "lonely"),
+		run("path", "relay", "nothing"),
+		run("path", "relay", "lonely", "--json"),
+		run("path", "relay"),
+		run("path", "relay", "docs", "--max-depth", "0"),
+	}},
+
 	{"store_errors", []step{
 		run("remember", "relay", "is", "project", "--file", "/dev/null/brain.jsonl"),
 		run("remember", "relay", "is", "project", "--json", "--file", "/dev/null/brain.jsonl"),
@@ -144,7 +229,9 @@ var cases = []struct {
 var (
 	uuidRe = regexp.MustCompile(`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`)
 	timeRe = regexp.MustCompile(`"time":"[^"]*"`)
-	refRe  = regexp.MustCompile(`<uuid-\d+>`)
+	// A text line "<uuid> <time> ..." (search, log, history).
+	bareTimeRe = regexp.MustCompile(`([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}) \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z`)
+	refRe      = regexp.MustCompile(`<uuid-\d+>`)
 )
 
 // normalizer maps real uuids to <uuid-N> and back within one case.
@@ -157,6 +244,7 @@ type normalizer struct {
 func (n *normalizer) text(s string) string {
 	s = strings.ReplaceAll(s, n.store, "$STORE")
 	s = timeRe.ReplaceAllString(s, `"time":"<time>"`)
+	s = bareTimeRe.ReplaceAllString(s, "$1 <time>")
 	return uuidRe.ReplaceAllStringFunc(s, func(u string) string {
 		if name, ok := n.names[u]; ok {
 			return name

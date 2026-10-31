@@ -1,0 +1,91 @@
+$ myself remember relay is project
+--- stdout
+remembered <uuid-1>
+--- stderr
+--- exit
+0
+$ myself remember project are software
+--- stdout
+remembered <uuid-2>
+--- stderr
+--- exit
+0
+$ myself remember tool is software
+--- stdout
+remembered <uuid-3>
+--- stderr
+--- exit
+0
+$ myself remember relay uses bun
+--- stdout
+remembered <uuid-4>
+--- stderr
+--- exit
+0
+$ myself ls
+--- stdout
+project
+software
+--- stderr
+--- exit
+0
+$ myself ls software
+--- stdout
+project
+relay
+tool
+--- stderr
+--- exit
+0
+$ myself ls relay
+--- stdout
+--- stderr
+--- exit
+0
+$ myself ls nothing
+--- stdout
+--- stderr
+error: unknown type "nothing"
+--- exit
+2
+$ myself ls software --json
+--- stdout
+{"type":"software","entities":["project","relay","tool"]}
+--- stderr
+--- exit
+0
+$ myself ls --json
+--- stdout
+{"type":null,"entities":["project","software"]}
+--- stderr
+--- exit
+0
+$ myself ls relay --json
+--- stdout
+{"type":"relay","entities":[]}
+--- stderr
+--- exit
+0
+$ myself ls software --at 2000-01-01
+--- stdout
+--- stderr
+error: unknown type "software"
+--- exit
+2
+$ myself ls --at 2000-01-01 --json
+--- stdout
+{"type":null,"entities":[]}
+--- stderr
+--- exit
+0
+$ myself ls a b
+--- stdout
+--- stderr
+error: ls takes at most one <type>
+--- exit
+1
+--- file
+{"uuid":"<uuid-1>","subject":"relay","relation":"is","object":"project","time":"<time>"}
+{"uuid":"<uuid-2>","subject":"project","relation":"is","object":"software","time":"<time>"}
+{"uuid":"<uuid-3>","subject":"tool","relation":"is","object":"software","time":"<time>"}
+{"uuid":"<uuid-4>","subject":"relay","relation":"uses","object":"bun","time":"<time>"}

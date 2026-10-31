@@ -1,0 +1,33 @@
+$ myself remember relay is project
+--- stdout
+remembered <uuid-1>
+--- stderr
+--- exit
+0
+$ myself describe relay --at 2999-01-01
+--- stdout
+relay
+  is project
+--- stderr
+--- exit
+0
+$ myself describe relay --at 2000-01-01
+--- stdout
+--- stderr
+error: unknown entity "relay"
+--- exit
+2
+$ myself describe relay --at 2000-01-01 --json
+--- stdout
+--- stderr
+error: unknown entity "relay"
+--- exit
+2
+$ myself describe relay --at yesterday
+--- stdout
+--- stderr
+error: --at: bad time "yesterday": use RFC 3339 or YYYY-MM-DD
+--- exit
+1
+--- file
+{"uuid":"<uuid-1>","subject":"relay","relation":"is","object":"project","time":"<time>"}
