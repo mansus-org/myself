@@ -17,6 +17,10 @@ $ myself history i
 01a19418-81eb-7739-8650-215f8da3fb98 2026-10-31T22:33:16Z self does plan work and review PRs
 ```
 
+![myself demo](demo/demo.svg)
+
+Play the [terminal cast](demo/demo.cast) with `asciinema play demo/demo.cast`.
+
 The contract for every command, output and exit code is [SPEC.md](SPEC.md).
 
 ## Why
