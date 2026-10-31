@@ -80,7 +80,9 @@ Set up Claude Code so every session starts with the brain in context and uses `m
    }
    ```
 
-`session-start.sh` prints `myself prime --budget 2000` (set `MYSELF_PRIME_BUDGET` to change it), which Claude Code adds to the session context, and records the session start time under `${TMPDIR:-/tmp}/myself-hooks/`. `stop-nudge.sh` blocks the first stop of a session once, asking whether anything is worth remembering, but only if nothing was written to the brain since the session started and the session did something (a transcript of 10+ lines, or uncommitted changes in a git `cwd`). Both scripts are POSIX sh, use `jq` when present, and exit 0 silently when `myself` is missing or fails. The comments at the top of each script list their settings.
+`session-start.sh` prints `myself prime --budget 4000` (set `MYSELF_PRIME_BUDGET` to change it), which Claude Code adds to the session context, and records the session start time under `${TMPDIR:-/tmp}/myself-hooks/`. `stop-nudge.sh` blocks the first stop of a session once, asking whether anything is worth remembering, but only if nothing was written to the brain since the session started and the session did something: a Write, Edit, MultiEdit or NotebookEdit tool use, 3+ Bash tool uses, or uncommitted changes in a git `cwd`. Read-only sessions are not nudged. A resumed session (`claude --resume`) gets a fresh start time and can be nudged once more. Both scripts are POSIX sh, use `jq` when present, and exit 0 silently when `myself` is missing or fails. The comments at the top of each script list their settings.
+
+Claude Code also has a built-in file-based auto-memory that can take "remember…" requests before `myself` does. On hosts where `myself` should be the only memory, you can turn it off with `"env": { "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1" }` in the same settings file.
 
 If `~/.local/bin` is not on the PATH the hooks run with, set `MYSELF_BIN` to the full path of the binary.
 
