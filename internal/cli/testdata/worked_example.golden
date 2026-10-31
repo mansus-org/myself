@@ -68,6 +68,42 @@ relay
 --- stderr
 --- exit
 0
+$ myself history relay
+--- stdout
+<uuid-1> <time> relay is project
+<uuid-2> <time> relay uses bun for the backend, biome for linting, deployed on k3s
+<uuid-4> <time> forget <uuid-2> moved off bun
+--- stderr
+--- exit
+0
+$ myself history relay --json
+--- stdout
+{"records":[{"uuid":"<uuid-1>","subject":"relay","relation":"is","object":"project","time":"<time>"},{"uuid":"<uuid-2>","subject":"relay","relation":"uses","object":"bun for the backend, biome for linting, deployed on k3s","time":"<time>"},{"uuid":"<uuid-4>","subject":"<uuid-2>","relation":"forget","object":"moved off bun","time":"<time>"}]}
+--- stderr
+--- exit
+0
+$ myself export --obsidian ./vault
+--- stdout
+exported 3 entities to ./vault
+--- stderr
+--- exit
+0
+--- file project.md
+# project
+
+- is [[software]]
+
+## Linked from
+- [[relay]] is
+--- file relay.md
+# relay
+
+- is [[project]]
+--- file software.md
+# software
+
+## Linked from
+- [[project]] is
 --- file
 {"uuid":"<uuid-1>","subject":"relay","relation":"is","object":"project","time":"<time>"}
 {"uuid":"<uuid-2>","subject":"relay","relation":"uses","object":"bun for the backend, biome for linting, deployed on k3s","time":"<time>"}
