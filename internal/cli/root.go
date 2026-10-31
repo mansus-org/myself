@@ -38,6 +38,11 @@ func newRoot(stdout, stderr io.Writer) *cobra.Command {
 		newRememberCmd(cfg),
 		newForgetCmd(cfg),
 		newVersionCmd(cfg),
+		newDescribeCmd(cfg),
+		newLsCmd(cfg),
+		newRelationsCmd(cfg),
+		newSearchCmd(cfg),
+		newPathCmd(cfg),
 	)
 	return root
 }

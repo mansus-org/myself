@@ -1,0 +1,93 @@
+$ myself remember relay is project
+--- stdout
+remembered <uuid-1>
+--- stderr
+--- exit
+0
+$ myself remember project is software
+--- stdout
+remembered <uuid-2>
+--- stderr
+--- exit
+0
+$ myself remember docs has software
+--- stdout
+remembered <uuid-3>
+--- stderr
+--- exit
+0
+$ myself remember lonely is thing
+--- stdout
+remembered <uuid-4>
+--- stderr
+--- exit
+0
+$ myself path relay software
+--- stdout
+relay is project
+project is software
+--- stderr
+--- exit
+0
+$ myself path software relay
+--- stdout
+project is software
+relay is project
+--- stderr
+--- exit
+0
+$ myself path relay docs --json
+--- stdout
+{"from":"relay","to":"docs","path":[{"uuid":"<uuid-1>","subject":"relay","relation":"is","object":"project","time":"<time>"},{"uuid":"<uuid-2>","subject":"project","relation":"is","object":"software","time":"<time>"},{"uuid":"<uuid-3>","subject":"docs","relation":"has","object":"software","time":"<time>"}]}
+--- stderr
+--- exit
+0
+$ myself path relay docs --max-depth 2
+--- stdout
+--- stderr
+error: no path from "relay" to "docs" within 2 hops
+--- exit
+2
+$ myself path relay docs --max-depth 3
+--- stdout
+relay is project
+project is software
+docs has software
+--- stderr
+--- exit
+0
+$ myself path relay lonely
+--- stdout
+--- stderr
+error: no path from "relay" to "lonely" within 6 hops
+--- exit
+2
+$ myself path relay nothing
+--- stdout
+--- stderr
+error: unknown entity "nothing"
+--- exit
+2
+$ myself path relay lonely --json
+--- stdout
+--- stderr
+error: no path from "relay" to "lonely" within 6 hops
+--- exit
+2
+$ myself path relay
+--- stdout
+--- stderr
+error: path needs <a> and <b>
+--- exit
+1
+$ myself path relay docs --max-depth 0
+--- stdout
+--- stderr
+error: --max-depth must be at least 1
+--- exit
+1
+--- file
+{"uuid":"<uuid-1>","subject":"relay","relation":"is","object":"project","time":"<time>"}
+{"uuid":"<uuid-2>","subject":"project","relation":"is","object":"software","time":"<time>"}
+{"uuid":"<uuid-3>","subject":"docs","relation":"has","object":"software","time":"<time>"}
+{"uuid":"<uuid-4>","subject":"lonely","relation":"is","object":"thing","time":"<time>"}

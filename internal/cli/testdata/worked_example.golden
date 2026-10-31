@@ -1,0 +1,75 @@
+$ myself remember relay is project
+--- stdout
+remembered <uuid-1>
+--- stderr
+--- exit
+0
+$ myself remember relay uses "bun for the backend, biome for linting, deployed on k3s"
+--- stdout
+remembered <uuid-2>
+--- stderr
+--- exit
+0
+$ myself remember relay built-with bun
+--- stdout
+--- stderr
+error: unknown relation "built-with". use one of: is, are, has, uses, does, prefers, related
+--- exit
+1
+$ myself remember project are software
+--- stdout
+remembered <uuid-3>
+--- stderr
+--- exit
+0
+$ myself describe relay
+--- stdout
+relay
+  is project
+  uses bun for the backend, biome for linting, deployed on k3s
+--- stderr
+--- exit
+0
+$ myself describe relay --depth 1
+--- stdout
+relay
+  is project
+  uses bun for the backend, biome for linting, deployed on k3s
+project
+  is software
+  <- relay is
+--- stderr
+--- exit
+0
+$ myself ls software
+--- stdout
+project
+relay
+--- stderr
+--- exit
+0
+$ myself path relay software
+--- stdout
+relay is project
+project is software
+--- stderr
+--- exit
+0
+$ myself forget relay uses --reason "moved off bun"
+--- stdout
+forgot <uuid-2>
+--- stderr
+--- exit
+0
+$ myself describe relay
+--- stdout
+relay
+  is project
+--- stderr
+--- exit
+0
+--- file
+{"uuid":"<uuid-1>","subject":"relay","relation":"is","object":"project","time":"<time>"}
+{"uuid":"<uuid-2>","subject":"relay","relation":"uses","object":"bun for the backend, biome for linting, deployed on k3s","time":"<time>"}
+{"uuid":"<uuid-3>","subject":"project","relation":"is","object":"software","time":"<time>"}
+{"uuid":"<uuid-4>","subject":"<uuid-2>","relation":"forget","object":"moved off bun","time":"<time>"}

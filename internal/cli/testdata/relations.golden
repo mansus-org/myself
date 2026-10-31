@@ -1,0 +1,24 @@
+$ myself relations
+--- stdout
+is
+are
+has
+uses
+does
+prefers
+related
+--- stderr
+--- exit
+0
+$ myself relations --json
+--- stdout
+{"relations":["is","are","has","uses","does","prefers","related"]}
+--- stderr
+--- exit
+0
+$ myself relations x
+--- stdout
+--- stderr
+error: relations takes no arguments
+--- exit
+1

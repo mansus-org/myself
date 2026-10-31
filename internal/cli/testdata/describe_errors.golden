@@ -1,0 +1,32 @@
+$ myself remember relay is project
+--- stdout
+remembered <uuid-1>
+--- stderr
+--- exit
+0
+$ myself describe
+--- stdout
+--- stderr
+error: describe needs exactly one <entity>
+--- exit
+1
+$ myself describe a b
+--- stdout
+--- stderr
+error: describe needs exactly one <entity>
+--- exit
+1
+$ myself describe relay --depth -1
+--- stdout
+--- stderr
+error: --depth must not be negative
+--- exit
+1
+$ myself describe nothing --json
+--- stdout
+--- stderr
+error: unknown entity "nothing"
+--- exit
+2
+--- file
+{"uuid":"<uuid-1>","subject":"relay","relation":"is","object":"project","time":"<time>"}

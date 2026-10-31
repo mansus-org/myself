@@ -1,0 +1,27 @@
+$ myself remember relay is project
+--- stdout
+remembered <uuid-1>
+--- stderr
+--- exit
+0
+$ myself remember project is software
+--- stdout
+remembered <uuid-2>
+--- stderr
+--- exit
+0
+$ myself describe Relay --depth 2 --json
+--- stdout
+{"entity":"relay","at":null,"entities":[{"name":"relay","depth":0,"out":[{"uuid":"<uuid-1>","subject":"relay","relation":"is","object":"project","time":"<time>"}],"in":[]},{"name":"project","depth":1,"out":[{"uuid":"<uuid-2>","subject":"project","relation":"is","object":"software","time":"<time>"}],"in":[{"uuid":"<uuid-1>","subject":"relay","relation":"is","object":"project","time":"<time>"}]},{"name":"software","depth":2,"out":[],"in":[{"uuid":"<uuid-2>","subject":"project","relation":"is","object":"software","time":"<time>"}]}]}
+--- stderr
+--- exit
+0
+$ myself describe software --json --at 2999-01-01
+--- stdout
+{"entity":"software","at":"2999-01-01","entities":[{"name":"software","depth":0,"out":[],"in":[{"uuid":"<uuid-2>","subject":"project","relation":"is","object":"software","time":"<time>"}]}]}
+--- stderr
+--- exit
+0
+--- file
+{"uuid":"<uuid-1>","subject":"relay","relation":"is","object":"project","time":"<time>"}
+{"uuid":"<uuid-2>","subject":"project","relation":"is","object":"software","time":"<time>"}
