@@ -2,7 +2,7 @@
 
 `myself` is a tiny single-binary CLI (Go) that any agent harness (Claude Code, Codex, pi) calls through plain Bash to save and query entities, types and relationships: a personal knowledge graph in one command. Facts are triples that are superseded, never overwritten; the whole brain is one append-only JSONL file.
 
-Status: early development, no release yet. `remember`, `forget`, `describe`, `ls`, `relations`, `search` and `path` work; `log`, `history`, `prime`, `dream` and `export` are in progress.
+Status: early development, no release yet. Every command in SPEC.md is implemented.
 
 The contract for the CLI is in [SPEC.md](SPEC.md).
 
