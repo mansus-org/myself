@@ -34,7 +34,7 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-const nudge = "Before finishing: anything durable worth `myself remember`-ing from this session? If not, just stop."
+const nudge = "Before finishing: is anything from this session worth `myself remember`-ing (durable facts, decisions, corrections)? If so, remember it. Then end with your final answer to the user again, in full, so it stays the last message; do not mention this check."
 
 // env is one simulated agent host: its own TMPDIR (hook markers) and store.
 type env struct {
@@ -139,7 +139,11 @@ func transcript(t *testing.T, tools ...string) string {
 	b.WriteString(`{"type":"api-request","tools":[{"name":"Bash","description":"x"},{"name":"Edit","description":"x"},{"name":"Write","description":"x"},{"name":"Read","description":"x"}]}` + "\n")
 	b.WriteString(strings.Repeat(`{"type":"attachment"}`+"\n", 40))
 	for i, name := range tools {
-		fmt.Fprintf(&b, `{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_%02d","name":%q,"input":{}}]}}`+"\n", i, name)
+		input := "{}"
+		if n, cmd, ok := strings.Cut(name, "="); ok {
+			name, input = n, fmt.Sprintf(`{"command":%q}`, cmd)
+		}
+		fmt.Fprintf(&b, `{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_%02d","name":%q,"input":%s}]}}`+"\n", i, name, input)
 	}
 	path := filepath.Join(t.TempDir(), "transcript.jsonl")
 	if err := os.WriteFile(path, []byte(b.String()), 0o644); err != nil {
@@ -382,4 +386,27 @@ func TestResumeAllowsAnotherNudge(t *testing.T) {
 			t.Errorf("second stop after resume: want no output, got %q", out)
 		}
 	})
+}
+
+func TestStopIgnoresMyselfBash(t *testing.T) {
+	parsers(t, func(t *testing.T, e *env) {
+		e.requireCommand("log")
+		e.hook("session-start.sh", startInput("s1"))
+		tr := transcript(t, "Bash=myself describe x", "Bash=myself log -n 3", "Bash="+e.bin+" search y", "Bash=myself path a b")
+		if out := e.hook("stop-nudge.sh", stopInput("s1", tr, "/", false)); out != "" {
+			t.Errorf("myself-only Bash: want no output, got %q", out)
+		}
+		tr = transcript(t, "Bash=ls", "Bash=myself log", "Bash=git status", "Bash=go test ./...")
+		expectNudge(t, "3 non-myself Bash", e.hook("stop-nudge.sh", stopInput("s1", tr, "/", false)))
+	})
+}
+
+func TestStopNudgeOff(t *testing.T) {
+	e := newEnv(t)
+	e.requireCommand("log")
+	e.hook("session-start.sh", startInput("s1"))
+	t.Setenv("MYSELF_NUDGE", "off")
+	if out := e.hook("stop-nudge.sh", stopInput("s1", transcript(t, "Write"), "/", false)); out != "" {
+		t.Errorf("MYSELF_NUDGE=off: want no output, got %q", out)
+	}
 }
