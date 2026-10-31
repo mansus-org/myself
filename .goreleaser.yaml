@@ -1,0 +1,47 @@
+version: 2
+
+project_name: myself
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: myself
+    main: ./cmd/myself
+    binary: myself
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/mansus-org/myself/internal/cli.Version={{ .Tag }}
+      - -X github.com/mansus-org/myself/internal/cli.Commit={{ .ShortCommit }}
+      - -X github.com/mansus-org/myself/internal/cli.BuildDate={{ .Date }}
+
+archives:
+  - id: myself
+    formats: [tar.gz]
+    name_template: "myself_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+changelog:
+  sort: asc
+  use: git
+  filters:
+    exclude:
+      - "^Merge pull request"
+
+release:
+  github:
+    owner: mansus-org
+    name: myself
