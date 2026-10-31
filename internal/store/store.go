@@ -3,7 +3,6 @@
 package store
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -12,7 +11,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
 	"syscall"
 	"time"
 
@@ -45,42 +43,6 @@ func ResolvePath(flagValue string, flagSet bool) (string, error) {
 		return "", err
 	}
 	return filepath.Join(home, ".myself", "brain.jsonl"), nil
-}
-
-// Read parses a JSONL stream and returns the records sorted by uuid. A final
-// line without a trailing newline is ignored silently (a crash mid-write).
-// Any other line that is not a valid record is skipped and reported on warn
-// as "warning: line N: corrupt, skipped". warn may be nil.
-func Read(r io.Reader, warn io.Writer) ([]model.Record, error) {
-	if warn == nil {
-		warn = io.Discard
-	}
-	// ReadBytes grows its buffer as needed, so lines of any length work.
-	br := bufio.NewReaderSize(r, 1<<20)
-	var records []model.Record
-	for n := 1; ; n++ {
-		line, err := br.ReadBytes('\n')
-		if err != nil {
-			if err == io.EOF {
-				break // partial or empty tail
-			}
-			return nil, err
-		}
-		line = bytes.TrimSuffix(line, []byte("\n"))
-		if len(bytes.TrimSpace(line)) == 0 {
-			continue
-		}
-		var rec model.Record
-		dec := json.NewDecoder(bytes.NewReader(line))
-		dec.DisallowUnknownFields()
-		if dec.Decode(&rec) != nil || dec.More() || rec.UUID == "" {
-			fmt.Fprintf(warn, "warning: line %d: corrupt, skipped\n", n)
-			continue
-		}
-		records = append(records, rec)
-	}
-	sort.SliceStable(records, func(i, j int) bool { return records[i].UUID < records[j].UUID })
-	return records, nil
 }
 
 // ReadFile reads the log at path without locking. A missing file reads as empty.
