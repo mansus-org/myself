@@ -1,0 +1,10 @@
+{
+  "name": "myself",
+  "private": true,
+  "description": "pi package: the myself skill and a session-start prime extension",
+  "keywords": ["pi-package"],
+  "pi": {
+    "skills": ["./skill"],
+    "extensions": ["./contrib/pi/myself.ts"]
+  }
+}
