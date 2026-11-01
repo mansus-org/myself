@@ -1,6 +1,6 @@
 # myself
 
-`myself` is a single-binary CLI that gives an agent a long-term memory: a small knowledge graph of entities and the links between them, kept in one append-only JSONL file. Any harness that can run Bash (Claude Code, Codex, pi) can use it.
+`myself` is a single-binary CLI that gives an agent a long-term memory: a small knowledge graph of entities and the links between them, kept in one append-only JSONL file. Any harness that can run Bash (Claude Code, Codex, pi) can use it. The landing page with a live demo is at https://myself.mansus.org.
 
 ```sh
 $ myself remember relay is project

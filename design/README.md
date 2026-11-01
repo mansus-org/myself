@@ -1,8 +1,9 @@
 # myself, design notes
 
 Why the landing page looks the way it does. It is built in the (R)Evolution language:
-1-bit e-ink, two inks, one typeface. Files: `site/index.html`, `site/assets/style.css`,
-`site/assets/bitmap.js` (the m, its shells and the signs), `site/assets/landing.js` (the load flash and the Copy buttons).
+1-bit e-ink, two inks, one display face. Files: `site/index.html`, `site/assets/style.css`,
+`site/assets/bitmap.js` (the m, its shells and the signs), `site/assets/landing.js` (the load flash and the Copy buttons),
+`site/assets/player.js` (plays `demo.cast`).
 Screenshots at 1440 and 390 wide are in `screenshots/`.
 
 ## The idea
@@ -17,15 +18,19 @@ swaps places: the old shell is inked, the new m is the ghost, and the layout mir
 Design read: a tool announcement for people who run agents, in the Mansus 1-bit language.
 Dials: ENERGY 3 / RHYTHM 3 / MOTION 2.
 
-Copy: the page reads as a product page. It says what the agent and you get (memory across sessions, in
-one file you own), and each section heading names a benefit. There is no invented proof: no numbers,
-users or speed claims. The status is stated once, in the Install section: v0.1.1 is out.
+Copy: the page opens as a product page (memory across sessions, in one file you own) and then works as the
+README does: a live example, then install and setup instructions in sections with anchors, linked from an
+"On this page" list, each ending with a link to the same section of the README. There is no invented proof:
+no numbers, users or speed claims. Every command and output on the page was run against a v0.2.0 binary
+(throwaway store), so uuids and times are real. The status is stated once, in Install: v0.2.0 is out.
 
 ## Decisions, one line each
 
 - **Palette:** paper `#e4e2db`, ink `#141414` (14.2:1). Grey is only ever dither.
-- **Typeface:** Anybody only. Width 50 / weight 900 for display, width 150 / weight 330 for
-  statements, width 108 for reading, width 80 for code (no monospace font).
+- **Typeface:** Anybody (width 50, weight 900) for display only: section and day headings, the wordmark, the spine.
+  Everything people read (statements, body, lists, tables, buttons, nav) is Atkinson Hyperlegible Next, and
+  commands and files are Atkinson Hyperlegible Mono, as in the web app. The page became documentation, read and
+  copied from, so it took the same display/reading split. Fonts are self-hosted in `site/assets/fonts/` (no CDN).
 - **Bitmaps:** the m, three shells and seven 7×7 signs are drawn cell by cell and rendered as
   crisp SVG. Dither is real squares on a sub-grid, so it stays 1-bit at any size.
 - **Terminal windows:** kept by owner decision (overrides antislop R-05); myself is a CLI and the terminal is the product.
@@ -37,29 +42,37 @@ users or speed claims. The status is stated once, in the Install section: v0.1.1
 - **Cross-session example:** the hero example is a story in three windows, staggered down the page (stacked on mobile):
   Monday the agent saves facts, Thursday a fresh session starts from `myself prime`, later the user asks with
   `describe`, `history` and `path`. All three show the same facts (storefront, bun, npm, alice), so the value is visible: nothing is re-explained.
-- **Install:** after the first example. The release line (v0.1.1, install script, `go install`), then three numbered steps for Claude Code (skill, SessionStart hook,
+- **Live example:** right after the hero, `demo.cast` plays in a terminal window with Play/Pause and Replay
+  (both buttons, so keyboard works). It starts when scrolled into view and never loops. The window holds the
+  finished session as plain HTML, which is what shows without JS and under `prefers-reduced-motion` (no autoplay
+  there; Play still works). The screen is a fixed height and scrolls, like the terminal it was recorded in.
+- **On this page:** a ruled, numbered list of the sections, plus the README and SPEC.md links.
+- **Doc sections:** Install, Use with Claude Code, Connect to a shared brain (server, tokens, remote mode, MCP,
+  web app with a screenshot), Commands (a table that stacks per command on phones), How it stores memory,
+  Obsidian mirror, Molting and dreaming, Non-goals. On wide screens the heading holds a sticky left column and
+  the body reads on the right; below 1100 px they stack. Self-hosting examples use `<your-server>`.
+- **Install:** after the story. The release line (v0.1.1, install script, `go install`), then three numbered steps for Claude Code (skill, SessionStart hook,
   `Bash(myself:*)`) and one line for other harnesses. Every block has a Copy button (terminals copy commands only): 44 px tall, 3px focus
   ring, "Copied" for 1.5 s, and when the Clipboard API is missing or refuses it selects the text instead.
   Long lines scroll inside the block.
-- **Connect your agents:** after Install, in the same window language: the server command, then three numbered ways in (the CLI in remote mode, MCP with `claude mcp add`, the web app at `/app`). URLs are `myself.example.com` placeholders and the token is `<token>` or `mys_...`, never a real one.
-- **What you get:** the eight ruled rows (the third, "One brain for all your agents", has the hub sign: one node, four spokes), each with its own sign, written from the user's side.
+- **Why it works this way:** six ruled rows, each with its own sign, following the README's Why.
   Titles and text vary in length, so the rhythm is a list, not a grid of equals.
-- **Molting section:** the sign in three shells, sparse dither, half dither, solid.
-- **Commands:** the fifteen user-facing commands (not `merge-driver` or `version`) in two ruled columns, in reading order down each column.
-- **Motion:** two moments, both e-ink: the hero painting in row by row, and one black flash on
+- **Molting section:** the sign in three shells, sparse dither, half dither, solid, under the heading.
+- **Motion:** the player (once, when scrolled into view), and two moments, both e-ink: the hero painting in row by row, and one black flash on
   load. Both are off under `prefers-reduced-motion`.
-- **No JS dependency for content:** all copy is in the HTML; JS only draws bitmaps. Without it
+- **No JS dependency for content:** all copy is in the HTML, the demo session included; JS draws bitmaps and plays the cast. Without it
   the `<noscript>` fallback shows a plain m.
 
 ## Accessibility
 
 - `<h1>` carries the plain text "myself"; every bitmap and the spine are `aria-hidden`.
 - Links are at least 44 px tall, focus ring is 3px ink.
-- Checked at 390 and 1440 wide, no horizontal scroll.
+- Checked at 360, 390 and 1440 wide, no horizontal scroll; long commands scroll inside their window.
+- A skip link goes to the contents list. Section headings run h1, h2, h3 in order.
+- The player's state change is announced in a status region; the screen is focusable for keyboard scrolling.
 
 ## Not done yet
 
-- Connect uses placeholder URLs; there is no public shared brain to point at.
 - Real Mansus wordmark still to be supplied.
 
 ## Web app (/app)
