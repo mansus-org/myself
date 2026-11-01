@@ -17,7 +17,7 @@ type host struct {
 
 func newHost(t *testing.T, dir string) *host {
 	h := &host{t: t, dir: dir, file: filepath.Join(dir, "brain.jsonl")}
-	h.env = append(os.Environ(),
+	h.env = cleanEnv(
 		"PATH="+filepath.Dir(binary)+string(os.PathListSeparator)+os.Getenv("PATH"),
 		"MYSELF_FILE="+h.file,
 		"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=test@example.com",

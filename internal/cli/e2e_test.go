@@ -32,6 +32,7 @@ const testAdminToken = "test-admin-token"
 
 func TestMain(m *testing.M) {
 	flag.Parse()
+	unsetRemoteEnv()
 	dir, err := os.MkdirTemp("", "myself-e2e")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -381,7 +382,7 @@ func runGolden(t *testing.T, remote bool) {
 				t.Skip("local store feature")
 			}
 			file := filepath.Join(t.TempDir(), "brain.jsonl")
-			env := append(os.Environ(), "MYSELF_FILE="+file)
+			env := cleanEnv("MYSELF_FILE=" + file)
 			if remote {
 				srv, err := server.New(server.Config{File: file, AdminHash: server.HashToken(testAdminToken)})
 				if err != nil {
@@ -389,7 +390,7 @@ func runGolden(t *testing.T, remote bool) {
 				}
 				ts := httptest.NewServer(srv)
 				defer ts.Close()
-				env = append(os.Environ(), "MYSELF_URL="+ts.URL, "MYSELF_TOKEN="+testAdminToken)
+				env = cleanEnv("MYSELF_URL="+ts.URL, "MYSELF_TOKEN="+testAdminToken)
 			}
 			n := &normalizer{store: file, tmp: filepath.Dir(file), names: map[string]string{}, uuids: map[string]string{}}
 			var got strings.Builder

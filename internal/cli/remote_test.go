@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -48,12 +47,7 @@ func runBinary(t *testing.T, stdin string, extra []string, args ...string) (stdo
 	cmd.Dir = t.TempDir()
 	cmd.Stdin = strings.NewReader(stdin)
 	cmd.Stdout, cmd.Stderr = &out, &errb
-	for _, e := range os.Environ() {
-		if !strings.HasPrefix(e, "MYSELF_") {
-			cmd.Env = append(cmd.Env, e)
-		}
-	}
-	cmd.Env = append(cmd.Env, extra...)
+	cmd.Env = cleanEnv(extra...)
 	if err := cmd.Run(); err != nil {
 		var ee *exec.ExitError
 		if !errors.As(err, &ee) {
