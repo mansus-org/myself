@@ -125,10 +125,13 @@ func (c *Client) Relations() (brain.RelationsResult, error) {
 	return out, err
 }
 
-func (c *Client) Search(text string, at *string) (brain.SearchResult, error) {
+func (c *Client) Search(text string, at *string, n *int) (brain.SearchResult, error) {
 	q := url.Values{}
 	q.Set("q", text)
 	setOpt(q, "at", at)
+	if n != nil {
+		q.Set("n", strconv.Itoa(*n))
+	}
 	var out brain.SearchResult
 	err := c.get("/api/v1/search", q, &out)
 	return out, err
