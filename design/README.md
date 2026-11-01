@@ -19,7 +19,7 @@ Dials: ENERGY 3 / RHYTHM 3 / MOTION 2.
 
 Copy: the page reads as a product page. It says what the agent and you get (memory across sessions, in
 one file you own), and each section heading names a benefit. There is no invented proof: no numbers,
-users or speed claims. The status is stated once, in the Install section: v0.1 is in progress.
+users or speed claims. The status is stated once, in the Install section: v0.1.1 is out.
 
 ## Decisions, one line each
 
@@ -37,15 +37,15 @@ users or speed claims. The status is stated once, in the Install section: v0.1 i
 - **Cross-session example:** the hero example is a story in three windows, staggered down the page (stacked on mobile):
   Monday the agent saves facts, Thursday a fresh session starts from `myself prime`, later the user asks with
   `describe`, `history` and `path`. All three show the same facts (storefront, bun, npm, alice), so the value is visible: nothing is re-explained.
-- **Install:** after the first example. The planned methods (install script, `go install`) are marked
-  "Available from v0.1", then three numbered steps for Claude Code (skill, SessionStart hook,
+- **Install:** after the first example. The release line (v0.1.1, install script, `go install`), then three numbered steps for Claude Code (skill, SessionStart hook,
   `Bash(myself:*)`) and one line for other harnesses. Every block has a Copy button (terminals copy commands only): 44 px tall, 3px focus
   ring, "Copied" for 1.5 s, and when the Clipboard API is missing or refuses it selects the text instead.
   Long lines scroll inside the block.
-- **What you get:** the seven ruled rows, each with its own sign, written from the user's side.
+- **Connect your agents:** after Install, in the same window language: the server command, then three numbered ways in (the CLI in remote mode, MCP with `claude mcp add`, the web app at `/app`). URLs are `myself.example.com` placeholders and the token is `<token>` or `mys_...`, never a real one.
+- **What you get:** the eight ruled rows (the third, "One brain for all your agents", has the hub sign: one node, four spokes), each with its own sign, written from the user's side.
   Titles and text vary in length, so the rhythm is a list, not a grid of equals.
 - **Molting section:** the sign in three shells, sparse dither, half dither, solid.
-- **Commands:** the fourteen commands in two ruled columns, in reading order down each column.
+- **Commands:** the fifteen user-facing commands (not `merge-driver` or `version`) in two ruled columns, in reading order down each column.
 - **Motion:** two moments, both e-ink: the hero painting in row by row, and one black flash on
   load. Both are off under `prefers-reduced-motion`.
 - **No JS dependency for content:** all copy is in the HTML; JS only draws bitmaps. Without it
@@ -59,7 +59,7 @@ users or speed claims. The status is stated once, in the Install section: v0.1 i
 
 ## Not done yet
 
-- The tool is not released; the Install section says so and marks every method as available from v0.1.
+- Connect uses placeholder URLs; there is no public shared brain to point at.
 - Real Mansus wordmark still to be supplied.
 
 ## Web app (/app)
