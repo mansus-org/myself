@@ -4,28 +4,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/mansus-org/myself/internal/export"
+	"github.com/mansus-org/myself/internal/brain"
 	"github.com/spf13/cobra"
 )
-
-type exportResult struct {
-	Dir      string   `json:"dir"`
-	Entities int      `json:"entities"`
-	Files    []string `json:"files"`
-}
-
-// runExport writes the notes for the live state of cfg.File into dir.
-func runExport(cmd *cobra.Command, cfg *Config, dir string) (exportResult, error) {
-	_, g, err := loadGraph(cmd, cfg, nil)
-	if err != nil {
-		return exportResult{}, err
-	}
-	files, err := export.Write(dir, g)
-	if err != nil {
-		return exportResult{}, StoreErr(err)
-	}
-	return exportResult{dir, len(files), files}, nil
-}
 
 func newExportCmd(cfg *Config) *cobra.Command {
 	var dir string
@@ -37,7 +18,7 @@ func newExportCmd(cfg *Config) *cobra.Command {
 			if dir == "" {
 				return Usagef("export needs --obsidian <dir>")
 			}
-			res, err := runExport(cmd, cfg, dir)
+			res, err := brain.ExportObsidian(storeFor(cmd, cfg), dir)
 			if err != nil {
 				return err
 			}

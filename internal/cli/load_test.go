@@ -6,12 +6,14 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/mansus-org/myself/internal/brain"
 	"github.com/mansus-org/myself/internal/model"
 	"github.com/spf13/cobra"
 )
 
 // loadAt runs a throwaway command with an --at flag, as describe, ls and
-// search register it, and returns what loadRecords and atFlag.JSON give.
+// search register it, and returns the live records the command's store sees
+// as of --at and what atFlag.value gives.
 func loadAt(t *testing.T, file string, args ...string) ([]model.Record, *string, error) {
 	t.Helper()
 	cfg := &Config{File: file}
@@ -20,9 +22,9 @@ func loadAt(t *testing.T, file string, args ...string) ([]model.Record, *string,
 	cmd := &cobra.Command{Use: "x", SilenceErrors: true, SilenceUsage: true}
 	a := addAtFlag(cmd)
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
-		var err error
-		recs, err = loadRecords(cmd, cfg, a)
-		at = a.JSON()
+		at = a.value()
+		res, err := brain.Search(storeFor(cmd, cfg), "", at)
+		recs = res.Matches
 		return err
 	}
 	cmd.SetArgs(args)

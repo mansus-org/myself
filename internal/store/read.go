@@ -139,3 +139,10 @@ func fastDecode(line string) (model.Record, bool) {
 	}
 	return model.Record{UUID: vals[0], Subject: vals[1], Relation: vals[2], Object: vals[3], Time: vals[4]}, true
 }
+
+// DecodeLine parses one log line (without its newline) with the same rules
+// as Read. ok is false for a corrupt or blank line.
+func DecodeLine(line string) (rec model.Record, ok bool) {
+	rec, st := decodeLine(line)
+	return rec, st == stValid
+}

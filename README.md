@@ -108,6 +108,7 @@ Arguments are positional and everything after the relation is the object, so quo
 | `history <subject> [<relation>]` | every record for a subject, forgotten or not |
 | `prime [--budget CHARS]` | compact summary to paste into an agent context |
 | `dream` | report near-duplicate subjects (read-only) |
+| `serve [--addr :8080] [--site DIR]` | serve the brain over HTTP (see [Server](#server)) |
 | `export --obsidian <dir>` | write one Markdown note per entity |
 | `sync [--export DIR]` | back the store up with git |
 | `merge-driver <base> <ours> <theirs>` | git merge driver used by `sync` |
@@ -172,22 +173,41 @@ $ myself dream
 relay relays
 ```
 
+## Server
+
+`myself serve` shares one brain over HTTP, for agents on several hosts or harnesses. It serves the landing page at `/`, `GET /healthz`, and a REST API at `/api/v1` with one endpoint per command, returning the same JSON as `--json`. The full contract is [SPEC.md section 10](SPEC.md#10-server).
+
+```sh
+export MYSELF_ADMIN_TOKEN_SHA256=$(printf %s "$ADMIN_TOKEN" | sha256sum | cut -d' ' -f1)
+myself serve --addr :8080                      # store from --file / MYSELF_FILE as usual
+
+curl -H "Authorization: Bearer $ADMIN_TOKEN" -d '{"name":"laptop","scope":"write"}' localhost:8080/api/v1/tokens
+curl -H "Authorization: Bearer $TOKEN" -d '{"facts":[{"subject":"relay","relation":"is","object":"project"}]}' localhost:8080/api/v1/remember
+curl -H "Authorization: Bearer $TOKEN" localhost:8080/api/v1/describe/relay?depth=1
+```
+
+- The admin token is only known by its sha256 in `MYSELF_ADMIN_TOKEN_SHA256`. Without it the API answers 503.
+- The admin creates and revokes agent tokens (`read` or `write` scope). Only their hashes are stored, in `tokens.json` next to the store.
+- `GET /api/v1/export.jsonl` downloads the log for a backup. `POST /api/v1/import` (admin) adds the records of a JSONL file that are not there yet, by uuid.
+
+The image from the `Dockerfile` runs the server with the store on a volume at `/data`, as deployed at https://myself.mansus.org.
+
 ## Gotcha
 
 `i`, `me` and `myself` as a name all mean the entity `self`. To remember something about this project, use another name, such as `myself-cli`.
 
 ## Non-goals
 
-- No server.
+- No server needed. `myself serve` is optional; the CLI works on a local file.
 - No embeddings (yet). Search is substring match.
 - No two-way Obsidian sync.
 - No query language. The commands above are the interface.
 
 ## Landing page
 
-The site lives in `site/` (plain HTML, CSS and JS, no build step) and deploys to https://myself.mansus.org on merge to `main`: the `Dockerfile` serves `site/` with busybox httpd, `.k3s/values.yaml` holds the cluster settings, `.github/workflows/deploy.yml` builds the image. Pull requests get a preview at `myself-pr-<number>.mansus.org`. The design rationale is in `design/README.md`.
+The site lives in `site/` (plain HTML, CSS and JS, no build step) and deploys to https://myself.mansus.org on merge to `main`: the `Dockerfile` builds `myself serve`, which embeds `site/` and serves it at `/`, `.k3s/values.yaml` holds the cluster settings, `.github/workflows/deploy.yml` builds the image. Pull requests get a preview at `myself-pr-<number>.mansus.org`. The design rationale is in `design/README.md`.
 
-Preview locally: `bunx serve site -l 8080`.
+Preview locally: `bunx serve site -l 8080`, or through the server with `go run ./cmd/myself serve --site site`.
 
 ## Development
 

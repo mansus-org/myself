@@ -12,7 +12,7 @@ func newMergeDriverCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := gitsync.MergeFiles(args[0], args[1], args[2]); err != nil {
-				return &ExitError{ExitUsage, err}
+				return &ExitError{Code: ExitUsage, Err: err}
 			}
 			return nil
 		},

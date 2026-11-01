@@ -1,15 +1,31 @@
 # Deploy settings for myself.mansus.org on the mansus.org cluster.
 # All options: charts/app/values.yaml in nemoNoboru/k3s-hetzner-gitops.
+# Previews (myself-pr-<N>.mansus.org) use the same values: same admin token,
+# their own empty volume.
 
 ingress:
   host: myself.mansus.org
 
 port: 8080
 
-healthCheck:
-  path: /
+# The brain and tokens.json live here. One replica (the chart default).
+persistence:
+  enabled: true
+  size: 1Gi
+  mountPath: /data
 
-# busybox httpd needs a few MB.
+# The image runs as 10001; fsGroup makes the local-path volume writable.
+podSecurityContext:
+  fsGroup: 10001
+
+env:
+  MYSELF_FILE: /data/brain.jsonl
+  # sha256 (hex) of the admin token, not the token itself.
+  MYSELF_ADMIN_TOKEN_SHA256: d35608020b3f8ebe48d0f8cd38a75320a84585f06c5c1dfb639588e95b3a68f8
+
+healthCheck:
+  path: /healthz
+
 resources:
-  requests: { cpu: 5m, memory: 8Mi }
-  limits: { memory: 32Mi }
+  requests: { cpu: 10m, memory: 16Mi }
+  limits: { memory: 128Mi }

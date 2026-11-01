@@ -7,3 +7,7 @@ Dockerfile
 .dockerignore
 *.md
 design
+demo
+contrib
+skill
+dist
