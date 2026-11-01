@@ -176,7 +176,7 @@ relay relays
 
 ## Server
 
-`myself serve` shares one brain over HTTP, for agents on several hosts or harnesses. It serves the landing page at `/`, `GET /healthz`, and a REST API at `/api/v1` with one endpoint per command, returning the same JSON as `--json`. The full contract is [SPEC.md section 10](SPEC.md#10-server).
+`myself serve` shares one brain over HTTP, for agents on several hosts or harnesses. It serves the landing page at `/`, `GET /healthz`, a web app at `/app`, and a REST API at `/api/v1` with one endpoint per command, returning the same JSON as `--json`. The full contract is [SPEC.md section 10](SPEC.md#10-server).
 
 ```sh
 export MYSELF_ADMIN_TOKEN_SHA256=$(printf %s "$ADMIN_TOKEN" | sha256sum | cut -d' ' -f1)
@@ -229,6 +229,18 @@ myself prime
 - `export --obsidian DIR` downloads the log and writes the notes locally. `sync` is local only; back a server up with `curl -H "Authorization: Bearer $MYSELF_TOKEN" $MYSELF_URL/api/v1/export.jsonl > brain.jsonl`.
 - The Claude Code hooks call `myself`, so they use the server too when `MYSELF_URL` and `MYSELF_TOKEN` are in the environment Claude Code runs with. An unreachable server makes them print nothing, after the timeout.
 
+### Web app
+
+`/app` is a web app for the same brain, built into the binary (plain ES modules and CSS from `internal/server/web/`, no build step). Sign in by pasting a token, admin or agent; it stays in the tab unless you tick "Remember on this device". A read token can browse, a write token can also add and forget facts, and only the admin token sees the Tokens page.
+
+- **Entities**: every entity with its types, a name filter and type buttons (`ls`). An entity page shows its facts both ways (`describe`), a depth control, "as of" time travel (`--at`), and its history with forgotten facts struck through and their reasons. A write token gets a Forget button on each fact.
+- **Graph**: the whole graph (`/api/v1/graph`) as a force layout. Drag, zoom, hover for neighbours, click to open; Find focuses an entity, Type dithers everything else.
+- **Search**, **Log** (newest first, refreshed every 10 s with a Pause button, so you can watch agents write), **Prime** (the brief and its budget), **Dream** (near-duplicate subjects).
+- **Add facts**: one fact with a relation menu, or many lines in the `remember -` format; replace and warnings as in the CLI.
+- **Tokens** (admin): list, create (the plaintext is shown once, with a Copy button) and revoke.
+
+Screenshots: `design/screenshots/app-*.png`.
+
 ## Gotcha
 
 `i`, `me` and `myself` as a name all mean the entity `self`. To remember something about this project, use another name, such as `myself-cli`.
@@ -266,7 +278,6 @@ go build -ldflags "-X github.com/mansus-org/myself/internal/cli.Version=v0.1.0 \
   -X github.com/mansus-org/myself/internal/cli.Commit=$(git rev-parse --short HEAD) \
   -X github.com/mansus-org/myself/internal/cli.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" ./cmd/myself
 ```
-
 
 ## License
 

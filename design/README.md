@@ -61,3 +61,35 @@ users or speed claims. The status is stated once, in the Install section: v0.1 i
 
 - The tool is not released; the Install section says so and marks every method as available from v0.1.
 - Real Mansus wordmark still to be supplied.
+
+## Web app (/app)
+
+The signed-in app that `myself serve` embeds (`internal/server/web/`). Screenshots: `screenshots/app-*.png`, desktop at
+1440 and phone at 390 wide.
+
+Design read: a working tool for people who run agents and want to see and fix what the agents remember, in the same
+1-bit language as the landing, calmer. Dials: ENERGY 2 / RHYTHM 2 / MOTION 1.
+
+- **Palette:** the landing's paper and ink only. Anything out of focus (graph nodes outside the type filter or away
+  from the hovered entity, the backdrop behind a dialog) is dithered, never grey.
+- **Type:** Anybody (width 50, weight 900) only for page titles, entity names at the top of their page and section
+  heads, all 28 px and up. Everything people read (facts, lists, forms, buttons, nav, meta) is Atkinson Hyperlegible
+  Next; prime text, tokens and the bulk box are Atkinson Hyperlegible Mono. The landing is a statement read once; the
+  app is read for an hour, so reading text gets the legible face (the revolution split).
+- **Fonts are self-hosted** in `assets/fonts/` (Latin woff2, OFL), so the CSP can stay `'self'` only.
+- **Rows, not cards:** entities, facts, history and the log are ruled lists with the landing's square-pixel dotted
+  rule. A fact is `relation object`, as `describe` prints it, so the CLI and the app read the same.
+- **Stamps:** a filled ink label marks a state (token scope, "new" in the log, "As of", warnings); an outlined one is
+  a type and links to the entities of that type.
+- **Sign-in:** the landing's m over the ghost of its earlier shell is the one large image in the app, on the one
+  screen that has nothing else to show.
+- **Graph:** entities are square pixels sized by their number of facts; types are hollow squares. `is` links are
+  solid, other links dotted. Hover (or a first tap on touch) inks the entity and its neighbours and dithers the
+  rest; a click (or second tap) opens the entity. The side panel lists the selected entity's neighbours as buttons,
+  so the graph can be walked with the keyboard after Find.
+- **Elevation:** only things that need an action now get the landing's offset shadow: dialogs and the new-token box.
+- **Motion:** the graph settles live (it shows the layout working; off under reduced motion, where it is laid out
+  first and drawn once), and a record that arrives in the log flashes once, ink then paper, as an e-ink panel
+  repaints. Nothing loops.
+- **Nav:** one row on wide screens, behind a labelled Menu button below 940 px. Tokens shows only for the admin token
+  and Add facts only for write tokens, so no link leads to a page the token can't use.
