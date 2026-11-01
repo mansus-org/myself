@@ -189,7 +189,7 @@ func (s *Server) mcpServer(id Identity, cache *mcp.SchemaCache) *mcp.Server {
 			if in.Q == "" {
 				return mcpOut{}, brain.Usagef("search needs <text>")
 			}
-			res, err := brain.Search(st, in.Q, opt(in.At))
+			res, err := brain.Search(st, in.Q, opt(in.At), nil)
 			return linesOut(res), err
 		})
 

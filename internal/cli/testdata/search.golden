@@ -40,6 +40,24 @@ $ myself search relay --json
 --- stderr
 --- exit
 0
+$ myself search relay -n 1
+--- stdout
+<uuid-1> <time> relay is project
+--- stderr
+--- exit
+0
+$ myself search relay -n 1 --json
+--- stdout
+{"matches":[{"uuid":"<uuid-1>","subject":"relay","relation":"is","object":"project","time":"<time>"}]}
+--- stderr
+--- exit
+0
+$ myself search relay -n 0
+--- stdout
+--- stderr
+error: -n must be at least 1
+--- exit
+1
 $ myself search zzz
 --- stdout
 --- stderr

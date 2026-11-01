@@ -80,7 +80,7 @@ myself forget <subject> <relation> [<object...>] [--reason TEXT]
 myself describe <entity> [--depth N] [--at TIME]
 myself ls [<type>] [--at TIME]
 myself relations
-myself search <text> [--at TIME]
+myself search <text> [--at TIME] [-n N]
 myself path <a> <b> [--max-depth N]
 myself log [--since TIME] [-n N]
 myself history <subject> [<relation>]
@@ -100,7 +100,7 @@ Global flags: `--file PATH`, `--json`, `--url URL`, `--token TOKEN` (remote mode
 - `describe <entity>`: records where the entity is subject (`out`) or the linked object (`in`). `--depth` defaults to 0 (only that entity); depth N also shows every entity reachable within N hops, breadth-first.
 - `ls <type>`: every entity that reaches `<type>` through a chain of live `is` records (transitive subtypes). `ls` with no argument lists every entity that is the object of a live `is` record. **Decision:** the original text said "either direction"; only the subtype direction is listed, since the supertypes of an entity are already visible with `describe`, and mixing both directions makes `ls software` ambiguous.
 - `path <a> <b>`: shortest chain of live records connecting `a` to `b`, edges walked in either direction; `--max-depth` defaults to 6.
-- `search <text>`: case-insensitive substring match on subject, relation or object of live records.
+- `search <text>`: case-insensitive substring match on subject, relation or object of live records. `-n N` keeps only the first N matches.
 - `log`: every record, forgets included, in uuid order. `--since` filters by time, `-n N` keeps the last N.
 - `history <subject> [<relation>]`: every record, forgotten or not, for that subject (and relation), plus the `forget` records pointing at them, in uuid order.
 - `prime`: a compact summary of the brain to paste into an agent context, cut at a line boundary to fit `--budget` characters (default 2000). Entities are ordered `self` first (if it exists), then the entities directly linked to `self` (one hop, breadth-first order), then the rest by live record count (descending, then name). Each is rendered as `describe` at depth 0, except that incoming `is` records are folded into one line `  <- is: a, b, c` (subjects sorted, comma-separated) instead of one `<- x is` line each.
@@ -282,7 +282,7 @@ Query parameters map to the CLI flags. A parameter that is present but empty cou
 | `GET /api/v1/describe/{entity}?depth=N&at=TIME` | read | `describe` | as `describe --json` |
 | `GET /api/v1/ls?type=T&at=TIME` | read | `ls [<type>]` | as `ls --json` |
 | `GET /api/v1/relations` | read | `relations` | as `relations --json` |
-| `GET /api/v1/search?q=TEXT&at=TIME` | read | `search` | as `search --json` |
+| `GET /api/v1/search?q=TEXT&at=TIME&n=N` | read | `search` | as `search --json` |
 | `GET /api/v1/path?from=A&to=B&max_depth=N` | read | `path` | as `path --json` |
 | `GET /api/v1/log?since=TIME&n=N` | read | `log` | as `log --json` |
 | `GET /api/v1/history/{subject}?relation=R` | read | `history` | as `history --json` |

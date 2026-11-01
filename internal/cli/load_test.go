@@ -23,7 +23,7 @@ func loadAt(t *testing.T, file string, args ...string) ([]model.Record, *string,
 	a := addAtFlag(cmd)
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
 		at = a.value()
-		res, err := brain.Search(storeFor(cmd, cfg), "", at)
+		res, err := brain.Search(storeFor(cmd, cfg), "", at, nil)
 		recs = res.Matches
 		return err
 	}

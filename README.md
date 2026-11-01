@@ -191,7 +191,7 @@ Arguments are positional and everything after the relation is the object, so quo
 | `describe <entity> [--depth N] [--at TIME]` | outgoing and incoming facts, N hops out |
 | `ls [<type>] [--at TIME]` | entities of a type, following `is` transitively |
 | `relations` | list the allowed relations |
-| `search <text> [--at TIME]` | case-insensitive substring match |
+| `search <text> [--at TIME] [-n N]` | case-insensitive substring match; `-n` keeps the first N matches |
 | `path <a> <b> [--max-depth N]` | shortest chain of facts linking two entities |
 | `log [--since TIME] [-n N]` | every record, forgets included |
 | `history <subject> [<relation>]` | every record for a subject, forgotten or not |

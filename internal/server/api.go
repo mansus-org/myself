@@ -217,7 +217,12 @@ func (s *Server) search(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, brain.Usagef("search needs <text>"))
 		return
 	}
-	res, err := brain.Search(st, text, optString(q, "at"))
+	n, err := optInt(q, "n")
+	if err != nil {
+		WriteError(w, err)
+		return
+	}
+	res, err := brain.Search(st, text, optString(q, "at"), n)
 	reply(w, st, res, err)
 }
 

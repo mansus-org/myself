@@ -360,7 +360,16 @@ func TestRememberAndQueries(t *testing.T) {
 	if len(search.Matches) != 1 || search.Matches[0].Object != "go" {
 		t.Fatalf("search %+v", search)
 	}
+	e.ok("GET", "/api/v1/search?q=relay", adminToken, "", 200, &search)
+	if len(search.Matches) != 2 || search.Matches[0].Object != "project" {
+		t.Fatalf("search relay %+v", search)
+	}
+	e.ok("GET", "/api/v1/search?q=relay&n=1", adminToken, "", 200, &search)
+	if len(search.Matches) != 1 || search.Matches[0].Object != "project" {
+		t.Fatalf("search -n %+v", search)
+	}
 	e.fails("GET", "/api/v1/search", adminToken, "", 400, 1, "search needs <text>")
+	e.fails("GET", "/api/v1/search?q=relay&n=0", adminToken, "", 400, 1, "-n must be at least 1")
 
 	var path struct {
 		From string   `json:"from"`
