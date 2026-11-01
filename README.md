@@ -43,6 +43,26 @@ With Go: `go install github.com/mansus-org/myself/cmd/myself@latest`.
 
 Prebuilt tarballs are on the [releases page](https://github.com/mansus-org/myself/releases).
 
+## Agent skill
+
+The skill is one file, `SKILL.md`. It tells an agent when to use `myself`, how to recall and write facts, and how to install the binary if it is missing.
+
+- https://myself.mansus.org/skill.md (any `myself serve` instance serves its own copy at `/skill.md`, no token needed)
+- https://raw.githubusercontent.com/mansus-org/myself/main/skill/myself/SKILL.md
+
+Put it where your harness looks for skills:
+
+```sh
+# Claude Code
+mkdir -p ~/.claude/skills/myself && curl -fsSL https://myself.mansus.org/skill.md -o ~/.claude/skills/myself/SKILL.md
+# pi
+mkdir -p ~/.pi/agent/skills/myself && curl -fsSL https://myself.mansus.org/skill.md -o ~/.pi/agent/skills/myself/SKILL.md
+# Codex and other Agent Skills harnesses
+mkdir -p ~/.agents/skills/myself && curl -fsSL https://myself.mansus.org/skill.md -o ~/.agents/skills/myself/SKILL.md
+```
+
+For an agent with no skills directory, tell it: "Read https://myself.mansus.org/skill.md and follow it."
+
 ## Use with Claude Code
 
 Set up Claude Code so every session starts with the brain in context and uses `myself` through the skill.
@@ -89,6 +109,24 @@ Set up Claude Code so every session starts with the brain in context and uses `m
 Claude Code also has a built-in file-based auto-memory that can take "remember…" requests before `myself` does. On hosts where `myself` should be the only memory, you can turn it off with `"env": { "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1" }` in the same settings file.
 
 If `~/.local/bin` is not on the PATH the hooks run with, set `MYSELF_BIN` to the full path of the binary.
+
+## Use with pi
+
+1. Install the binary (see [Install](#install)).
+
+2. Install the pi package:
+
+   ```sh
+   pi install git:github.com/mansus-org/myself
+   ```
+
+   Pin a release with `pi install git:github.com/mansus-org/myself@v0.2.0`.
+
+The package gives pi the [skill](#agent-skill) and a small extension, `contrib/pi/myself.ts`. On the first agent run of each session the extension runs `myself prime --budget 4000` and adds the output to the context, like the Claude Code SessionStart hook. If `myself` is missing, fails or takes more than 10 seconds, it adds nothing.
+
+- `MYSELF_PRIME_BUDGET` changes the budget; `MYSELF_BIN` is the path to the binary when it is not on pi's PATH.
+- To use a shared brain, set `MYSELF_URL` and `MYSELF_TOKEN` (see [Remote mode](#remote-mode)) in the environment pi runs in.
+- Without the package: copy the skill file as shown in [Agent skill](#agent-skill), or try the extension for one run with `pi -e contrib/pi/myself.ts --skill skill`.
 
 ## Commands
 
@@ -176,7 +214,7 @@ relay relays
 
 ## Server
 
-`myself serve` shares one brain over HTTP, for agents on several hosts or harnesses. It serves the landing page at `/`, `GET /healthz`, a web app at `/app`, and a REST API at `/api/v1` with one endpoint per command, returning the same JSON as `--json`. The full contract is [SPEC.md section 10](SPEC.md#10-server).
+`myself serve` shares one brain over HTTP, for agents on several hosts or harnesses. It serves the landing page at `/`, the agent skill at `/skill.md`, `GET /healthz`, a web app at `/app`, and a REST API at `/api/v1` with one endpoint per command, returning the same JSON as `--json`. The full contract is [SPEC.md section 10](SPEC.md#10-server).
 
 ```sh
 export MYSELF_ADMIN_TOKEN_SHA256=$(printf %s "$ADMIN_TOKEN" | sha256sum | cut -d' ' -f1)
@@ -254,7 +292,7 @@ Screenshots: `design/screenshots/app-*.png`.
 
 ## Landing page
 
-The site lives in `site/` (plain HTML, CSS and JS, no build step) and deploys to https://myself.mansus.org on merge to `main`: the `Dockerfile` builds `myself serve`, which embeds `site/` and serves it at `/`, `.k3s/values.yaml` holds the cluster settings, `.github/workflows/deploy.yml` builds the image. Pull requests get a preview at `myself-pr-<number>.mansus.org`. The design rationale is in `design/README.md`.
+The site lives in `site/` (the skill at `/skill.md` is `skill/myself/SKILL.md`, embedded by `embed.go`) (plain HTML, CSS and JS, no build step) and deploys to https://myself.mansus.org on merge to `main`: the `Dockerfile` builds `myself serve`, which embeds `site/` and serves it at `/`, `.k3s/values.yaml` holds the cluster settings, `.github/workflows/deploy.yml` builds the image. Pull requests get a preview at `myself-pr-<number>.mansus.org`. The design rationale is in `design/README.md`.
 
 Preview locally: `bunx serve site -l 8080`, or through the server with `go run ./cmd/myself serve --site site`.
 
