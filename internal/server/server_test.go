@@ -49,7 +49,7 @@ func newEnv(t *testing.T, adminHash string) *env {
 	file := filepath.Join(t.TempDir(), "brain.jsonl")
 	lb := &syncBuffer{}
 	site := fstest.MapFS{"index.html": {Data: []byte("<h1>myself</h1>")}}
-	srv, err := New(Config{File: file, Site: site, AdminHash: adminHash, Log: lb})
+	srv, err := New(Config{File: file, Site: site, Skill: []byte("---\nname: myself\n---\n"), AdminHash: adminHash, Log: lb})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -626,5 +626,27 @@ func TestConcurrentWrites(t *testing.T) {
 	// 2 facts per request plus one forget for every request after the first.
 	if want := 2*n + n - 1; len(recs) != want {
 		t.Fatalf("%d records in the file, want %d", len(recs), want)
+	}
+}
+
+func TestSkill(t *testing.T) {
+	e := newAdminEnv(t)
+	st, body := e.do("GET", "/skill.md", "", "")
+	if st != 200 || !strings.HasPrefix(body, "---\nname: myself\n") {
+		t.Fatalf("skill: %d %q", st, body)
+	}
+	resp, err := http.Get(e.ts.URL + "/skill.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if ct := resp.Header.Get("Content-Type"); ct != "text/markdown; charset=utf-8" {
+		t.Fatalf("content type %q", ct)
+	}
+	if resp.Header.Get("Content-Security-Policy") == "" || resp.Header.Get("X-Content-Type-Options") != "nosniff" {
+		t.Fatalf("missing headers: %v", resp.Header)
+	}
+	if st, _ := e.do("POST", "/skill.md", "", "x"); st != 405 {
+		t.Fatalf("POST /skill.md: %d", st)
 	}
 }

@@ -50,7 +50,7 @@ func newServeCmd(cfg *Config) *cobra.Command {
 			if hash == "" {
 				Warnf(stderr, "%s is not set; the API answers 503 to every request", EnvAdminHash)
 			}
-			srv, err := server.New(server.Config{File: cfg.File, Site: siteFS, AdminHash: hash, Log: stderr, Version: Version})
+			srv, err := server.New(server.Config{File: cfg.File, Site: siteFS, Skill: myself.Skill, AdminHash: hash, Log: stderr, Version: Version})
 			if err != nil {
 				return StoreErr(err)
 			}

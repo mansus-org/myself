@@ -6,8 +6,9 @@ paseo.json
 Dockerfile
 .dockerignore
 *.md
+!skill/myself/SKILL.md
 design
 demo
 contrib
-skill
 dist
+package.json
