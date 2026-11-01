@@ -35,7 +35,7 @@
     btn._t = setTimeout(() => { btn.textContent = "Copy"; delete btn.dataset.state; live.textContent = ""; }, 1500);
   };
 
-  document.querySelectorAll(".copy").forEach((btn) => {
+  document.querySelectorAll(".copy:not([data-cast-toggle]):not([data-cast-replay])").forEach((btn) => {
     const code = btn.closest(".win").querySelector("code");
     btn.addEventListener("click", async () => {
       const text = textOf(btn, code);

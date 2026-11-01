@@ -3,21 +3,23 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>myself · your agents remember, in one brain you own · Mansus</title>
-<meta name="description" content="myself lets your coding agents remember people, projects and decisions across sessions. What they learn lands in one JSONL file you own, used locally by the CLI or shared from your own server over the CLI, MCP and a web app.">
+<title>myself · long-term memory for your agents, in one file you own · Mansus</title>
+<meta name="description" content="myself is a single-binary CLI that gives coding agents a long-term memory: a small knowledge graph in one append-only JSONL file. Use it locally, or share one brain from your own server over the CLI, MCP and a web app.">
 <link rel="icon" href="data:,">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Anybody:wdth,wght@50..150,300..900&display=swap" rel="stylesheet">
+<link rel="preload" href="/assets/fonts/atkinson-next.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/style.css">
 </head>
 <body>
+<a class="skip" href="#contents">Skip to contents</a>
 <div class="flash" hidden aria-hidden="true"></div>
 
 <header class="chrome">
   <a class="mark" href="#top" aria-label="Mansus, back to top">mansus</a>
-  <a class="chrome-link" href="/app/">Web app</a>
-  <a class="chrome-link" href="https://github.com/mansus-org/myself">GitHub</a>
+  <nav class="chrome-nav" aria-label="Site">
+    <a class="chrome-link" href="https://github.com/mansus-org/myself#readme">Docs</a>
+    <a class="chrome-link" href="/app/">Web app</a>
+    <a class="chrome-link" href="https://github.com/mansus-org/myself">GitHub</a>
+  </nav>
 </header>
 
 <main>
@@ -33,8 +35,85 @@
     <p class="statement">Your agents remember people, projects and decisions across sessions. One file you own, on your laptop or shared from your server.</p>
   </section>
 
+  <!-- The live example: demo.cast played back in a terminal window. -->
+  <section class="demo" id="demo" aria-labelledby="demo-h">
+    <h2 class="h2" id="demo-h">Ten commands, one brain.</h2>
+    <p class="lead">A real session against an empty store: facts in, a graph out, a corrected fact, its history, and the Obsidian notes.</p>
+    <figure class="win win--term win--cast" data-cast="/assets/demo.cast">
+      <div class="win__bar">
+        <figcaption class="win__title">bash <span class="win__sub">recorded with myself</span></figcaption>
+        <span class="win__controls">
+          <button class="copy" type="button" data-cast-toggle hidden>Play</button>
+          <button class="copy" type="button" data-cast-replay hidden aria-label="Replay the recording from the start">Replay</button>
+        </span>
+        <span class="sr" role="status" data-cast-status></span>
+      </div>
+<pre class="win__body" tabindex="0" aria-label="Terminal session"><code><span class="p">$</span> myself remember relay is project
+<span class="o">remembered 01a1942e-b3ad-7017-bab1-6daf5d0594a3</span>
+<span class="p">$</span> myself remember relay uses bun
+<span class="o">remembered 01a1942e-b3b3-7052-9e2d-4c248ce13187</span>
+<span class="p">$</span> myself remember felipe related relay
+<span class="o">remembered 01a1942e-b3bb-73fb-bd63-d608193079eb</span>
+<span class="p">$</span> myself remember bun is tool
+<span class="o">remembered 01a1942e-b3c0-7111-af10-e9825dc684bc</span>
+<span class="p">$</span> myself describe relay --depth 1
+<span class="o">relay
+  is project
+  uses bun
+  &lt;- felipe related
+bun
+  is tool
+  &lt;- relay uses
+felipe
+  related relay
+project
+  &lt;- relay is</span>
+<span class="p">$</span> myself path bun felipe
+<span class="o">relay uses bun
+felipe related relay</span>
+<span class="p">$</span> myself remember i does "Felipe's coding agent. Answers tersely."
+<span class="o">remembered 01a1942e-b3cf-7035-b9c0-f3594a199323</span>
+<span class="p">$</span> myself remember i does "Felipe's coding agent. Answers tersely. Never commits with the work email." --replace
+<span class="o">forgot 01a1942e-b3cf-7035-b9c0-f3594a199323
+remembered 01a1942e-b3d5-76f0-848a-b54673cdb8aa</span>
+<span class="p">$</span> myself history i
+<span class="o">01a1942e-b3cf-7035-b9c0-f3594a199323 2026-10-31T22:57:31Z self does Felipe's coding agent. Answers tersely.
+01a1942e-b3d5-76ef-bc8b-96cf1ae53f13 2026-10-31T22:57:31Z forget 01a1942e-b3cf-7035-b9c0-f3594a199323
+01a1942e-b3d5-76f0-848a-b54673cdb8aa 2026-10-31T22:57:31Z self does Felipe's coding agent. Answers tersely. Never commits with the work email.</span>
+<span class="p">$</span> myself export --obsidian /tmp/vault &amp;&amp; cat /tmp/vault/relay.md
+<span class="o">exported 6 entities to /tmp/vault
+# relay
+
+- is [[project]]
+- uses [[bun]]
+
+## Linked from
+- [[felipe]] related</span>
+<span class="p">$</span> </code></pre>
+    </figure>
+    <p class="aside">The same recording is <a href="https://github.com/mansus-org/myself/blob/main/demo/demo.cast">demo.cast</a> in the repo. Play it in your terminal with <code>asciinema play demo/demo.cast</code>.</p>
+  </section>
+
+  <!-- In-page contents, and the way out to the full README. -->
+  <nav class="toc" id="contents" aria-labelledby="toc-h">
+    <h2 class="toc__h" id="toc-h">On this page</h2>
+    <ol class="toc__list">
+      <li><a href="#story">Across sessions</a></li>
+      <li><a href="#why">Why it works this way</a></li>
+      <li><a href="#install">Install</a></li>
+      <li><a href="#claude-code">Use with Claude Code</a></li>
+      <li><a href="#shared">Connect to a shared brain</a></li>
+      <li><a href="#commands">Commands</a></li>
+      <li><a href="#storage">How it stores memory</a></li>
+      <li><a href="#obsidian">Obsidian mirror</a></li>
+      <li><a href="#molting">Molting and dreaming</a></li>
+      <li><a href="#non-goals">Non-goals</a></li>
+    </ol>
+    <p class="toc__more">Every flag, hook setting and endpoint is in the <a href="https://github.com/mansus-org/myself#readme">README on GitHub</a>. The contract for each command, output and exit code is <a href="https://github.com/mansus-org/myself/blob/main/SPEC.md">SPEC.md</a>.</p>
+  </nav>
+
   <!-- The story across sessions: three terminal windows, read in order. -->
-  <section class="shell" aria-labelledby="shell-h">
+  <section class="shell" id="story" aria-labelledby="shell-h">
     <h2 class="h2" id="shell-h">Tell it on Monday. It knows on Thursday.</h2>
 
     <div class="story">
@@ -42,22 +121,22 @@
         <div class="beat__text">
           <h3 class="beat__day">Monday</h3>
           <p class="beat__cap">You mention it once. The agent writes it down.</p>
-          <p class="beat__sub">The agent runs these through Bash while it works on storefront. A session last week had already saved the npm fact.</p>
+          <p class="beat__sub">The agent runs these through Bash while it works on storefront. A session last week had already saved three facts.</p>
         </div>
         <figure class="win win--term">
           <div class="win__bar">
             <figcaption class="win__title">bash</figcaption>
             <button class="copy" type="button" aria-label="Copy the commands of the Monday example">Copy</button>
           </div>
-<pre class="win__body" tabindex="0"><code><span class="c"># saved last week: storefront uses npm, alice owns storefront</span>
-<span class="p">$</span> myself remember storefront is project
-<span class="o">remembered: storefront is project</span>
-<span class="p">$</span> myself remember storefront uses bun --src "PR #218"
-<span class="o">remembered: storefront uses bun</span>
-<span class="p">$</span> myself forget storefront uses npm --reason "moved to bun"
-<span class="o">forgot: storefront uses npm</span>
+<pre class="win__body" tabindex="0"><code><span class="c"># saved last week: storefront is project, storefront uses npm, alice related storefront</span>
+<span class="p">$</span> myself remember storefront uses bun
+<span class="o">remembered 01a1974d-c45e-7109-9f2d-c781ae8e11c4</span>
+<span class="p">$</span> myself forget storefront uses npm --reason "moved to bun in PR 218"
+<span class="o">forgot 01a1974d-c452-77ce-bb8e-717657c6fefe</span>
 <span class="p">$</span> myself remember user prefers "short answers, no emoji"
-<span class="o">remembered: user prefers "short answers, no emoji"</span></code></pre>
+<span class="o">remembered 01a1974d-c468-76e4-9c59-4fee607934df</span>
+<span class="p">$</span> myself remember i does "coding agent for the storefront repo"
+<span class="o">remembered 01a1974d-c46d-7304-8a33-d640a71f9f77</span></code></pre>
         </figure>
       </article>
 
@@ -65,22 +144,26 @@
         <div class="beat__text">
           <h3 class="beat__day">Thursday</h3>
           <p class="beat__cap">A new session starts with the brief. No re-explaining.</p>
-          <p class="beat__sub">A SessionStart hook runs <code>myself prime</code>, so the agent has this before you type a word. <a href="#install">Hook setup is below.</a></p>
+          <p class="beat__sub">A SessionStart hook runs <code>myself prime</code>, so the agent has this before you type a word. <code>i</code> is the agent itself, stored as <code>self</code>. <a href="#claude-code">Hook setup is below.</a></p>
         </div>
         <figure class="win win--term">
           <div class="win__bar">
             <figcaption class="win__title">bash</figcaption>
             <button class="copy" type="button" aria-label="Copy the command of the Thursday example">Copy</button>
           </div>
-<pre class="win__body" tabindex="0"><code><span class="p">$</span> myself prime --cwd ~/code/storefront
-<span class="o">i am "Coding agent for the storefront repo."
-user prefers "short answers, no emoji"
-here: storefront
+<pre class="win__body" tabindex="0"><code><span class="p">$</span> myself prime
+<span class="o">self
+  does coding agent for the storefront repo
+storefront
   is project
   uses bun
-recent:
-  mon  + storefront uses bun
-  mon  - storefront uses npm   (moved to bun)</span></code></pre>
+  &lt;- alice related
+alice
+  related storefront
+project
+  &lt;- is: storefront
+user
+  prefers short answers, no emoji</span></code></pre>
         </figure>
       </article>
 
@@ -88,7 +171,7 @@ recent:
         <div class="beat__text">
           <h3 class="beat__day">Later</h3>
           <p class="beat__cap">Ask what it knows, and what changed.</p>
-          <p class="beat__sub">You can run these yourself, too.</p>
+          <p class="beat__sub">You can run these yourself, too. Nothing was overwritten: the npm fact and why it was dropped are still in the history.</p>
         </div>
         <figure class="win win--term">
           <div class="win__bar">
@@ -99,216 +182,405 @@ recent:
 <span class="o">storefront
   is project
   uses bun
-  ← alice owns</span>
+  &lt;- alice related</span>
 <span class="p">$</span> myself history storefront uses
-<span class="o">fri 16:40  + uses npm
-mon 10:02  + uses bun   (PR #218)
-mon 10:03  - uses npm   moved to bun</span>
-<span class="p">$</span> myself path bun alice
-<span class="o">bun ← uses storefront ← owns alice</span></code></pre>
+<span class="o">01a1974d-c452-77ce-bb8e-717657c6fefe 2026-11-01T13:30:18Z storefront uses npm
+01a1974d-c45e-7109-9f2d-c781ae8e11c4 2026-11-01T13:30:18Z storefront uses bun
+01a1974d-c464-73fa-b8bb-e63f8e6ade56 2026-11-01T13:30:18Z forget 01a1974d-c452-77ce-bb8e-717657c6fefe moved to bun in PR 218</span>
+<span class="p">$</span> myself path alice project
+<span class="o">alice related storefront
+storefront is project</span></code></pre>
         </figure>
       </article>
     </div>
     <p class="note">The agent does the thinking. myself keeps what it learned.</p>
   </section>
 
-  <!-- Install: planned methods, available from v0.1. -->
-  <section class="install" id="install" aria-labelledby="install-h">
-    <h2 class="h2" id="install-h">Install</h2>
-    <p class="status"><strong>v0.1.1 is out</strong> for Linux and macOS. Binaries are on <a href="https://github.com/mansus-org/myself/releases">GitHub releases</a>.</p>
-
-    <figure class="win win--term">
-      <div class="win__bar">
-        <figcaption class="win__title">bash <span class="win__sub">Linux and macOS, or Go</span></figcaption>
-        <button class="copy" type="button" aria-label="Copy the install commands">Copy</button>
-      </div>
-<pre class="win__body" tabindex="0"><code><span class="c"># one line (Linux, macOS): downloads the release binary into ~/.local/bin</span>
-<span class="p">$</span> curl -fsSL https://raw.githubusercontent.com/mansus-org/myself/main/install.sh | sh
-
-<span class="c"># or with Go</span>
-<span class="p">$</span> go install github.com/mansus-org/myself@latest</code></pre>
-    </figure>
-
-    <h3 class="h3">Use it from Claude Code</h3>
-    <ol class="steps">
-      <li class="step">
-        <p class="step__text"><span class="step__n">1</span>Install the skill. Copy <code>skill/myself</code> from the repo into <code>~/.claude/skills/</code>.</p>
-        <figure class="win win--term">
-          <div class="win__bar">
-            <figcaption class="win__title">bash <span class="win__sub">from a clone of the repo</span></figcaption>
-            <button class="copy" type="button" aria-label="Copy the skill install command">Copy</button>
-          </div>
-<pre class="win__body" tabindex="0"><code><span class="p">$</span> cp -r skill/myself ~/.claude/skills/</code></pre>
-        </figure>
-      </li>
-      <li class="step">
-        <p class="step__text"><span class="step__n">2</span>Start every session with the brief. Add a SessionStart hook to <code>~/.claude/settings.json</code> that runs <code>myself prime</code>.</p>
-        <figure class="win win--file">
-          <div class="win__bar">
-            <figcaption class="win__title">~/.claude/settings.json <span class="win__sub">file</span></figcaption>
-            <button class="copy" type="button" aria-label="Copy the settings.json snippet">Copy</button>
-          </div>
-<pre class="win__body" tabindex="0"><code>{
-  "env": { "MYSELF_AGENT": "claude-code" },
-  "hooks": {
-    "SessionStart": [
-      { "hooks": [ { "type": "command", "command": "myself prime --cwd \"$CLAUDE_PROJECT_DIR\"" } ] }
-    ]
-  }
-}</code></pre>
-        </figure>
-      </li>
-      <li class="step">
-        <p class="step__text"><span class="step__n">3</span>Allow <code>Bash(myself:*)</code> so permission prompts do not stop the agent.</p>
-        <figure class="win win--file">
-          <div class="win__bar">
-            <figcaption class="win__title">~/.claude/settings.json <span class="win__sub">file</span></figcaption>
-            <button class="copy" type="button" aria-label="Copy the permissions snippet">Copy</button>
-          </div>
-<pre class="win__body" tabindex="0"><code>{
-  "permissions": { "allow": [ "Bash(myself:*)" ] }
-}</code></pre>
-        </figure>
-      </li>
-    </ol>
-    <p class="note">Other harnesses: any agent that can run shell commands can use myself. <code>myself prime</code> prints a brief to paste into its system prompt.</p>
-  </section>
-
-  <!-- Connect: one server, three ways in. -->
-  <section class="install connect" id="connect" aria-labelledby="connect-h">
-    <h2 class="h2" id="connect-h">Connect your agents</h2>
-    <p class="status">Run one server and give each agent its own token. Every agent then reads and writes the same brain.</p>
-
-    <figure class="win win--term">
-      <div class="win__bar">
-        <figcaption class="win__title">bash <span class="win__sub">on the server</span></figcaption>
-        <button class="copy" type="button" aria-label="Copy the server commands">Copy</button>
-      </div>
-<pre class="win__body" tabindex="0"><code><span class="c"># the server only ever sees the admin token's hash</span>
-<span class="p">$</span> export MYSELF_ADMIN_TOKEN_SHA256=$(printf %s "$ADMIN_TOKEN" | sha256sum | cut -d' ' -f1)
-<span class="p">$</span> myself serve --addr :8080</code></pre>
-    </figure>
-
-    <ol class="steps">
-      <li class="step">
-        <p class="step__text"><span class="step__n">1</span>The CLI, in remote mode. Set two variables and every command runs on the server, with the same output.</p>
-        <figure class="win win--term">
-          <div class="win__bar">
-            <figcaption class="win__title">bash <span class="win__sub">on each agent's machine</span></figcaption>
-            <button class="copy" type="button" aria-label="Copy the remote mode commands">Copy</button>
-          </div>
-<pre class="win__body" tabindex="0"><code><span class="p">$</span> export MYSELF_URL=https://myself.example.com
-<span class="p">$</span> export MYSELF_TOKEN=mys_...
-<span class="p">$</span> myself whoami</code></pre>
-        </figure>
-      </li>
-      <li class="step">
-        <p class="step__text"><span class="step__n">2</span>MCP, for any harness that speaks it. In Claude Code:</p>
-        <figure class="win win--term">
-          <div class="win__bar">
-            <figcaption class="win__title">bash</figcaption>
-            <button class="copy" type="button" aria-label="Copy the claude mcp add command">Copy</button>
-          </div>
-<pre class="win__body" tabindex="0"><code><span class="p">$</span> claude mcp add --transport http myself https://myself.example.com/mcp --header "Authorization: Bearer &lt;token&gt;"</code></pre>
-        </figure>
-        <p class="note">Other MCP clients take the same URL and header.</p>
-      </li>
-      <li class="step">
-        <p class="step__text"><span class="step__n">3</span>The web app, for you. Sign in at <code>/app</code> with a token to browse entities and their history, follow the graph, watch the log as agents write, and create or revoke tokens.</p>
-        <p class="links"><a href="/app/">Open the web app</a></p>
-      </li>
-    </ol>
-  </section>
-
-  <!-- What you get: ruled rows, each with its own sign. -->
-  <section class="ideas" aria-labelledby="ideas-h">
-    <h2 class="h2" id="ideas-h">What you get</h2>
+  <!-- Why: ruled rows, each with its own sign. -->
+  <section class="ideas" id="why" aria-labelledby="ideas-h">
+    <h2 class="h2" id="ideas-h">Why it works this way</h2>
     <ol class="rows">
       <li class="row">
         <span class="row__sign" data-glyph="agent" aria-hidden="true"></span>
-        <h3 class="row__title">Works with the agent you already run</h3>
-        <p class="row__text">The agent does the extracting before it calls myself. So there are no extra LLM calls and no API keys, and on a local file it works offline.</p>
+        <h3 class="row__title">The agent is the LLM, so the store stays simple</h3>
+        <p class="row__text">The agent decides what is worth remembering and writes it as a fact. myself only stores, indexes and queries: no extraction step, no extra LLM calls, no API keys. The same input gives the same output.</p>
       </li>
       <li class="row">
         <span class="row__sign" data-glyph="cli" aria-hidden="true"></span>
         <h3 class="row__title">One binary, called from Bash</h3>
-        <p class="row__text">Claude Code, Codex, pi, or any agent that can run a shell command can call it. Put the binary on your <code>$PATH</code>, add a skill file, and the agent can use it.</p>
-      </li>
-      <li class="row">
-        <span class="row__sign" data-glyph="hub" aria-hidden="true"></span>
-        <h3 class="row__title">One brain for all your agents</h3>
-        <p class="row__text"><code>myself serve</code> puts the file behind HTTP, with a token per agent. Agents on other machines use the same CLI against it, harnesses without a shell connect over MCP, and you browse and fix it in a web app.</p>
+        <p class="row__text">Claude Code, Codex, pi, or any agent that can run a shell command can use it. Put the binary on your <code>$PATH</code>, add the skill file, and on a local file it needs no server and no network.</p>
       </li>
       <li class="row">
         <span class="row__sign" data-glyph="triple" aria-hidden="true"></span>
         <h3 class="row__title">Facts carry time</h3>
-        <p class="row__text">A correction replaces the old fact going forward, and the old one stays in the history. Add <code>--at</code> to see what was true on a given date.</p>
+        <p class="row__text">A fact is <code>subject relation object</code> with a timestamp. The object is free text, so the how and why live in it. <code>--replace</code> and <code>forget</code> write new records, the old ones stay, and <code>--at</code> shows what was true on a given date.</p>
       </li>
       <li class="row">
-        <span class="row__sign" data-glyph="molt" aria-hidden="true"></span>
-        <h3 class="row__title">Molting: the agent rewrites who it is</h3>
-        <p class="row__text">The agent keeps one fact, <code>i am "…"</code>, and rewrites it when you correct it. <code>myself history i am</code> shows how it changed.</p>
-      </li>
-      <li class="row">
-        <span class="row__sign" data-glyph="dream" aria-hidden="true"></span>
-        <h3 class="row__title">Dreaming tidies up</h3>
-        <p class="row__text"><code>myself dream</code> lists names that are probably the same thing, like <code>relay</code> and <code>relays</code>. The agent merges them with ordinary commands.</p>
+        <span class="row__sign" data-glyph="hub" aria-hidden="true"></span>
+        <h3 class="row__title">One brain for all your agents, if you want it</h3>
+        <p class="row__text"><code>myself serve</code> puts the file behind HTTP, with a token per agent. Agents on other machines use the same CLI against it, harnesses without a shell connect over MCP, and you browse and fix it in a web app.</p>
       </li>
       <li class="row">
         <span class="row__sign" data-glyph="file" aria-hidden="true"></span>
         <h3 class="row__title">One file, in git</h3>
-        <p class="row__text">The memory is <code>~/.myself/brain.jsonl</code>. It diffs, it lives in git, and two memories merge like two branches.</p>
+        <p class="row__text">The memory is <code>~/.myself/brain.jsonl</code>. It diffs, <code>myself sync</code> keeps it in a private git repo, and two hosts that both wrote merge to the union of their records.</p>
       </li>
       <li class="row">
         <span class="row__sign" data-glyph="mirror" aria-hidden="true"></span>
         <h3 class="row__title">See it in Obsidian</h3>
-        <p class="row__text"><code>myself export --obsidian &lt;dir&gt;</code> writes one note per entity with <code>[[wikilinks]]</code>, and Obsidian's graph view draws the graph. It is a one-way mirror: edits in the vault do not come back.</p>
+        <p class="row__text"><code>myself export --obsidian &lt;dir&gt;</code> writes one note per entity with <code>[[wikilinks]]</code>, and Obsidian's graph view draws the graph. Edits in the vault do not come back.</p>
       </li>
     </ol>
+    <p class="aside">The idea that facts are superseded rather than overwritten comes from <a href="https://github.com/getzep/graphiti">Graphiti</a>. myself is much smaller: the calling agent writes the facts, a JSONL file instead of Neo4j, substring search instead of embeddings, and one timeline (when a record was written).</p>
   </section>
 
-  <!-- Molting, drawn: three shells of one sign. -->
-  <section class="molt" aria-labelledby="molt-h">
-    <div class="molt__shells" aria-hidden="true">
-      <span class="shell-bm" data-shell="0"></span>
-      <span class="shell-bm" data-shell="1"></span>
-      <span class="shell-bm" data-shell="2"></span>
+  <!-- Install. -->
+  <section class="doc" id="install" aria-labelledby="install-h">
+    <h2 class="h2 doc__h" id="install-h">Install</h2>
+    <div class="doc__body">
+      <p class="status"><strong>v0.2.0 is out</strong> for Linux and macOS, amd64 and arm64.</p>
+      <figure class="win win--term">
+        <div class="win__bar">
+          <figcaption class="win__title">bash <span class="win__sub">Linux and macOS</span></figcaption>
+          <button class="copy" type="button" aria-label="Copy the install command">Copy</button>
+        </div>
+<pre class="win__body" tabindex="0"><code><span class="c"># the latest release into ~/.local/bin, after checking its sha256</span>
+<span class="p">$</span> curl -fsSL https://raw.githubusercontent.com/mansus-org/myself/main/install.sh | sh
+<span class="p">$</span> myself version</code></pre>
+      </figure>
+      <p class="prose">To pin a release, set <code>MYSELF_VERSION</code>; to install somewhere else, set <code>MYSELF_INSTALL_DIR</code>:</p>
+      <figure class="win win--term">
+        <div class="win__bar">
+          <figcaption class="win__title">bash <span class="win__sub">a pinned release</span></figcaption>
+          <button class="copy" type="button" aria-label="Copy the pinned install command">Copy</button>
+        </div>
+<pre class="win__body" tabindex="0"><code><span class="p">$</span> curl -fsSL https://raw.githubusercontent.com/mansus-org/myself/main/install.sh | MYSELF_VERSION=v0.2.0 MYSELF_INSTALL_DIR=/usr/local/bin sh</code></pre>
+      </figure>
+      <p class="prose">With Go, or from the prebuilt tarballs on the <a href="https://github.com/mansus-org/myself/releases">releases page</a>:</p>
+      <figure class="win win--term">
+        <div class="win__bar">
+          <figcaption class="win__title">bash <span class="win__sub">Go</span></figcaption>
+          <button class="copy" type="button" aria-label="Copy the go install command">Copy</button>
+        </div>
+<pre class="win__body" tabindex="0"><code><span class="p">$</span> go install github.com/mansus-org/myself/cmd/myself@latest</code></pre>
+      </figure>
+      <p class="more"><a href="https://github.com/mansus-org/myself#install">Install, in the README</a></p>
     </div>
-    <div class="molt__text">
-      <h2 class="h2" id="molt-h">Nothing is overwritten.</h2>
-      <p class="lead">A correction does not erase the old fact. It stands behind the new one, fainter, and stays readable.</p>
+  </section>
+
+  <!-- Claude Code. -->
+  <section class="doc" id="claude-code" aria-labelledby="cc-h">
+    <h2 class="h2 doc__h" id="cc-h">Use with Claude Code</h2>
+    <div class="doc__body">
+      <p class="prose">Every session starts with the brain in context, and the agent uses <code>myself</code> through the skill. The brain lives in <code>~/.myself/brain.jsonl</code> (override with <code>MYSELF_FILE</code> or <code>--file</code>) and is created on the first write.</p>
+      <ol class="steps">
+        <li class="step">
+          <p class="step__text"><span class="step__n">1</span>Install the binary, as above.</p>
+        </li>
+        <li class="step">
+          <p class="step__text"><span class="step__n">2</span>From a clone of the repo, install the hooks and the skill.</p>
+          <figure class="win win--term">
+            <div class="win__bar">
+              <figcaption class="win__title">bash</figcaption>
+              <button class="copy" type="button" aria-label="Copy the hook and skill install commands">Copy</button>
+            </div>
+<pre class="win__body" tabindex="0"><code><span class="p">$</span> git clone https://github.com/mansus-org/myself &amp;&amp; cd myself
+<span class="p">$</span> mkdir -p ~/.myself/hooks ~/.claude/skills
+<span class="p">$</span> cp contrib/hooks/*.sh ~/.myself/hooks/
+<span class="p">$</span> chmod +x ~/.myself/hooks/*.sh
+<span class="p">$</span> cp -r skill/myself ~/.claude/skills/</code></pre>
+          </figure>
+        </li>
+        <li class="step">
+          <p class="step__text"><span class="step__n">3</span>Merge this into <code>~/.claude/settings.json</code>, keeping the hooks and permissions you already have.</p>
+          <figure class="win win--file">
+            <div class="win__bar">
+              <figcaption class="win__title">~/.claude/settings.json <span class="win__sub">file</span></figcaption>
+              <button class="copy" type="button" aria-label="Copy the settings.json snippet">Copy</button>
+            </div>
+<pre class="win__body" tabindex="0"><code>{
+  "permissions": {
+    "allow": ["Bash(myself:*)"]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          { "type": "command", "command": "~/.myself/hooks/session-start.sh", "timeout": 10 }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "~/.myself/hooks/stop-nudge.sh", "timeout": 10 }
+        ]
+      }
+    ]
+  }
+}</code></pre>
+          </figure>
+        </li>
+      </ol>
+      <h3 class="h3">What the hooks do</h3>
+      <ul class="list">
+        <li><code>session-start.sh</code> prints <code>myself prime --budget 4000</code>, which Claude Code adds to the session context. <code>MYSELF_PRIME_BUDGET</code> changes the budget.</li>
+        <li><code>stop-nudge.sh</code> blocks the first stop of a session once, asking whether anything is worth remembering, but only if nothing was written to the brain since the session started and the session edited files, ran 3 or more Bash commands, or left uncommitted changes. <code>MYSELF_NUDGE=off</code> turns it off.</li>
+        <li>Both are POSIX sh and exit quietly when <code>myself</code> is missing or fails. If <code>~/.local/bin</code> is not on the hooks' <code>PATH</code>, set <code>MYSELF_BIN</code> to the full path of the binary.</li>
+        <li>Claude Code's own file-based auto-memory can take "remember..." requests first. Add <code>"env": { "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1" }</code> to the same file to leave it to myself.</li>
+      </ul>
+      <p class="note">Other harnesses: any agent that can run shell commands can use myself. <code>myself prime</code> prints a brief to put in its system prompt.</p>
+      <p class="more"><a href="https://github.com/mansus-org/myself#use-with-claude-code">Claude Code setup, in the README</a></p>
+    </div>
+  </section>
+
+  <!-- Shared brain: server, tokens, remote CLI, MCP, web app. -->
+  <section class="doc" id="shared" aria-labelledby="shared-h">
+    <h2 class="h2 doc__h" id="shared-h">Connect to a shared brain</h2>
+    <div class="doc__body">
+      <p class="prose"><code>myself serve</code> shares one brain over HTTP, for agents on several hosts or harnesses. It serves this page at <code>/</code>, a REST API at <code>/api/v1</code> (the same JSON as <code>--json</code>), MCP at <code>/mcp</code> and a web app at <code>/app</code>. Replace <code>&lt;your-server&gt;</code> below with your server's address.</p>
+
+      <h3 class="h3" id="server">Run the server</h3>
+      <p class="prose">The admin token is only known to the server by its sha256. Without it the API answers 503.</p>
+      <figure class="win win--term">
+        <div class="win__bar">
+          <figcaption class="win__title">bash <span class="win__sub">on the server</span></figcaption>
+          <button class="copy" type="button" aria-label="Copy the server commands">Copy</button>
+        </div>
+<pre class="win__body" tabindex="0"><code><span class="p">$</span> export MYSELF_ADMIN_TOKEN_SHA256=$(printf %s "$ADMIN_TOKEN" | sha256sum | cut -d' ' -f1)
+<span class="p">$</span> myself serve --addr :8080</code></pre>
+      </figure>
+      <p class="prose">The store is the usual <code>--file</code> or <code>MYSELF_FILE</code>. The repo's <code>Dockerfile</code> runs the same server with the store on a volume at <code>/data</code>.</p>
+
+      <h3 class="h3" id="tokens">Give each agent a token</h3>
+      <p class="prose">The admin creates and revokes agent tokens with a <code>read</code> or <code>write</code> scope, from the web app's Tokens page or the API. Only their hashes are stored, in <code>tokens.json</code> next to the store, so the token is shown once.</p>
+      <figure class="win win--term">
+        <div class="win__bar">
+          <figcaption class="win__title">bash <span class="win__sub">admin</span></figcaption>
+          <button class="copy" type="button" aria-label="Copy the token command">Copy</button>
+        </div>
+<pre class="win__body" tabindex="0"><code><span class="p">$</span> curl -H "Authorization: Bearer $ADMIN_TOKEN" -d '{"name":"laptop","scope":"write"}' https://&lt;your-server&gt;/api/v1/tokens
+<span class="o">{"id":"01a1974f-64ae-70f3-a8de-8652b1a43929","name":"laptop","scope":"write","created":"2026-11-01T13:32:05Z","last_used":null,"token":"mys_..."}</span></code></pre>
+      </figure>
+
+      <h3 class="h3" id="remote">The CLI, in remote mode</h3>
+      <p class="prose">Set two variables and every command runs on the server instead of the local file, with the same output, <code>--json</code> and exit codes. The Claude Code hooks follow along when these are in Claude Code's environment.</p>
+      <figure class="win win--term">
+        <div class="win__bar">
+          <figcaption class="win__title">bash <span class="win__sub">on each agent's machine</span></figcaption>
+          <button class="copy" type="button" aria-label="Copy the remote mode commands">Copy</button>
+        </div>
+<pre class="win__body" tabindex="0"><code><span class="p">$</span> export MYSELF_URL=https://&lt;your-server&gt;
+<span class="p">$</span> export MYSELF_TOKEN=mys_...
+<span class="p">$</span> myself whoami
+<span class="o">name laptop
+scope write
+admin false</span>
+<span class="p">$</span> myself remember storefront is project
+<span class="o">remembered 01a1974f-71c9-7010-be41-2bb126eb28bf</span></code></pre>
+      </figure>
+      <ul class="list">
+        <li><code>--url</code> and <code>--token</code> override the variables. Prefer the variable for the token: flags show up in <code>ps</code>.</li>
+        <li><code>MYSELF_TIMEOUT</code> bounds a request (default 10 s). An unreachable server, or a 401, 403 or 503, is exit 3.</li>
+        <li><code>sync</code> is local only. Back a server up with <code>GET /api/v1/export.jsonl</code>.</li>
+      </ul>
+
+      <h3 class="h3" id="mcp">MCP</h3>
+      <p class="prose">For harnesses without Bash. The tools mirror the CLI (<code>remember</code>, <code>forget</code>, <code>describe</code>, <code>ls</code>, <code>search</code>, <code>path</code>, <code>log</code>, <code>history</code>, <code>prime</code>, <code>relations</code>, <code>dream</code>), plus a <code>myself://prime</code> resource. A <code>read</code> token can use all of them except <code>remember</code> and <code>forget</code>. In Claude Code:</p>
+      <figure class="win win--term">
+        <div class="win__bar">
+          <figcaption class="win__title">bash <span class="win__sub">Claude Code</span></figcaption>
+          <button class="copy" type="button" aria-label="Copy the claude mcp commands">Copy</button>
+        </div>
+<pre class="win__body" tabindex="0"><code><span class="p">$</span> claude mcp add --transport http myself https://&lt;your-server&gt;/mcp --header "Authorization: Bearer $MYSELF_TOKEN"
+<span class="c"># headless runs (claude -p) only call the tools you allow</span>
+<span class="p">$</span> claude -p --allowedTools mcp__myself "what do you know about storefront?"</code></pre>
+      </figure>
+      <p class="prose">Any other MCP client with streamable HTTP takes the URL and the header:</p>
+      <figure class="win win--file">
+        <div class="win__bar">
+          <figcaption class="win__title">MCP client config <span class="win__sub">file</span></figcaption>
+          <button class="copy" type="button" aria-label="Copy the MCP client config">Copy</button>
+        </div>
+<pre class="win__body" tabindex="0"><code>{"mcpServers":{"myself":{"type":"http","url":"https://&lt;your-server&gt;/mcp","headers":{"Authorization":"Bearer &lt;token&gt;"}}}}</code></pre>
+      </figure>
+
+      <h3 class="h3" id="web-app">The web app</h3>
+      <p class="prose">Sign in at <code>/app</code> by pasting a token. A read token browses entities, the graph, search and the log as agents write; a write token can also add and forget facts; the admin token also manages tokens.</p>
+      <figure class="shot">
+        <img src="/assets/app-graph.webp" width="1200" height="750" loading="lazy" decoding="async" alt="The web app's Graph page: entities as black squares, types as hollow squares, linked by solid is lines and dotted lines for other relations. A Find field and a Type filter sit above the graph.">
+        <figcaption>The Graph page. Hover an entity to see its neighbours, click to open it.</figcaption>
+      </figure>
+      <p class="links"><a href="/app/">Open the web app</a></p>
+      <p class="more"><a href="https://github.com/mansus-org/myself#server">Server, remote mode, MCP and the web app, in the README</a></p>
     </div>
   </section>
 
   <!-- Reference. -->
-  <section class="ref" aria-labelledby="ref-h">
-    <h2 class="h2" id="ref-h">Fifteen commands</h2>
-    <dl class="cmds">
-      <div><dt>remember</dt><dd>save a fact, or many from stdin</dd></div>
-      <div><dt>forget</dt><dd>retire a fact; it stays in the history</dd></div>
-      <div><dt>describe</dt><dd>everything known about one entity, both directions</dd></div>
-      <div><dt>ls</dt><dd>list entities, optionally of one type</dd></div>
-      <div><dt>relations</dt><dd>the seven relations a fact can use</dd></div>
-      <div><dt>search</dt><dd>find facts by text</dd></div>
-      <div><dt>path</dt><dd>how two entities connect</dd></div>
-      <div><dt>log</dt><dd>what was written, in order</dd></div>
-      <div><dt>history</dt><dd>every past version of a subject's facts</dd></div>
-      <div><dt>prime</dt><dd>a short brief for the start of a session</dd></div>
-      <div><dt>dream</dt><dd>report near-duplicate names</dd></div>
-      <div><dt>export</dt><dd>write the brain out as Obsidian notes</dd></div>
-      <div><dt>sync</dt><dd>pull and push the brain file through git</dd></div>
-      <div><dt>serve</dt><dd>share the brain over HTTP: API, MCP, web app</dd></div>
-      <div><dt>whoami</dt><dd>which token the CLI uses on a server</dd></div>
-    </dl>
+  <section class="doc" id="commands" aria-labelledby="cmds-h">
+    <h2 class="h2 doc__h" id="cmds-h">Commands</h2>
+    <div class="doc__body">
+      <p class="prose">Arguments are positional and everything after the relation is the object, so quotes are optional. <code>--json</code> works on every command, <code>--file PATH</code> picks the store, <code>--url</code> and <code>--token</code> pick a server, and <code>--at TIME</code> (RFC 3339 or <code>YYYY-MM-DD</code>) shows the state as of that time where listed.</p>
+      <table class="cmds">
+        <thead><tr><th scope="col">Command</th><th scope="col">What it does</th></tr></thead>
+        <tbody>
+          <tr><td><code>remember &lt;subject&gt; &lt;relation&gt; &lt;object...&gt; [--replace]</code></td><td>Add a fact. <code>--replace</code> forgets live facts with the same subject and relation first.</td></tr>
+          <tr><td><code>remember -</code></td><td>Bulk: one <code>subject relation object</code> per line on stdin, all or nothing.</td></tr>
+          <tr><td><code>forget &lt;uuid&gt;</code><br><code>forget &lt;subject&gt; &lt;relation&gt; [&lt;object...&gt;] [--reason TEXT]</code></td><td>Retract a record, or every matching live record.</td></tr>
+          <tr><td><code>describe &lt;entity&gt; [--depth N] [--at TIME]</code></td><td>Outgoing and incoming facts, N hops out.</td></tr>
+          <tr><td><code>ls [&lt;type&gt;] [--at TIME]</code></td><td>The types, or the entities of a type, following <code>is</code> transitively.</td></tr>
+          <tr><td><code>relations</code></td><td>The allowed relations.</td></tr>
+          <tr><td><code>search &lt;text&gt; [--at TIME]</code></td><td>Case-insensitive substring match.</td></tr>
+          <tr><td><code>path &lt;a&gt; &lt;b&gt; [--max-depth N]</code></td><td>Shortest chain of facts linking two entities.</td></tr>
+          <tr><td><code>log [--since TIME] [-n N]</code></td><td>Every record, forgets included.</td></tr>
+          <tr><td><code>history &lt;subject&gt; [&lt;relation&gt;]</code></td><td>Every record for a subject, forgotten or not.</td></tr>
+          <tr><td><code>prime [--budget CHARS]</code></td><td>Compact summary to put in an agent's context.</td></tr>
+          <tr><td><code>dream</code></td><td>Report near-duplicate subjects (read-only).</td></tr>
+          <tr><td><code>serve [--addr :8080] [--site DIR]</code></td><td>Serve the brain over HTTP: API, MCP, web app.</td></tr>
+          <tr><td><code>export --obsidian &lt;dir&gt;</code></td><td>Write one Markdown note per entity.</td></tr>
+          <tr><td><code>sync [--export DIR]</code></td><td>Back the store up with git.</td></tr>
+          <tr><td><code>merge-driver &lt;base&gt; &lt;ours&gt; &lt;theirs&gt;</code></td><td>Git merge driver used by <code>sync</code>.</td></tr>
+          <tr><td><code>whoami</code></td><td>The local store path, or the token's name, scope and admin flag in remote mode.</td></tr>
+          <tr><td><code>version</code></td><td>Version, commit and build date.</td></tr>
+        </tbody>
+      </table>
+      <p class="prose">Relations are a closed set: <code>is</code>, <code>are</code> (stored as <code>is</code>), <code>has</code>, <code>uses</code>, <code>does</code>, <code>prefers</code>, <code>related</code>. Anything else is rejected:</p>
+      <figure class="win win--term">
+        <div class="win__bar">
+          <figcaption class="win__title">bash</figcaption>
+        </div>
+<pre class="win__body" tabindex="0"><code><span class="p">$</span> myself remember storefront owns checkout
+<span class="o">error: unknown relation "owns". use one of: is, are, has, uses, does, prefers, related</span></code></pre>
+      </figure>
+      <p class="prose"><code>i</code>, <code>me</code> and <code>myself</code> as a name all mean the entity <code>self</code>. To remember something about this project, use another name, such as <code>myself-cli</code>.</p>
+      <p class="more"><a href="https://github.com/mansus-org/myself/blob/main/SPEC.md#5-cli-grammar">The full grammar, in SPEC.md</a></p>
+    </div>
+  </section>
+
+  <!-- Storage. -->
+  <section class="doc" id="storage" aria-labelledby="storage-h">
+    <h2 class="h2 doc__h" id="storage-h">How it stores memory</h2>
+    <div class="doc__body">
+      <p class="prose">One JSON object per line, five fields, never rewritten:</p>
+      <figure class="win win--file">
+        <div class="win__bar">
+          <figcaption class="win__title">~/.myself/brain.jsonl <span class="win__sub">one line</span></figcaption>
+          <button class="copy" type="button" aria-label="Copy the example record">Copy</button>
+        </div>
+<pre class="win__body" tabindex="0"><code>{"uuid":"01a1974d-c48e-758c-b0a7-425a87f60106","subject":"self","relation":"does","object":"coding agent for storefront; opens PRs, never merges","time":"2026-11-01T13:30:18Z"}</code></pre>
+      </figure>
+      <ul class="list">
+        <li>The log is append-only. <code>forget</code> appends a record whose subject is the uuid of the retracted record, with <code>forget</code> as the relation and the reason as the object. A record is live unless a forget points at it.</li>
+        <li>Records are ordered by uuid (UUIDv7, so by time). Writers lock <code>&lt;file&gt;.lock</code>; readers take no lock and skip a corrupt line with a warning.</li>
+        <li>Time travel: <code>myself describe storefront --at 2026-10-30</code> shows storefront as it was on that date. <code>--at</code> also works with <code>ls</code> and <code>search</code>.</li>
+      </ul>
+      <h3 class="h3" id="backup">Backup</h3>
+      <p class="prose">Keep the store in a private git repository and sync it with one command. <code>sync</code> sets up a merge driver, so two hosts that both appended end up with the union of their records. It never creates a remote or sets a git identity.</p>
+      <figure class="win win--term">
+        <div class="win__bar">
+          <figcaption class="win__title">bash</figcaption>
+          <button class="copy" type="button" aria-label="Copy the backup commands">Copy</button>
+        </div>
+<pre class="win__body" tabindex="0"><code><span class="p">$</span> cd ~/.myself &amp;&amp; git init &amp;&amp; git remote add origin &lt;private-repo-url&gt;
+<span class="c"># commits, pulls (rebase), pushes</span>
+<span class="p">$</span> myself sync</code></pre>
+      </figure>
+      <p class="prose">To sync every 15 minutes and refresh an Obsidian vault, add a cron line. <code>myself</code> must be on the cron job's <code>PATH</code>, since git calls it for merges.</p>
+      <figure class="win win--file">
+        <div class="win__bar">
+          <figcaption class="win__title">crontab <span class="win__sub">file</span></figcaption>
+          <button class="copy" type="button" aria-label="Copy the crontab line">Copy</button>
+        </div>
+<pre class="win__body" tabindex="0"><code>*/15 * * * * myself sync --export ~/vault/myself</code></pre>
+      </figure>
+      <p class="more"><a href="https://github.com/mansus-org/myself#storage">Storage and backup, in the README</a></p>
+    </div>
+  </section>
+
+  <!-- Obsidian. -->
+  <section class="doc" id="obsidian" aria-labelledby="obsidian-h">
+    <h2 class="h2 doc__h" id="obsidian-h">Obsidian mirror</h2>
+    <div class="doc__body">
+      <p class="prose">One note per entity, live state only. Objects that match an entity become <code>[[wikilinks]]</code>, and incoming links are listed under Linked from. The mirror is one way: the next export overwrites edits made in the vault.</p>
+      <figure class="win win--term">
+        <div class="win__bar">
+          <figcaption class="win__title">bash</figcaption>
+          <button class="copy" type="button" aria-label="Copy the export commands">Copy</button>
+        </div>
+<pre class="win__body" tabindex="0"><code><span class="p">$</span> myself export --obsidian vault
+<span class="o">exported 5 entities to vault</span>
+<span class="p">$</span> cat vault/storefront.md
+<span class="o"># storefront
+
+- is [[project]]
+- uses bun
+
+## Linked from
+- [[alice]] related</span></code></pre>
+      </figure>
+      <p class="more"><a href="https://github.com/mansus-org/myself#obsidian-mirror">Obsidian mirror, in the README</a></p>
+    </div>
+  </section>
+
+  <!-- Molting and dreaming, with the sign in three shells. -->
+  <section class="doc doc--molt" id="molting" aria-labelledby="molt-h">
+    <div class="doc__h">
+      <h2 class="h2" id="molt-h">Molting and dreaming</h2>
+      <div class="molt__shells" aria-hidden="true">
+        <span class="shell-bm" data-shell="0"></span>
+        <span class="shell-bm" data-shell="1"></span>
+        <span class="shell-bm" data-shell="2"></span>
+      </div>
+    </div>
+    <div class="doc__body">
+      <p class="prose">Molting is how the agent changes what it knows about itself. The entity <code>self</code> holds its identity and preferences. <code>--replace</code> forgets the old fact and writes the new one, and the old one stays readable.</p>
+      <figure class="win win--term">
+        <div class="win__bar">
+          <figcaption class="win__title">bash</figcaption>
+          <button class="copy" type="button" aria-label="Copy the molting commands">Copy</button>
+        </div>
+<pre class="win__body" tabindex="0"><code><span class="p">$</span> myself remember i does "coding agent for storefront; opens PRs, never merges" --replace
+<span class="o">forgot 01a1974d-c46d-7304-8a33-d640a71f9f77
+remembered 01a1974d-c48e-758c-b0a7-425a87f60106</span>
+<span class="p">$</span> myself history i
+<span class="o">01a1974d-c46d-7304-8a33-d640a71f9f77 2026-11-01T13:30:18Z self does coding agent for the storefront repo
+01a1974d-c48e-758b-a677-6fcfbbd2e464 2026-11-01T13:30:18Z forget 01a1974d-c46d-7304-8a33-d640a71f9f77
+01a1974d-c48e-758c-b0a7-425a87f60106 2026-11-01T13:30:18Z self does coding agent for storefront; opens PRs, never merges</span></code></pre>
+      </figure>
+      <p class="prose">Dreaming is a read-only housekeeping report. <code>myself dream</code> lists subjects that differ only by <code>-</code> or a trailing <code>s</code>, and the agent merges them with ordinary commands.</p>
+      <figure class="win win--term">
+        <div class="win__bar">
+          <figcaption class="win__title">bash</figcaption>
+          <button class="copy" type="button" aria-label="Copy the dream command">Copy</button>
+        </div>
+<pre class="win__body" tabindex="0"><code><span class="p">$</span> myself dream
+<span class="o">relay relays
+web-ui webui</span></code></pre>
+      </figure>
+      <p class="more"><a href="https://github.com/mansus-org/myself#molting-and-dreaming">Molting and dreaming, in the README</a></p>
+    </div>
+  </section>
+
+  <!-- Non-goals. -->
+  <section class="doc" id="non-goals" aria-labelledby="ng-h">
+    <h2 class="h2 doc__h" id="ng-h">Non-goals</h2>
+    <div class="doc__body">
+      <ul class="list list--ruled">
+        <li>No server needed. <code>myself serve</code> is optional; the CLI works on a local file.</li>
+        <li>No embeddings, yet. Search is a substring match.</li>
+        <li>No two-way Obsidian sync.</li>
+        <li>No query language. The commands are the interface.</li>
+      </ul>
+    </div>
   </section>
 
   <!-- Back: the shell facing the other way. Layout mirrored. -->
-  <section class="face face--back" id="status">
+  <section class="face face--back" id="status" aria-label="More">
     <span class="spine spine--back" aria-hidden="true">REMEMBER</span>
     <div class="handover">
-      <p class="handover__lead">The design and the command list are public.</p>
-      <p class="handover__turn">Follow along.</p>
-      <p class="links"><a href="https://github.com/mansus-org/myself">Watch the repo on GitHub</a></p>
+      <p class="handover__lead">Every flag, hook setting and endpoint is in the README.</p>
+      <p class="handover__turn">Read on.</p>
+      <p class="links"><a href="https://github.com/mansus-org/myself#readme">Read the full README</a></p>
       <p class="links links--small">A <a href="https://revolution.mansus.org">Mansus project</a>. The idea started in <a href="https://revolution.mansus.org/articles/living-second-brain/">the living second brain article</a>.</p>
     </div>
     <span class="bitmap" data-bitmap="back" aria-hidden="true"></span>
@@ -316,7 +588,19 @@ mon 10:03  - uses npm   moved to bun</span>
 
 </main>
 
+<footer class="foot">
+  <ul class="foot__links">
+    <li><a href="https://github.com/mansus-org/myself#readme">README</a></li>
+    <li><a href="https://github.com/mansus-org/myself/blob/main/SPEC.md">SPEC.md</a></li>
+    <li><a href="https://github.com/mansus-org/myself/releases">Releases</a></li>
+    <li><a href="/app/">Web app</a></li>
+    <li><a href="https://github.com/mansus-org/myself">GitHub</a></li>
+  </ul>
+  <p class="foot__license">myself is open source under the <a href="https://github.com/mansus-org/myself/blob/main/LICENSE">MIT license</a>.</p>
+</footer>
+
 <script src="/assets/bitmap.js"></script>
 <script src="/assets/landing.js"></script>
+<script src="/assets/player.js"></script>
 </body>
 </html>
