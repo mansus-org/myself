@@ -27,7 +27,7 @@ func newLogCmd(cfg *Config) *cobra.Command {
 			if cmd.Flags().Changed("n") {
 				nP = &n
 			}
-			res, err := brain.Log(storeFor(cmd, cfg), sinceP, nP)
+			res, err := backendFor(cmd, cfg).Log(sinceP, nP)
 			if err != nil {
 				return err
 			}
@@ -49,7 +49,7 @@ func newHistoryCmd(cfg *Config) *cobra.Command {
 			if len(args) == 2 {
 				rel = &args[1]
 			}
-			res, err := brain.History(storeFor(cmd, cfg), args[0], rel)
+			res, err := backendFor(cmd, cfg).History(args[0], rel)
 			if err != nil {
 				return err
 			}

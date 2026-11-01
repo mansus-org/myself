@@ -3,7 +3,6 @@ package cli
 import (
 	"io"
 
-	"github.com/mansus-org/myself/internal/brain"
 	"github.com/spf13/cobra"
 )
 
@@ -13,7 +12,7 @@ func newDreamCmd(cfg *Config) *cobra.Command {
 		Short: "Report near-duplicate subjects (read-only)",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			res, err := brain.Dream(storeFor(cmd, cfg))
+			res, err := backendFor(cmd, cfg).Dream()
 			if err != nil {
 				return err
 			}

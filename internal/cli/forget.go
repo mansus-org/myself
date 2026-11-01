@@ -2,7 +2,6 @@ package cli
 
 import (
 	"io"
-	"time"
 
 	"github.com/mansus-org/myself/internal/brain"
 	"github.com/mansus-org/myself/internal/model"
@@ -23,7 +22,7 @@ func newForgetCmd(cfg *Config) *cobra.Command {
 				return err
 			}
 			a.Reason = reason
-			res, err := brain.Forget(storeFor(cmd, cfg), a, time.Now())
+			res, err := backendFor(cmd, cfg).Forget(a)
 			if err != nil {
 				return err
 			}

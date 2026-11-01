@@ -14,7 +14,7 @@ func newPrimeCmd(cfg *Config) *cobra.Command {
 		Short: "Compact summary of the brain for an agent context",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			res, err := brain.Prime(storeFor(cmd, cfg), budget)
+			res, err := backendFor(cmd, cfg).Prime(budget)
 			if err != nil {
 				return err
 			}

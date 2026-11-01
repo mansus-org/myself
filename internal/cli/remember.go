@@ -33,7 +33,7 @@ func newRememberCmd(cfg *Config) *cobra.Command {
 			default:
 				return Usagef("remember needs <subject> <relation> <object...>, or - to read stdin")
 			}
-			res, err := brain.Remember(storeFor(cmd, cfg), facts, replace, now)
+			res, err := backendFor(cmd, cfg).Remember(facts, replace)
 			if err != nil {
 				return err
 			}
