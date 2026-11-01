@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>myself</title>
+<link rel="icon" href="data:,">
+<link rel="preload" href="/app/assets/fonts/atkinson-next.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/app/assets/app.css">
+<script type="module" src="/app/assets/app.js"></script>
+</head>
+<body>
+<a class="skip" href="#view">Skip to content</a>
+<header class="chrome">
+  <a class="mark" href="/app/" data-link>myself</a>
+  <button class="btn menu-btn" type="button" aria-expanded="false" aria-controls="nav" hidden>Menu</button>
+  <nav id="nav" class="nav" aria-label="Pages" hidden></nav>
+  <div class="who" hidden>
+    <span class="who__name"></span>
+    <button class="btn btn--quiet signout" type="button">Sign out</button>
+  </div>
+</header>
+<main id="view" tabindex="-1">
+  <p class="state">Loading the app…</p>
+  <noscript><p class="state">The myself web app needs JavaScript. The CLI and the REST API at /api/v1 work without it.</p></noscript>
+</main>
+</body>
+</html>

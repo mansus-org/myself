@@ -1,6 +1,6 @@
 // Package server is `myself serve` (SPEC section 10): the landing page at /,
-// /healthz, and the REST API at /api/v1 over the same brain functions as the
-// CLI. Other endpoints (/mcp, /app) plug in with Handle and Auth.
+// /healthz, the REST API at /api/v1 and MCP at /mcp over the same brain
+// functions as the CLI, and the web app at /app.
 package server
 
 import (
@@ -36,7 +36,7 @@ type Server struct {
 	writeMu   sync.Mutex
 }
 
-// New builds the server and registers /, /healthz and /api/v1.
+// New builds the server and registers /, /healthz, /api/v1, /mcp and /app.
 func New(cfg Config) (*Server, error) {
 	tokens, err := OpenTokens(filepath.Join(filepath.Dir(cfg.File), "tokens.json"))
 	if err != nil {
@@ -82,6 +82,7 @@ func New(cfg Config) (*Server, error) {
 	}
 	s.registerAPI()
 	s.registerMCP()
+	s.registerUI()
 	return s, nil
 }
 
