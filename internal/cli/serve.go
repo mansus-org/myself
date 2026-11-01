@@ -22,6 +22,18 @@ import (
 // EnvAdminHash holds the sha256 (hex) of the admin token for `serve`.
 const EnvAdminHash = "MYSELF_ADMIN_TOKEN_SHA256"
 
+// warnClientSettings tells the user that --token/--url (and their env vars) are
+// client settings that serve ignores.
+func warnClientSettings(cmd *cobra.Command) {
+	stderr := cmd.ErrOrStderr()
+	if cmd.Flags().Changed("token") || strings.TrimSpace(os.Getenv(EnvToken)) != "" {
+		Warnf(stderr, "--token / %s is the client token for --url; serve checks the admin token against %s (the sha256 of the token)", EnvToken, EnvAdminHash)
+	}
+	if cmd.Flags().Changed("url") || strings.TrimSpace(os.Getenv(EnvURL)) != "" {
+		Warnf(stderr, "--url / %s is ignored; serve always uses the local store", EnvURL)
+	}
+}
+
 func newServeCmd(cfg *Config) *cobra.Command {
 	var addr, site string
 	cmd := &cobra.Command{
@@ -32,6 +44,7 @@ func newServeCmd(cfg *Config) *cobra.Command {
 			"Agent tokens are kept hashed in tokens.json next to the store.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			warnClientSettings(cmd)
 			hash := strings.ToLower(strings.TrimSpace(os.Getenv(EnvAdminHash)))
 			if b, err := hex.DecodeString(hash); hash != "" && (err != nil || len(b) != 32) {
 				return Usagef("%s must be 64 hex characters (the sha256 of the admin token)", EnvAdminHash)
