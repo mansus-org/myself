@@ -89,6 +89,7 @@ myself dream
 myself export --obsidian <dir>
 myself sync [--export DIR]
 myself merge-driver <base> <ours> <theirs>
+myself serve [--addr ADDR] [--site DIR]
 ```
 
 Global flags: `--file PATH`, `--json`, `--at TIME` (only on commands that list it above).
@@ -106,6 +107,7 @@ Global flags: `--file PATH`, `--json`, `--at TIME` (only on commands that list i
 - `export --obsidian <dir>`: writes one `<entity>.md` per entity (live state only), overwriting existing files of the same name. Note format is shown in section 9.
 - `sync [--export DIR]`: backs the store up with git. The store directory (that of the resolved file) must be a git work tree, else it prints setup instructions on stderr and exits 1. It sets the merge driver config and the `.gitattributes` line, commits the store as `myself: N records since last sync`, then `git pull --rebase` (falling back to a merge) and `git push` if a remote exists. `--export DIR` runs `export --obsidian DIR` after pulling. Git missing or failing exits 3.
 - `merge-driver <base> <ours> <theirs>`: git merge driver (`%O %A %B`); writes the union of the complete lines of all three, sorted by `uuid`, to `<ours>`. Exit 1 on I/O errors.
+- `serve [--addr ADDR] [--site DIR]`: serves the store over HTTP (section 10) on `ADDR` (default `:8080`) until SIGINT or SIGTERM. Exit 1 if `MYSELF_ADMIN_TOKEN_SHA256` is set but not 64 hex characters, 3 if the address cannot be bound or `tokens.json` cannot be read.
 
 ## 6. Output
 
@@ -223,3 +225,93 @@ vault/project.md        vault/relay.md        vault/software.md
 ```
 
 (Columns are only for display here; each file is separate. A note's lines are: `# <entity>`, blank line, one `- <relation> <object>` per outgoing record, and, if there are incoming records, `## Linked from` and one `- [[<subject>]] <relation>` per incoming record. Non-empty sections are separated by one blank line and empty ones are omitted.)
+
+## 10. Server
+
+`myself serve` puts one brain behind HTTP so several agents, harnesses and models share it. It reads and writes the same store as the CLI (`--file`, `MYSELF_FILE`; in the container `MYSELF_FILE=/data/brain.jsonl`), with the same rules: same validation, same error messages, same exit codes, same JSON shapes as section 6. One server process per store.
+
+### Routes
+
+| path | what |
+|------|------|
+| `/` | the landing page: `site/` embedded in the binary, or `--site DIR`. `GET` and `HEAD` only. |
+| `GET /healthz` | `ok`, no auth. |
+| `/api/v1/...` | the REST API below. Everything under `/api/` answers JSON. |
+| `/mcp`, `/app` | not registered yet (404). Reserved for MCP and the web UI. |
+
+Every request is logged on stderr as one line: `<method> <path> <status> <duration> <token name or ->`. The query string and tokens are never logged.
+
+### Auth
+
+- Every `/api/v1` call sends `Authorization: Bearer <token>`.
+- **Admin token:** the token whose sha256 (lowercase hex) equals the env `MYSELF_ADMIN_TOKEN_SHA256`, compared in constant time. The server never sees the plaintext anywhere else. Admin has write scope and is the only caller of import and the token endpoints.
+- **Agent tokens:** `mys_` followed by 64 hex characters (32 random bytes), created by the admin with scope `read` or `write`. Only their sha256 is stored, in `tokens.json` next to the store file (mode 0600, written to a temp file and renamed, under a flock on `tokens.json.lock`). `last_used` is updated at most once a minute. Deleting a token revokes it immediately.
+- **Scopes:** `read` may call every `GET` endpoint. `write` may also call `remember` and `forget`. Admin-only: `import` and `tokens`.
+- If `MYSELF_ADMIN_TOKEN_SHA256` is unset or empty, every `/api/` request answers 503 (`/` and `/healthz` still work). The server never runs open.
+
+### Responses and errors
+
+- Success: status 200 (201 for a created token), `Content-Type: application/json`, the section 6 shape of the command as one compact JSON value (no HTML escaping) and a newline.
+- Warnings that the CLI prints on stderr (corrupt lines, the `"is"` sentence warning) are added as a last field `"warnings":["..."]` to an object body, without the `warning: ` prefix. The field is absent when there are none.
+- Errors: `{"error":"<message>","exit_code":N}`. The message is what the CLI prints after `error: `.
+
+| status | exit_code | when |
+|--------|-----------|------|
+| 400 | 1 | usage: bad parameter, bad body, unknown relation, empty object, bad `at` |
+| 404 | 2 | not found (as in section 6); also an unknown `/api/` route |
+| 500 | 3 | store error: unreadable or unwritable file, lock timeout |
+| 401 | 3 | missing, invalid or revoked token (with `WWW-Authenticate: Bearer`) |
+| 403 | 3 | the token lacks the scope (`write`, or admin) |
+| 503 | 3 | `MYSELF_ADMIN_TOKEN_SHA256` is not set |
+
+Messages for parameters name the CLI flag (`--at: bad time "x": ...`, `--depth must not be negative`, `-n must be at least 1`), so a remote CLI can print them unchanged. A non-integer integer parameter gives `invalid argument "x" for <param>: want an integer`.
+
+### Endpoints
+
+Query parameters map to the CLI flags. A parameter that is present but empty counts as given (`?at=` is a bad time). Path segments are URL-decoded; `{entity}` and `{subject}` may contain `/`.
+
+| method and path | access | CLI equivalent | body |
+|-----------------|--------|----------------|------|
+| `GET /api/v1/whoami` | read | | `{"name":"reader","scope":"read","admin":false}`; admin is `{"name":"admin","scope":"write","admin":true}` |
+| `POST /api/v1/remember` | write | `remember` | request `{"facts":[{"subject":"relay","relation":"is","object":"project"},...],"replace":false}`; reply as `remember --json` |
+| `POST /api/v1/forget` | write | `forget` | request `{"uuid":"..."}` or `{"subject":"relay","relation":"uses","object":"bun"}` (`object` optional), plus optional `"reason"`; reply as `forget --json` |
+| `GET /api/v1/describe/{entity}?depth=N&at=TIME` | read | `describe` | as `describe --json` |
+| `GET /api/v1/ls?type=T&at=TIME` | read | `ls [<type>]` | as `ls --json` |
+| `GET /api/v1/relations` | read | `relations` | as `relations --json` |
+| `GET /api/v1/search?q=TEXT&at=TIME` | read | `search` | as `search --json` |
+| `GET /api/v1/path?from=A&to=B&max_depth=N` | read | `path` | as `path --json` |
+| `GET /api/v1/log?since=TIME&n=N` | read | `log` | as `log --json` |
+| `GET /api/v1/history/{subject}?relation=R` | read | `history` | as `history --json` |
+| `GET /api/v1/prime?budget=N` | read | `prime` | as `prime --json` |
+| `GET /api/v1/dream` | read | `dream` | as `dream --json` |
+| `GET /api/v1/graph?at=TIME` | read | | see below |
+| `GET /api/v1/export.jsonl` | read | | the log, see below |
+| `POST /api/v1/import` | admin | | request: JSONL; reply `{"imported":N,"skipped":M}` |
+| `GET /api/v1/tokens` | admin | | `[{"id","name","scope","created","last_used"},...]`, oldest first; `last_used` is null until first use |
+| `POST /api/v1/tokens` | admin | | request `{"name":"claude-runner","scope":"write"}`; reply 201, the listed fields plus `"token":"mys_..."`, the only time the plaintext is returned |
+| `DELETE /api/v1/tokens/{id}` | admin | | `{"deleted":"<id>"}`; 404 `unknown token "<id>"` |
+
+Details:
+
+- **Request bodies** are JSON objects with exactly the listed fields; unknown fields, trailing data or bad JSON are a 400 `bad request body: ...`. Bodies are limited to 1 MiB (import: 64 MiB).
+- **remember** is all or nothing, like `remember -`: every fact is validated before anything is written. With one fact the error is the CLI's (`unknown relation "built-with". use one of: ...`); with several it is prefixed `fact N: ` (1-based). An empty `facts` list is `remember needs at least one fact`. Objects are JSON strings, so no quote stripping. `replace` works as `--replace`. The reply has the sentence warning in `warnings` when it applies.
+- **forget** takes either `uuid`, or `subject` and `relation` (optionally narrowed by `object`, compared normalized); both forms at once is a 400. None of them is `forget needs <uuid>, or <subject> <relation> [<object...>]`. A non-uuid `uuid` is `"x" is not a uuid`.
+- **search** with a missing or empty `q` is `search needs <text>`. **path** without `from` or `to` is `path needs <a> and <b>`. **describe** with an empty entity is `describe needs exactly one <entity>`.
+- **graph** is for drawing the graph:
+
+  ```json
+  {"nodes":[{"name":"project","types":["software"],"records":2},{"name":"relay","types":["project"],"records":2},{"name":"software","types":[],"records":1}],
+   "edges":[{"uuid":"0192d7c4-0001-7000-8000-000000000001","from":"relay","to":"project","relation":"is"},{"uuid":"0192d7c4-0003-7000-8000-000000000003","from":"project","to":"software","relation":"is"}]}
+  ```
+
+  `nodes` holds every entity, sorted by name. `types` are the entities its live `is` records point at, sorted. `records` counts its live outgoing and incoming records (the count `prime` orders by). `edges` holds every live record whose object is an entity (section 1), in uuid order, `from` the subject and `to` the object entity, both normalized. Records with free-text objects are not edges; fetch them with `describe`.
+- **export.jsonl** returns the valid records of the log, forgets included, as canonical JSONL lines in uuid order (`Content-Type: application/x-ndjson`), for backups. Corrupt lines are left out.
+- **import** takes JSONL (the last line may lack its newline; blank lines are skipped) and unions it with the store by uuid: records whose uuid already exists, or repeats within the body, are skipped; the rest are appended in uuid order with one `store.Append` (flock). Every line is validated first and any bad line rejects the whole import with `line N: <reason>`: not a record (section 4 rules), uuid not a uuid, time not RFC 3339, relation not one of the stored relations (`are` is never stored), a `forget` whose subject is not a uuid, an empty subject or object.
+
+### Concurrency
+
+The server caches the loaded records and graph and reloads when the file's size or mtime changes (another process, such as the CLI, appended) or after it wrote. Writes go through `store.Append` with the flock of section 7. Writes through the server are also serialized in the process, so `replace`, `forget` and `import` compute from the state they append to.
+
+### Deploy
+
+The image (repo `Dockerfile`) runs `myself serve --addr :8080` as user 10001 with `MYSELF_FILE=/data/brain.jsonl`. `.k3s/values.yaml` mounts a 1 Gi volume at `/data` and sets `MYSELF_ADMIN_TOKEN_SHA256`. Pull request previews use the same values, so they share the admin token and get their own empty volume.
