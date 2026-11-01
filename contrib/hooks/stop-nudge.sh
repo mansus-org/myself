@@ -25,6 +25,9 @@
 #   MYSELF_NUDGE=off        never nudge
 #   MYSELF_NUDGE_MIN_BASH   Bash tool uses that count as activity (default 3)
 #   MYSELF_FILE             brain file, passed through to myself
+#   MYSELF_URL, MYSELF_TOKEN  remote mode, passed through: `myself log --since` asks the
+#                           server (the start time is this host's clock, the record
+#                           times the server's)
 #   MYSELF_HOOKS_JQ         jq binary (default: jq); without it a sed fallback parses stdin
 
 bin=${MYSELF_BIN:-myself}

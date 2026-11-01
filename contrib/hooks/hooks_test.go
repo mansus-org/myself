@@ -6,12 +6,15 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/mansus-org/myself/internal/server"
 )
 
 var binary string
@@ -43,6 +46,7 @@ type env struct {
 	store string
 	bin   string
 	jq    string
+	extra []string // appended to the environment, after MYSELF_FILE
 }
 
 func newEnv(t *testing.T) *env {
@@ -67,12 +71,12 @@ func (e *env) requireCommand(name string) {
 }
 
 func (e *env) environ() []string {
-	return append(os.Environ(),
+	return append(append(os.Environ(),
 		"TMPDIR="+e.tmp,
 		"MYSELF_FILE="+e.store,
 		"MYSELF_BIN="+e.bin,
 		"MYSELF_HOOKS_JQ="+e.jq,
-	)
+	), e.extra...)
 }
 
 func (e *env) myself(args ...string) {
@@ -408,5 +412,49 @@ func TestStopNudgeOff(t *testing.T) {
 	t.Setenv("MYSELF_NUDGE", "off")
 	if out := e.hook("stop-nudge.sh", stopInput("s1", transcript(t, "Write"), "/", false)); out != "" {
 		t.Errorf("MYSELF_NUDGE=off: want no output, got %q", out)
+	}
+}
+
+// With MYSELF_URL and MYSELF_TOKEN in the environment both hooks run against
+// the server: prime comes from it, and a fact remembered through it counts
+// as written this session.
+func TestRemoteMode(t *testing.T) {
+	const token = "hooks-test-admin"
+	e := newEnv(t)
+	e.requireCommand("whoami")
+	srv, err := server.New(server.Config{File: filepath.Join(t.TempDir(), "remote.jsonl"), AdminHash: server.HashToken(token)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := httptest.NewServer(srv)
+	defer ts.Close()
+	e.extra = []string{"MYSELF_URL=" + ts.URL, "MYSELF_TOKEN=" + token}
+	e.store = filepath.Join(t.TempDir(), "unused.jsonl") // must not be touched
+
+	e.myself("remember", "relay", "is", "project")
+	time.Sleep(1100 * time.Millisecond) // start marker has second precision
+	out := e.hook("session-start.sh", startInput("r1"))
+	if !strings.Contains(out, "relay\n  is project\n") {
+		t.Errorf("prime from the server missing:\n%s", out)
+	}
+	tr := transcript(t, "Write")
+	var got struct{ Decision string }
+	if err := json.Unmarshal([]byte(e.hook("stop-nudge.sh", stopInput("r1", tr, "/", false))), &got); err != nil || got.Decision != "block" {
+		t.Errorf("want a nudge with nothing remembered, got %+v %v", got, err)
+	}
+	e.hook("session-start.sh", resumeInput("r1"))
+	time.Sleep(1100 * time.Millisecond) // start marker has second precision
+	e.myself("remember", "relay", "uses", "bun")
+	if out := e.hook("stop-nudge.sh", stopInput("r1", tr, "/", false)); out != "" {
+		t.Errorf("fact remembered through the server this session: want no output, got %q", out)
+	}
+	if _, err := os.Stat(e.store); err == nil {
+		t.Error("the local store was written in remote mode")
+	}
+
+	// An unreachable server never fails or stalls the session.
+	ts.Close()
+	if out := e.hook("session-start.sh", startInput("r2")); out != "" {
+		t.Errorf("server down: want no output, got %q", out)
 	}
 }
