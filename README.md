@@ -120,7 +120,7 @@ If `~/.local/bin` is not on the PATH the hooks run with, set `MYSELF_BIN` to the
    pi install git:github.com/mansus-org/myself
    ```
 
-   Pin a release with `pi install git:github.com/mansus-org/myself@v0.2.0`.
+   Pin a tag or commit with `@<ref>`, from the first release that includes `package.json`.
 
 The package gives pi the [skill](#agent-skill) and a small extension, `contrib/pi/myself.ts`. On the first agent run of each session the extension runs `myself prime --budget 4000` and adds the output to the context, like the Claude Code SessionStart hook. If `myself` is missing, fails or takes more than 10 seconds, it adds nothing.
 
@@ -292,7 +292,7 @@ Screenshots: `design/screenshots/app-*.png`.
 
 ## Landing page
 
-The site lives in `site/` (the skill at `/skill.md` is `skill/myself/SKILL.md`, embedded by `embed.go`) (plain HTML, CSS and JS, no build step) and deploys to https://myself.mansus.org on merge to `main`: the `Dockerfile` builds `myself serve`, which embeds `site/` and serves it at `/`, `.k3s/values.yaml` holds the cluster settings, `.github/workflows/deploy.yml` builds the image. Pull requests get a preview at `myself-pr-<number>.mansus.org`. The design rationale is in `design/README.md`.
+The site lives in `site/` (plain HTML, CSS and JS, no build step) and deploys to https://myself.mansus.org on merge to `main`: the `Dockerfile` builds `myself serve`, which embeds `site/` and serves it at `/`, `.k3s/values.yaml` holds the cluster settings, `.github/workflows/deploy.yml` builds the image. Pull requests get a preview at `myself-pr-<number>.mansus.org`. The design rationale is in `design/README.md`. It also embeds `skill/myself/SKILL.md` (`embed.go`) and serves it at `/skill.md`.
 
 Preview locally: `bunx serve site -l 8080`, or through the server with `go run ./cmd/myself serve --site site`.
 
