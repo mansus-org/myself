@@ -164,3 +164,8 @@ func Live(recs []model.Record) []model.Record {
 	}
 	return out
 }
+
+// Lock takes an exclusive flock on path, waiting up to the lock timeout like
+// Append. Call the returned func to release it. The server uses it for
+// tokens.json.lock.
+func Lock(path string) (unlock func(), err error) { return lock(path) }

@@ -50,6 +50,7 @@ func newRoot(stdout, stderr io.Writer) *cobra.Command {
 		newExportCmd(cfg),
 		newSyncCmd(cfg),
 		newMergeDriverCmd(),
+		newServeCmd(cfg),
 	)
 	return root
 }
