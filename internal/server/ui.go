@@ -109,3 +109,14 @@ func loadUI() map[string]uiFile {
 	}
 	return files
 }
+
+// registerSkill serves the agent skill at /skill.md, open to anyone, so an
+// agent can fetch it from a link.
+func (s *Server) registerSkill(skill []byte) {
+	s.mux.HandleFunc("GET /skill.md", func(w http.ResponseWriter, r *http.Request) {
+		uiHeaders(w)
+		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Write(skill)
+	})
+}

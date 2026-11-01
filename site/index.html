@@ -102,6 +102,7 @@ remembered 01a1942e-b3d5-76f0-848a-b54673cdb8aa</span>
       <li><a href="#why">Why it works this way</a></li>
       <li><a href="#install">Install</a></li>
       <li><a href="#claude-code">Use with Claude Code</a></li>
+      <li><a href="#pi">Use with pi</a></li>
       <li><a href="#shared">Connect to a shared brain</a></li>
       <li><a href="#commands">Commands</a></li>
       <li><a href="#storage">How it stores memory</a></li>
@@ -278,7 +279,7 @@ storefront is project</span></code></pre>
           <p class="step__text"><span class="step__n">1</span>Install the binary, as above.</p>
         </li>
         <li class="step">
-          <p class="step__text"><span class="step__n">2</span>From a clone of the repo, install the hooks and the skill.</p>
+          <p class="step__text"><span class="step__n">2</span>From a clone of the repo, install the hooks and the skill. The skill is also at <a href="/skill.md"><code>myself.mansus.org/skill.md</code></a>: save it as <code>~/.claude/skills/myself/SKILL.md</code>.</p>
           <figure class="win win--term">
             <div class="win__bar">
               <figcaption class="win__title">bash</figcaption>
@@ -329,7 +330,17 @@ storefront is project</span></code></pre>
         <li>Both are POSIX sh and exit quietly when <code>myself</code> is missing or fails. If <code>~/.local/bin</code> is not on the hooks' <code>PATH</code>, set <code>MYSELF_BIN</code> to the full path of the binary.</li>
         <li>Claude Code's own file-based auto-memory can take "remember..." requests first. Add <code>"env": { "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1" }</code> to the same file to leave it to myself.</li>
       </ul>
-      <p class="note">Other harnesses: any agent that can run shell commands can use myself. <code>myself prime</code> prints a brief to put in its system prompt.</p>
+      <h3 class="h3" id="pi">Other harnesses: pi</h3>
+      <p class="prose">The skill is one file that any <code>myself serve</code> instance serves at <code>/skill.md</code>, with no token. For pi, install the package. It adds the skill and an extension that runs <code>myself prime --budget 4000</code> on the first agent run of each session and adds the output to the context, like the Claude Code SessionStart hook.</p>
+      <figure class="win win--term">
+        <div class="win__bar">
+          <figcaption class="win__title">bash <span class="win__sub">pi</span></figcaption>
+          <button class="copy" type="button" aria-label="Copy the pi install command">Copy</button>
+        </div>
+<pre class="win__body" tabindex="0"><code><span class="p">$</span> pi install git:github.com/mansus-org/myself</code></pre>
+      </figure>
+      <p class="note">Codex or any agent with no skills directory: tell it "Read https://myself.mansus.org/skill.md and follow it". <code>myself prime</code> prints a brief to put in its system prompt.</p>
+      <p class="more"><a href="https://github.com/mansus-org/myself#use-with-pi">pi setup, in the README</a></p>
       <p class="more"><a href="https://github.com/mansus-org/myself#use-with-claude-code">Claude Code setup, in the README</a></p>
     </div>
   </section>

@@ -22,6 +22,7 @@ type Config struct {
 	Log       io.Writer        // request log; nil discards
 	Now       func() time.Time // nil means time.Now
 	Version   string           // reported to MCP clients; empty means "dev"
+	Skill     []byte           // served at GET /skill.md; nil serves nothing there
 }
 
 // Server is the HTTP server. It is an http.Handler.
@@ -67,6 +68,9 @@ func New(cfg Config) (*Server, error) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		io.WriteString(w, "ok\n")
 	})
+	if cfg.Skill != nil {
+		s.registerSkill(cfg.Skill)
+	}
 	if cfg.Site != nil {
 		// No method in the pattern, so /api/, /mcp and /app/ never conflict
 		// with it; other methods are refused here instead.

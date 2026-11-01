@@ -7,6 +7,8 @@ description: Your long-term memory across sessions, via the `myself` CLI, a pers
 
 `myself` stores facts as `subject relation object` triples in one append-only log (`~/.myself/brain.jsonl`). Facts are superseded, never edited. Call it with Bash. The full contract is SPEC.md in github.com/mansus-org/myself.
 
+If `myself` is not installed (`command -v myself` fails), install it first: `curl -fsSL https://raw.githubusercontent.com/mansus-org/myself/main/install.sh | sh` (puts it in `~/.local/bin`; add that to PATH if needed). To use a shared brain server instead of a local file, set `MYSELF_URL` and `MYSELF_TOKEN`.
+
 ## When to use
 
 `myself` is your long-term memory. When the user says "remember…" or corrects you, write it with `myself`, not to CLAUDE.md or a file-based memory directory.

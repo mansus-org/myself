@@ -43,11 +43,82 @@ With Go: `go install github.com/mansus-org/myself/cmd/myself@latest`.
 
 Prebuilt tarballs are on the [releases page](https://github.com/mansus-org/myself/releases).
 
+## Quick start
+
+Local only, no server:
+
+1. Install the binary: `curl -fsSL https://raw.githubusercontent.com/mansus-org/myself/main/install.sh | sh`
+2. Install the skill (Claude Code; other harnesses in [Agent skill](#agent-skill)):
+
+   ```sh
+   mkdir -p ~/.claude/skills/myself && curl -fsSL https://myself.mansus.org/skill.md -o ~/.claude/skills/myself/SKILL.md
+   ```
+
+3. Check it works. The brain is `~/.myself/brain.jsonl`, created on the first write:
+
+   ```sh
+   myself remember relay is project
+   myself prime
+   ```
+
+Your own server, shared by several agents:
+
+1. Pick an admin token and give the server only its hash:
+
+   ```sh
+   ADMIN_TOKEN=mys_$(head -c32 /dev/urandom | od -An -tx1 | tr -d ' \n')
+   export MYSELF_ADMIN_TOKEN_SHA256=$(printf %s "$ADMIN_TOKEN" | sha256sum | cut -d' ' -f1)
+   echo "$ADMIN_TOKEN"        # keep it; the server never stores it
+   ```
+
+2. Start the server: `myself serve`
+3. Open http://localhost:8080/app and sign in with the admin token (the plaintext, not the hash).
+4. Create an agent token (`"scope":"read"` for read only). The reply has the plaintext `token` once:
+
+   ```sh
+   curl -H "Authorization: Bearer $ADMIN_TOKEN" -d '{"name":"laptop","scope":"write"}' localhost:8080/api/v1/tokens
+   ```
+
+5. Point the CLI at the server with that token, and check:
+
+   ```sh
+   export MYSELF_URL=http://localhost:8080 MYSELF_TOKEN=mys_...
+   myself whoami
+   ```
+
+Then set up your harness: [Claude Code hooks](#use-with-claude-code), [pi](#use-with-pi), [MCP](#mcp).
+
+Gotchas:
+
+- `--token` and `MYSELF_TOKEN` are the client's token for `--url`, not the server's admin token. `myself serve` only reads `MYSELF_ADMIN_TOKEN_SHA256` and warns if you pass `--token` or `--url`.
+- Hash with `printf %s`, not `echo`: the newline changes the hash.
+- 503 from the server: `MYSELF_ADMIN_TOKEN_SHA256` is unset. 401: the token does not match the hash (or is revoked).
+
+## Agent skill
+
+The skill is one file, `SKILL.md`. It tells an agent when to use `myself`, how to recall and write facts, and how to install the binary if it is missing.
+
+- https://myself.mansus.org/skill.md (any `myself serve` instance serves its own copy at `/skill.md`, no token needed)
+- https://raw.githubusercontent.com/mansus-org/myself/main/skill/myself/SKILL.md
+
+Put it where your harness looks for skills:
+
+```sh
+# Claude Code
+mkdir -p ~/.claude/skills/myself && curl -fsSL https://myself.mansus.org/skill.md -o ~/.claude/skills/myself/SKILL.md
+# pi
+mkdir -p ~/.pi/agent/skills/myself && curl -fsSL https://myself.mansus.org/skill.md -o ~/.pi/agent/skills/myself/SKILL.md
+# Codex and other Agent Skills harnesses
+mkdir -p ~/.agents/skills/myself && curl -fsSL https://myself.mansus.org/skill.md -o ~/.agents/skills/myself/SKILL.md
+```
+
+For an agent with no skills directory, tell it: "Read https://myself.mansus.org/skill.md and follow it."
+
 ## Use with Claude Code
 
 Set up Claude Code so every session starts with the brain in context and uses `myself` through the skill.
 
-1. Install the binary (see [Install](#install)). The brain lives in `~/.myself/brain.jsonl` (override with `MYSELF_FILE` or `--file`). It is created on first write.
+1. Install the binary and the skill ([Quick start](#quick-start)). Override the brain file with `MYSELF_FILE` or `--file`.
 
 2. From a checkout of this repo, install the hooks and the skill:
 
@@ -89,6 +160,24 @@ Set up Claude Code so every session starts with the brain in context and uses `m
 Claude Code also has a built-in file-based auto-memory that can take "remember…" requests before `myself` does. On hosts where `myself` should be the only memory, you can turn it off with `"env": { "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1" }` in the same settings file.
 
 If `~/.local/bin` is not on the PATH the hooks run with, set `MYSELF_BIN` to the full path of the binary.
+
+## Use with pi
+
+1. Install the binary ([Quick start](#quick-start)).
+
+2. Install the pi package:
+
+   ```sh
+   pi install git:github.com/mansus-org/myself
+   ```
+
+   Pin a tag or commit with `@<ref>`, from the first release that includes `package.json`.
+
+The package gives pi the [skill](#agent-skill) and a small extension, `contrib/pi/myself.ts`. On the first agent run of each session the extension runs `myself prime --budget 4000` and adds the output to the context, like the Claude Code SessionStart hook. If `myself` is missing, fails or takes more than 10 seconds, it adds nothing.
+
+- `MYSELF_PRIME_BUDGET` changes the budget; `MYSELF_BIN` is the path to the binary when it is not on pi's PATH.
+- To use a shared brain, set `MYSELF_URL` and `MYSELF_TOKEN` (see [Remote mode](#remote-mode)) in the environment pi runs in.
+- Without the package: copy the skill file as shown in [Agent skill](#agent-skill), or try the extension for one run with `pi -e contrib/pi/myself.ts --skill skill`.
 
 ## Commands
 
@@ -176,18 +265,16 @@ relay relays
 
 ## Server
 
-`myself serve` shares one brain over HTTP, for agents on several hosts or harnesses. It serves the landing page at `/`, `GET /healthz`, a web app at `/app`, and a REST API at `/api/v1` with one endpoint per command, returning the same JSON as `--json`. The full contract is [SPEC.md section 10](SPEC.md#10-server).
+`myself serve` shares one brain over HTTP, for agents on several hosts or harnesses. It serves the landing page at `/`, the agent skill at `/skill.md`, `GET /healthz`, a web app at `/app`, and a REST API at `/api/v1` with one endpoint per command, returning the same JSON as `--json`. The full contract is [SPEC.md section 10](SPEC.md#10-server).
+
+To set one up, follow [Quick start](#quick-start). `myself serve --addr :8080` reads the store from `--file` / `MYSELF_FILE` as usual. Calling the API directly:
 
 ```sh
-export MYSELF_ADMIN_TOKEN_SHA256=$(printf %s "$ADMIN_TOKEN" | sha256sum | cut -d' ' -f1)
-myself serve --addr :8080                      # store from --file / MYSELF_FILE as usual
-
-curl -H "Authorization: Bearer $ADMIN_TOKEN" -d '{"name":"laptop","scope":"write"}' localhost:8080/api/v1/tokens
 curl -H "Authorization: Bearer $TOKEN" -d '{"facts":[{"subject":"relay","relation":"is","object":"project"}]}' localhost:8080/api/v1/remember
 curl -H "Authorization: Bearer $TOKEN" localhost:8080/api/v1/describe/relay?depth=1
 ```
 
-- The admin token is only known by its sha256 in `MYSELF_ADMIN_TOKEN_SHA256`. Without it the API answers 503.
+- The admin token is only known by its sha256 in `MYSELF_ADMIN_TOKEN_SHA256`. Without it the API answers 503. `serve` ignores `--token` and `--url` (client settings) and warns if they are set.
 - The admin creates and revokes agent tokens (`read` or `write` scope). Only their hashes are stored, in `tokens.json` next to the store.
 - `GET /api/v1/export.jsonl` downloads the log for a backup. `POST /api/v1/import` (admin) adds the records of a JSONL file that are not there yet, by uuid.
 
@@ -254,7 +341,7 @@ Screenshots: `design/screenshots/app-*.png`.
 
 ## Landing page
 
-The site lives in `site/` (plain HTML, CSS and JS, no build step) and deploys to https://myself.mansus.org on merge to `main`: the `Dockerfile` builds `myself serve`, which embeds `site/` and serves it at `/`, `.k3s/values.yaml` holds the cluster settings, `.github/workflows/deploy.yml` builds the image. Pull requests get a preview at `myself-pr-<number>.mansus.org`. The design rationale is in `design/README.md`.
+The site lives in `site/` (plain HTML, CSS and JS, no build step) and deploys to https://myself.mansus.org on merge to `main`: the `Dockerfile` builds `myself serve`, which embeds `site/` and serves it at `/`, `.k3s/values.yaml` holds the cluster settings, `.github/workflows/deploy.yml` builds the image. Pull requests get a preview at `myself-pr-<number>.mansus.org`. The design rationale is in `design/README.md`. It also embeds `skill/myself/SKILL.md` (`embed.go`) and serves it at `/skill.md`.
 
 Preview locally: `bunx serve site -l 8080`, or through the server with `go run ./cmd/myself serve --site site`.
 
