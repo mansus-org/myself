@@ -1,9 +1,7 @@
 package cli
 
 import (
-	"fmt"
 	"io"
-	"strings"
 
 	"github.com/mansus-org/myself/internal/brain"
 	"github.com/spf13/cobra"
@@ -19,14 +17,7 @@ func newDreamCmd(cfg *Config) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return emit(cmd, cfg, res, func(w io.Writer) error {
-				for _, grp := range res.NearDuplicates {
-					if _, err := fmt.Fprintln(w, strings.Join(grp, " ")); err != nil {
-						return err
-					}
-				}
-				return nil
-			})
+			return emit(cmd, cfg, res, func(w io.Writer) error { return writeLines(w, res.Lines()) })
 		},
 	}
 }

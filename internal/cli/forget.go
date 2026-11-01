@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"fmt"
 	"io"
 	"time"
 
@@ -28,14 +27,7 @@ func newForgetCmd(cfg *Config) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return emit(cmd, cfg, res, func(w io.Writer) error {
-				for _, f := range res.Forgotten {
-					if _, err := fmt.Fprintf(w, "forgot %s\n", f.Subject); err != nil {
-						return err
-					}
-				}
-				return nil
-			})
+			return emit(cmd, cfg, res, func(w io.Writer) error { return writeLines(w, res.Lines()) })
 		},
 	}
 	cmd.Flags().StringVar(&reason, "reason", "", "why the record is retracted, stored as the forget record's object")

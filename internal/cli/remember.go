@@ -37,19 +37,7 @@ func newRememberCmd(cfg *Config) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return emit(cmd, cfg, res, func(w io.Writer) error {
-				for _, f := range res.Forgotten {
-					if _, err := fmt.Fprintf(w, "forgot %s\n", f.Subject); err != nil {
-						return err
-					}
-				}
-				for _, r := range res.Remembered {
-					if _, err := fmt.Fprintf(w, "remembered %s\n", r.UUID); err != nil {
-						return err
-					}
-				}
-				return nil
-			})
+			return emit(cmd, cfg, res, func(w io.Writer) error { return writeLines(w, res.Lines()) })
 		},
 	}
 	cmd.Flags().BoolVar(&replace, "replace", false, "forget live records with the same subject and relation first")

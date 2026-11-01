@@ -3,10 +3,8 @@ package cli
 import (
 	"fmt"
 	"io"
-	"strings"
 
 	"github.com/mansus-org/myself/internal/brain"
-	"github.com/mansus-org/myself/internal/model"
 	"github.com/spf13/cobra"
 )
 
@@ -17,23 +15,6 @@ func writeLines(w io.Writer, lines []string) error {
 		}
 	}
 	return nil
-}
-
-// recordLine renders a record as a log line (SPEC section 9). A forget record
-// reads `<uuid> <time> forget <target-uuid> <reason>`.
-func recordLine(r model.Record) string {
-	if r.IsForget() {
-		return strings.TrimSpace(fmt.Sprintf("%s %s forget %s %s", r.UUID, r.Time, r.Subject, r.Object))
-	}
-	return fmt.Sprintf("%s %s %s %s %s", r.UUID, r.Time, r.Subject, r.Relation, r.Object)
-}
-
-func writeRecordLines(w io.Writer, recs []model.Record) error {
-	lines := make([]string, len(recs))
-	for i, r := range recs {
-		lines[i] = recordLine(r)
-	}
-	return writeLines(w, lines)
 }
 
 func newDescribeCmd(cfg *Config) *cobra.Command {
@@ -55,13 +36,7 @@ func newDescribeCmd(cfg *Config) *cobra.Command {
 		if err != nil {
 			return err
 		}
-		return emit(cmd, cfg, res, func(w io.Writer) error {
-			var lines []string
-			for _, e := range res.Entities {
-				lines = append(lines, brain.RenderEntity(e.Name, e.Out, e.In)...)
-			}
-			return writeLines(w, lines)
-		})
+		return emit(cmd, cfg, res, func(w io.Writer) error { return writeLines(w, res.Lines()) })
 	}
 	return cmd
 }
@@ -87,7 +62,7 @@ func newLsCmd(cfg *Config) *cobra.Command {
 		if err != nil {
 			return err
 		}
-		return emit(cmd, cfg, res, func(w io.Writer) error { return writeLines(w, res.Entities) })
+		return emit(cmd, cfg, res, func(w io.Writer) error { return writeLines(w, res.Lines()) })
 	}
 	return cmd
 }
@@ -104,7 +79,7 @@ func newRelationsCmd(cfg *Config) *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			res := brain.Relations()
-			return emit(cmd, cfg, res, func(w io.Writer) error { return writeLines(w, res.Relations) })
+			return emit(cmd, cfg, res, func(w io.Writer) error { return writeLines(w, res.Lines()) })
 		},
 	}
 }
@@ -126,7 +101,7 @@ func newSearchCmd(cfg *Config) *cobra.Command {
 		if err != nil {
 			return err
 		}
-		return emit(cmd, cfg, res, func(w io.Writer) error { return writeRecordLines(w, res.Matches) })
+		return emit(cmd, cfg, res, func(w io.Writer) error { return writeLines(w, res.Lines()) })
 	}
 	return cmd
 }
@@ -147,14 +122,7 @@ func newPathCmd(cfg *Config) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return emit(cmd, cfg, res, func(w io.Writer) error {
-				for _, r := range res.Path {
-					if _, err := fmt.Fprintf(w, "%s %s %s\n", r.Subject, r.Relation, r.Object); err != nil {
-						return err
-					}
-				}
-				return nil
-			})
+			return emit(cmd, cfg, res, func(w io.Writer) error { return writeLines(w, res.Lines()) })
 		},
 	}
 	cmd.Flags().IntVar(&maxDepth, "max-depth", brain.DefaultMaxDepth, "longest chain to look for")
