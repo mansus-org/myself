@@ -8,7 +8,7 @@ import (
 )
 
 func emitRecords(cmd *cobra.Command, cfg *Config, res brain.RecordsResult) error {
-	return emit(cmd, cfg, res, func(w io.Writer) error { return writeRecordLines(w, res.Records) })
+	return emit(cmd, cfg, res, func(w io.Writer) error { return writeLines(w, res.Lines()) })
 }
 
 func newLogCmd(cfg *Config) *cobra.Command {

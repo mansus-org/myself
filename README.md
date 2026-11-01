@@ -190,6 +190,24 @@ curl -H "Authorization: Bearer $TOKEN" localhost:8080/api/v1/describe/relay?dept
 - The admin creates and revokes agent tokens (`read` or `write` scope). Only their hashes are stored, in `tokens.json` next to the store.
 - `GET /api/v1/export.jsonl` downloads the log for a backup. `POST /api/v1/import` (admin) adds the records of a JSONL file that are not there yet, by uuid.
 
+### MCP
+
+The same server speaks MCP at `/mcp` (streamable HTTP, stateless), so harnesses without Bash can use the brain. Tools: `remember`, `forget`, `describe`, `ls`, `relations`, `search`, `path`, `log`, `history`, `prime`, `dream`; plus the `myself://prime` resource. Results are the CLI's plain text, with the `--json` object as `structuredContent`. Authentication is the bearer token of the REST API: a `read` token can use every tool but `remember` and `forget`, which need a `write` token.
+
+Claude Code:
+
+```sh
+claude mcp add --transport http myself https://myself.mansus.org/mcp --header "Authorization: Bearer $TOKEN"
+```
+
+Any other MCP client that supports streamable HTTP takes the URL and the header, for example in a JSON config:
+
+```json
+{"mcpServers":{"myself":{"type":"http","url":"https://myself.mansus.org/mcp","headers":{"Authorization":"Bearer <token>"}}}}
+```
+
+Details are in [SPEC.md section 10](SPEC.md#mcp).
+
 The image from the `Dockerfile` runs the server with the store on a volume at `/data`, as deployed at https://myself.mansus.org.
 
 ## Gotcha

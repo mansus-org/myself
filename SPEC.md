@@ -237,17 +237,18 @@ vault/project.md        vault/relay.md        vault/software.md
 | `/` | the landing page: `site/` embedded in the binary, or `--site DIR`. `GET` and `HEAD` only. |
 | `GET /healthz` | `ok`, no auth. |
 | `/api/v1/...` | the REST API below. Everything under `/api/` answers JSON. |
-| `/mcp`, `/app` | not registered yet (404). Reserved for MCP and the web UI. |
+| `/mcp` | the MCP endpoint, see MCP below. |
+| `/app` | not registered yet (404). Reserved for the web UI. |
 
 Every request is logged on stderr as one line: `<method> <path> <status> <duration> <token name or ->`. The query string and tokens are never logged.
 
 ### Auth
 
-- Every `/api/v1` call sends `Authorization: Bearer <token>`.
+- Every `/api/v1` and `/mcp` call sends `Authorization: Bearer <token>`.
 - **Admin token:** the token whose sha256 (lowercase hex) equals the env `MYSELF_ADMIN_TOKEN_SHA256`, compared in constant time. The server never sees the plaintext anywhere else. Admin has write scope and is the only caller of import and the token endpoints.
 - **Agent tokens:** `mys_` followed by 64 hex characters (32 random bytes), created by the admin with scope `read` or `write`. Only their sha256 is stored, in `tokens.json` next to the store file (mode 0600, written to a temp file and renamed, under a flock on `tokens.json.lock`). `last_used` is updated at most once a minute. Deleting a token revokes it immediately.
 - **Scopes:** `read` may call every `GET` endpoint. `write` may also call `remember` and `forget`. Admin-only: `import` and `tokens`.
-- If `MYSELF_ADMIN_TOKEN_SHA256` is unset or empty, every `/api/` request answers 503 (`/` and `/healthz` still work). The server never runs open.
+- If `MYSELF_ADMIN_TOKEN_SHA256` is unset or empty, every `/api/` and `/mcp` request answers 503 (`/` and `/healthz` still work). The server never runs open.
 
 ### Responses and errors
 
@@ -307,6 +308,34 @@ Details:
   `nodes` holds every entity, sorted by name. `types` are the entities its live `is` records point at, sorted. `records` counts its live outgoing and incoming records (the count `prime` orders by). `edges` holds every live record whose object is an entity (section 1), in uuid order, `from` the subject and `to` the object entity, both normalized. Records with free-text objects are not edges; fetch them with `describe`.
 - **export.jsonl** returns the valid records of the log, forgets included, as canonical JSONL lines in uuid order (`Content-Type: application/x-ndjson`), for backups. Corrupt lines are left out.
 - **import** takes JSONL (the last line may lack its newline; blank lines are skipped) and unions it with the store by uuid: records whose uuid already exists, or repeats within the body, are skipped; the rest are appended in uuid order with one `store.Append` (flock). Every line is validated first and any bad line rejects the whole import with `line N: <reason>`: not a record (section 4 rules), uuid not a uuid, time not RFC 3339, relation not one of the stored relations (`are` is never stored), a `forget` whose subject is not a uuid, an empty subject or object.
+
+### MCP
+
+`/mcp` is a Model Context Protocol endpoint over streamable HTTP (`POST /mcp`, JSON-RPC), so any MCP client can use the brain. It is stateless: no session id is issued and nothing is kept between requests, so restarts and several replicas need no care. `GET` and `DELETE` answer 405.
+
+- **Auth:** the same bearer tokens as the REST API, sent as `Authorization: Bearer <token>` on every request. A missing, invalid or revoked token is a 401 and a disabled server a 503, as in Auth above. Any valid token may connect, list and call the read tools; `remember` and `forget` need a write token (or admin). A read token calling them gets a tool error: `token <name> is read-only; this endpoint needs a write token`.
+- **Tools:** one per command, with input fields named as the REST parameters (`max_depth`, not `--max-depth`).
+
+  | tool | access | input | CLI equivalent |
+  |------|--------|-------|----------------|
+  | `remember` | write | `facts` (list of `{subject, relation, object}`), `replace` | `remember` |
+  | `forget` | write | `uuid`, or `subject` + `relation` + optional `object`; optional `reason` | `forget` |
+  | `describe` | read | `entity`, `depth`, `at` | `describe` |
+  | `ls` | read | `type`, `at` | `ls` |
+  | `relations` | read | none | `relations` |
+  | `search` | read | `q`, `at` | `search` |
+  | `path` | read | `from`, `to`, `max_depth` | `path` |
+  | `log` | read | `since`, `n` | `log` |
+  | `history` | read | `subject`, `relation` | `history` |
+  | `prime` | read | `budget` | `prime` |
+  | `dream` | read | none | `dream` |
+
+- **Results:** the content is one text block with the CLI's plain-text output (section 5 and 9: `describe` notes, one record per line for `log`, `search` and `history`, `remembered <uuid>` and `forgot <uuid>` lines, the `prime` text), or `(none)` when the CLI would print nothing. Warnings are appended as `warning: ...` lines. `structuredContent` is the section 6 `--json` object of the command, with the `"warnings"` field of the REST API.
+- **Errors:** a failing command is a tool result with `isError: true` whose text is the CLI's message without the `error: ` prefix (`unknown relation "built-with". use one of: ...`, `nobody` for not found). Bad arguments (a missing required field, a wrong type) are rejected by the input schema as a tool error as well.
+- **Instructions and descriptions:** the `initialize` result carries `instructions` that say when to use the brain and the writing conventions (closed relation list, `is` for types, `i`/`me`/`myself` is `self`, the self-model paragraph, never store secrets), and each tool description repeats the conventions that apply to it.
+- **Resource:** `myself://prime` (`text/plain`) is the `prime` text with the default budget.
+
+Writes through MCP take the same in-process lock as the REST API.
 
 ### Concurrency
 
