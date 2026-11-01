@@ -90,9 +90,10 @@ myself export --obsidian <dir>
 myself sync [--export DIR]
 myself merge-driver <base> <ours> <theirs>
 myself serve [--addr ADDR] [--site DIR]
+myself whoami
 ```
 
-Global flags: `--file PATH`, `--json`, `--at TIME` (only on commands that list it above).
+Global flags: `--file PATH`, `--json`, `--url URL`, `--token TOKEN` (remote mode, section 10), `--at TIME` (only on commands that list it above).
 
 - `remember -` is all-or-nothing: every line is validated first; on any error nothing is written, and the error names the line number. In bulk mode only, if the object (after joining) is wrapped in one matching pair of `'...'` or `"..."`, that pair is stripped, since nothing else has removed it (the shell does that for the single-argument form, which is unchanged).
 - `forget <uuid>` is used when exactly one argument is given and it is a UUID. Otherwise the arguments are `<subject> <relation> [<object...>]`: it forgets every live record with that subject and relation, narrowed to those whose normalized object equals the given object if one is given. Exit 2 if nothing matches.
@@ -108,6 +109,7 @@ Global flags: `--file PATH`, `--json`, `--at TIME` (only on commands that list i
 - `sync [--export DIR]`: backs the store up with git. The store directory (that of the resolved file) must be a git work tree, else it prints setup instructions on stderr and exits 1. It sets the merge driver config and the `.gitattributes` line, commits the store as `myself: N records since last sync`, then `git pull --rebase` (falling back to a merge) and `git push` if a remote exists. `--export DIR` runs `export --obsidian DIR` after pulling. Git missing or failing exits 3.
 - `merge-driver <base> <ours> <theirs>`: git merge driver (`%O %A %B`); writes the union of the complete lines of all three, sorted by `uuid`, to `<ours>`. Exit 1 on I/O errors.
 - `serve [--addr ADDR] [--site DIR]`: serves the store over HTTP (section 10) on `ADDR` (default `:8080`) until SIGINT or SIGTERM. Exit 1 if `MYSELF_ADMIN_TOKEN_SHA256` is set but not 64 hex characters, 3 if the address cannot be bound or `tokens.json` cannot be read.
+- `whoami`: prints who the commands act as. Local: `local store <path>`. Remote (section 10): three lines `name <name>`, `scope <read|write>`, `admin <true|false>`.
 
 ## 6. Output
 
@@ -130,6 +132,7 @@ Global flags: `--file PATH`, `--json`, `--at TIME` (only on commands that list i
 | `dream` | `{"near_duplicates":[["relay","relays"],...]}` |
 | `export` | `{"dir":"./vault","entities":3,"files":["project.md",...]}` |
 | `sync` | `{"committed":3,"pulled":true,"pushed":true,"exported":null}` (`exported` is the entity count with `--export`) |
+| `whoami` | local: `{"store":"<path>"}`; remote: `{"name":"reader","scope":"read","admin":false}` (the `GET /api/v1/whoami` body) |
 
 - **Exit codes:**
   - `0` ok (including searches and listings with no results).
@@ -336,6 +339,16 @@ Details:
 - **Resource:** `myself://prime` (`text/plain`) is the `prime` text with the default budget.
 
 Writes through MCP take the same in-process lock as the REST API.
+
+### Remote mode
+
+The CLI runs against a server instead of the local file when a URL is set: `--url URL`, else the env `MYSELF_URL` (for example `https://myself.mansus.org`). It must be `http` or `https` with a host; a trailing slash is dropped. The bearer token is `--token`, else the env `MYSELF_TOKEN` (the env is the safe way: flags show up in `ps`). The token is never printed, not even in errors. `MYSELF_TIMEOUT` bounds one request: seconds (`30`, `0.5`) or a Go duration (`500ms`, `1m`); default 10 s.
+
+- **Same output.** stdout, `--json` output, stderr and exit codes are those of local mode: each command calls the endpoint of the table above and renders the decoded section 6 shape with the same code as the local command. `warnings` in the body are printed to stderr as `warning: <w>`, before the result. An error body `{"error","exit_code"}` is printed as `error: <error>` and exits with `exit_code`.
+- **Client side.** `remember -` strips quotes and validates every line (`line N: ...`) before sending, so it sends one `remember` request with all the facts. Argument usage errors (missing arguments, `forget` forms) are reported by the CLI without a request. Parameter errors (`--at`, `--depth`, `-n`, `--budget`, `--max-depth`) are reported by the server with the same text.
+- **Auth and network.** HTTP 401, 403 and 503 exit 3 with the server's message. A connection failure or timeout exits 3 with `error: cannot reach <url>: <reason>`; a `GET` is retried once if the connection failed (not after a timeout). A reply that is not a myself reply exits 3 (`not a myself server?`).
+- **`--file` and a URL.** `--file` together with a URL (from `--url` or `MYSELF_URL`) is a usage error, exit 1, so one never silently wins. `MYSELF_FILE` is ignored when a URL is set.
+- **Per command.** `export --obsidian DIR` downloads `/api/v1/export.jsonl`, builds the graph locally and writes the notes with the local code; its `--json` shape is the same. `sync` exits 1 with `sync works on a local store; with MYSELF_URL set, back up with: curl -H "Authorization: Bearer $MYSELF_TOKEN" <url>/api/v1/export.jsonl > brain.jsonl`. `merge-driver`, `serve` and `version` never use a server and ignore the URL. `whoami` calls `GET /api/v1/whoami`.
 
 ### Concurrency
 

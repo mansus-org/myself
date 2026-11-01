@@ -17,6 +17,9 @@
 #   MYSELF_BIN           myself binary (default: myself on PATH)
 #   MYSELF_PRIME_BUDGET  characters passed to `myself prime --budget` (default 4000)
 #   MYSELF_FILE          brain file, passed through to myself
+#   MYSELF_URL, MYSELF_TOKEN  run against a myself server (remote mode); both are
+#                        passed through, so the hook primes from the server. An
+#                        unreachable server prints nothing, after MYSELF_TIMEOUT (default 10s)
 #   MYSELF_HOOKS_JQ      jq binary (default: jq); without it a sed fallback parses stdin
 
 bin=${MYSELF_BIN:-myself}

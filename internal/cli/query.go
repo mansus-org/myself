@@ -32,7 +32,7 @@ func newDescribeCmd(cfg *Config) *cobra.Command {
 	at := addAtFlag(cmd)
 	cmd.Flags().IntVar(&depth, "depth", 0, "also show entities reachable within N hops")
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		res, err := brain.Describe(storeFor(cmd, cfg), args[0], depth, at.value())
+		res, err := backendFor(cmd, cfg).Describe(args[0], depth, at.value())
 		if err != nil {
 			return err
 		}
@@ -58,7 +58,7 @@ func newLsCmd(cfg *Config) *cobra.Command {
 		if len(args) == 1 {
 			typ = &args[0]
 		}
-		res, err := brain.Ls(storeFor(cmd, cfg), typ, at.value())
+		res, err := backendFor(cmd, cfg).Ls(typ, at.value())
 		if err != nil {
 			return err
 		}
@@ -78,7 +78,10 @@ func newRelationsCmd(cfg *Config) *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			res := brain.Relations()
+			res, err := backendFor(cmd, cfg).Relations()
+			if err != nil {
+				return err
+			}
 			return emit(cmd, cfg, res, func(w io.Writer) error { return writeLines(w, res.Lines()) })
 		},
 	}
@@ -97,7 +100,7 @@ func newSearchCmd(cfg *Config) *cobra.Command {
 	}
 	at := addAtFlag(cmd)
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		res, err := brain.Search(storeFor(cmd, cfg), joinObject(args), at.value())
+		res, err := backendFor(cmd, cfg).Search(joinObject(args), at.value())
 		if err != nil {
 			return err
 		}
@@ -118,7 +121,7 @@ func newPathCmd(cfg *Config) *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			res, err := brain.Path(storeFor(cmd, cfg), args[0], args[1], maxDepth)
+			res, err := backendFor(cmd, cfg).Path(args[0], args[1], maxDepth)
 			if err != nil {
 				return err
 			}

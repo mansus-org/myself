@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io/fs"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/mansus-org/myself/internal/server"
 )
 
 var update = flag.Bool("update", false, "regenerate testdata/*.golden")
@@ -24,6 +27,8 @@ const ldflags = "-X github.com/mansus-org/myself/internal/cli.Version=v0.0.0-tes
 	"-X github.com/mansus-org/myself/internal/cli.BuildDate=2026-01-01T00:00:00Z"
 
 var binary string
+
+const testAdminToken = "test-admin-token"
 
 func TestMain(m *testing.M) {
 	flag.Parse()
@@ -357,10 +362,35 @@ func (n *normalizer) arg(s string) string {
 	})
 }
 
-func TestGolden(t *testing.T) {
+// TestGolden runs every case against the local store.
+func TestGolden(t *testing.T) { runGolden(t, false) }
+
+// TestGoldenRemote runs the same cases, with the same goldens, through
+// MYSELF_URL against an in-process server over the case's temp store. Only
+// how the store file is reached differs. Cases that need a local-only
+// feature are skipped.
+func TestGoldenRemote(t *testing.T) { runGolden(t, true) }
+
+// localOnlyCases use --file, which conflicts with a server URL.
+var localOnlyCases = map[string]bool{"store_errors": true}
+
+func runGolden(t *testing.T, remote bool) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			if remote && localOnlyCases[tc.name] {
+				t.Skip("local store feature")
+			}
 			file := filepath.Join(t.TempDir(), "brain.jsonl")
+			env := append(os.Environ(), "MYSELF_FILE="+file)
+			if remote {
+				srv, err := server.New(server.Config{File: file, AdminHash: server.HashToken(testAdminToken)})
+				if err != nil {
+					t.Fatal(err)
+				}
+				ts := httptest.NewServer(srv)
+				defer ts.Close()
+				env = append(os.Environ(), "MYSELF_URL="+ts.URL, "MYSELF_TOKEN="+testAdminToken)
+			}
 			n := &normalizer{store: file, tmp: filepath.Dir(file), names: map[string]string{}, uuids: map[string]string{}}
 			var got strings.Builder
 			for _, st := range tc.steps {
@@ -373,7 +403,7 @@ func TestGolden(t *testing.T) {
 				cmd.Dir = n.tmp
 				cmd.Stdin = strings.NewReader(st.stdin)
 				cmd.Stdout, cmd.Stderr = &stdout, &stderr
-				cmd.Env = append(os.Environ(), "MYSELF_FILE="+file)
+				cmd.Env = env
 				code := 0
 				if err := cmd.Run(); err != nil {
 					var ee *exec.ExitError

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/mansus-org/myself/internal/brain"
 	"github.com/spf13/cobra"
 )
 
@@ -18,7 +17,7 @@ func newExportCmd(cfg *Config) *cobra.Command {
 			if dir == "" {
 				return Usagef("export needs --obsidian <dir>")
 			}
-			res, err := brain.ExportObsidian(storeFor(cmd, cfg), dir)
+			res, err := backendFor(cmd, cfg).ExportObsidian(dir)
 			if err != nil {
 				return err
 			}

@@ -92,7 +92,7 @@ If `~/.local/bin` is not on the PATH the hooks run with, set `MYSELF_BIN` to the
 
 ## Commands
 
-Arguments are positional and everything after the relation is the object, so quotes are optional. `--json` works on every command, `--file PATH` picks the store, and `--at TIME` (RFC 3339 or `YYYY-MM-DD`) shows the state as of that time where listed.
+Arguments are positional and everything after the relation is the object, so quotes are optional. `--json` works on every command, `--file PATH` picks the store (`--url` and `--token` pick a server, see [Remote mode](#remote-mode)), and `--at TIME` (RFC 3339 or `YYYY-MM-DD`) shows the state as of that time where listed.
 
 | command | what it does |
 |---------|--------------|
@@ -112,6 +112,7 @@ Arguments are positional and everything after the relation is the object, so quo
 | `export --obsidian <dir>` | write one Markdown note per entity |
 | `sync [--export DIR]` | back the store up with git |
 | `merge-driver <base> <ours> <theirs>` | git merge driver used by `sync` |
+| `whoami` | local store path, or the name, scope and admin flag of the token in remote mode |
 | `version` | print version, commit and build date |
 
 Relations are a closed set: `is`, `are` (stored as `is`), `has`, `uses`, `does`, `prefers`, `related`. Anything else is rejected with a message listing the valid ones. Details are in [SPEC.md](SPEC.md#5-cli-grammar).
@@ -209,6 +210,24 @@ Any other MCP client that supports streamable HTTP takes the URL and the header,
 Details are in [SPEC.md section 10](SPEC.md#mcp).
 
 The image from the `Dockerfile` runs the server with the store on a volume at `/data`, as deployed at https://myself.mansus.org.
+
+### Remote mode
+
+Point the CLI at a server and every command runs there instead of on the local file, with the same output, `--json` and exit codes:
+
+```sh
+export MYSELF_URL=https://myself.mansus.org
+export MYSELF_TOKEN=mys_...        # an agent token from the admin; never printed by myself
+myself whoami                      # name reader / scope read / admin false
+myself remember relay is project
+myself prime
+```
+
+- `--url` and `--token` override the env. Prefer the env for the token: flags show up in `ps`.
+- `--file` together with a URL is a usage error. `MYSELF_FILE` is ignored while a URL is set.
+- `MYSELF_TIMEOUT` (seconds or a duration like `500ms`, default 10 s) bounds a request. An unreachable server is `error: cannot reach <url>: ...`, exit 3, as are 401, 403 and 503.
+- `export --obsidian DIR` downloads the log and writes the notes locally. `sync` is local only; back a server up with `curl -H "Authorization: Bearer $MYSELF_TOKEN" $MYSELF_URL/api/v1/export.jsonl > brain.jsonl`.
+- The Claude Code hooks call `myself`, so they use the server too when `MYSELF_URL` and `MYSELF_TOKEN` are in the environment Claude Code runs with. An unreachable server makes them print nothing, after the timeout.
 
 ## Gotcha
 

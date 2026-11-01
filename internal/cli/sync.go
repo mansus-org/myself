@@ -73,6 +73,9 @@ const setupHelp = `%s is not inside a git work tree. set up the backup once:
 then run myself sync again`
 
 func runSync(cmd *cobra.Command, cfg *Config, exportDir string) (*syncResult, error) {
+	if cfg.Remote() {
+		return nil, Usagef("sync works on a local store; with %s set, back up with: curl -H \"Authorization: Bearer $%s\" %s/api/v1/export.jsonl > brain.jsonl", EnvURL, EnvToken, cfg.URL)
+	}
 	if err := gitsync.Available(); err != nil {
 		return nil, StoreErr(err)
 	}
