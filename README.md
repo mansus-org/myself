@@ -269,6 +269,8 @@ go test ./...                  # unit and golden CLI tests
 go test ./internal/cli -update # regenerate internal/cli/testdata/*.golden
 ```
 
+Tests ignore `MYSELF_URL`, `MYSELF_TOKEN`, `MYSELF_TIMEOUT` and `MYSELF_FILE` from the environment (each test sets its own), so `go test` is safe on hosts that use a shared brain.
+
 CLI tests build the binary once; each row of `cases` in `internal/cli/e2e_test.go` runs a sequence of commands against one temp store. uuids and times are normalized in the golden files (`<uuid-N>`, `<time>`), and a step can pass `<uuid-N>` to refer to an earlier uuid. Add rows for each new command, run with `-update` and review the golden diff.
 
 Build info is injected with `-ldflags`:

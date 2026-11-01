@@ -1,7 +1,6 @@
 package cli_test
 
 import (
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -16,7 +15,7 @@ func TestGitMergeRecipe(t *testing.T) {
 	}
 	repo := t.TempDir()
 	file := filepath.Join(repo, "brain.jsonl")
-	env := append(os.Environ(),
+	env := cleanEnv(
 		"MYSELF_FILE="+file,
 		"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@example.com",
 		"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@example.com",

@@ -48,7 +48,15 @@ func main() {
 	check(os.Symlink(abs, filepath.Join(binDir, "myself")))
 	vault := filepath.Join(work, "vault")
 
-	env := append(os.Environ(),
+	var env []string
+	for _, e := range os.Environ() {
+		switch {
+		case strings.HasPrefix(e, "MYSELF_URL="), strings.HasPrefix(e, "MYSELF_TOKEN="), strings.HasPrefix(e, "MYSELF_TIMEOUT="), strings.HasPrefix(e, "MYSELF_FILE="):
+		default:
+			env = append(env, e)
+		}
+	}
+	env = append(env,
 		"PATH="+binDir+":"+os.Getenv("PATH"),
 		"MYSELF_FILE="+filepath.Join(work, "brain.jsonl"),
 		"MYSELF_NUDGE=off",

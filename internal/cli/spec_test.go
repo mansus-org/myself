@@ -52,7 +52,7 @@ func TestSpecWorkedExample(t *testing.T) {
 		var stdout, stderr bytes.Buffer
 		cmd := exec.Command(binary, c.args...)
 		cmd.Dir = tmp
-		cmd.Env = append(os.Environ(), "MYSELF_FILE="+file)
+		cmd.Env = cleanEnv("MYSELF_FILE=" + file)
 		cmd.Stdout, cmd.Stderr = &stdout, &stderr
 		code := 0
 		if err := cmd.Run(); err != nil {

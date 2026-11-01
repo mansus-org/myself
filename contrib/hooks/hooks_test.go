@@ -20,6 +20,11 @@ import (
 var binary string
 
 func TestMain(m *testing.M) {
+	if os.Getenv("MYSELF_URL") != "" {
+		os.Unsetenv("MYSELF_URL")
+		os.Unsetenv("MYSELF_TOKEN")
+		fmt.Fprintln(os.Stderr, "tests: MYSELF_URL is set in the environment; ignoring it (tests never talk to a real server)")
+	}
 	dir, err := os.MkdirTemp("", "myself-hooks")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -64,14 +69,14 @@ func newEnv(t *testing.T) *env {
 func (e *env) requireCommand(name string) {
 	e.t.Helper()
 	cmd := exec.Command(e.bin, name, "--help")
-	cmd.Env = append(os.Environ(), "MYSELF_FILE="+e.store)
+	cmd.Env = cleanEnv("MYSELF_FILE=" + e.store)
 	if err := cmd.Run(); err != nil {
 		e.t.Skipf("myself %s is not implemented in this build (myself %s --help: %v); skipping", name, name, err)
 	}
 }
 
 func (e *env) environ() []string {
-	return append(append(os.Environ(),
+	return append(cleanEnv(
 		"TMPDIR="+e.tmp,
 		"MYSELF_FILE="+e.store,
 		"MYSELF_BIN="+e.bin,
@@ -457,4 +462,22 @@ func TestRemoteMode(t *testing.T) {
 	if out := e.hook("session-start.sh", startInput("r2")); out != "" {
 		t.Errorf("server down: want no output, got %q", out)
 	}
+}
+
+// cleanEnv returns os.Environ() without the variables that select a brain, so
+// a host using a shared brain never leaks into tests; plus extra (KEY=VALUE).
+func cleanEnv(extra ...string) []string {
+	var env []string
+	for _, e := range os.Environ() {
+		keep := true
+		for _, v := range []string{"MYSELF_URL", "MYSELF_TOKEN", "MYSELF_TIMEOUT", "MYSELF_FILE"} {
+			if strings.HasPrefix(e, v+"=") {
+				keep = false
+			}
+		}
+		if keep {
+			env = append(env, e)
+		}
+	}
+	return append(env, extra...)
 }
