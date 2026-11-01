@@ -21,6 +21,7 @@ type Config struct {
 	AdminHash string           // lowercase hex sha256 of the admin token; empty disables the API
 	Log       io.Writer        // request log; nil discards
 	Now       func() time.Time // nil means time.Now
+	Version   string           // reported to MCP clients; empty means "dev"
 }
 
 // Server is the HTTP server. It is an http.Handler.
@@ -31,6 +32,7 @@ type Server struct {
 	adminHash string
 	log       *log.Logger
 	now       func() time.Time
+	version   string
 	writeMu   sync.Mutex
 }
 
@@ -44,6 +46,10 @@ func New(cfg Config) (*Server, error) {
 	if out == nil {
 		out = io.Discard
 	}
+	version := cfg.Version
+	if version == "" {
+		version = "dev"
+	}
 	now := cfg.Now
 	if now == nil {
 		now = time.Now
@@ -55,6 +61,7 @@ func New(cfg Config) (*Server, error) {
 		adminHash: cfg.AdminHash,
 		log:       log.New(out, "", log.LstdFlags|log.LUTC),
 		now:       now,
+		version:   version,
 	}
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -74,6 +81,7 @@ func New(cfg Config) (*Server, error) {
 		})
 	}
 	s.registerAPI()
+	s.registerMCP()
 	return s, nil
 }
 

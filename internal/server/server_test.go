@@ -135,7 +135,7 @@ func TestSiteAndHealth(t *testing.T) {
 	if got := e.ok("GET", "/", "", "", 200, nil); !strings.Contains(got, "<h1>myself</h1>") {
 		t.Fatalf("landing %q", got)
 	}
-	for _, p := range []string{"/mcp", "/app", "/app/x"} {
+	for _, p := range []string{"/app", "/app/x"} {
 		if st, _ := e.do("GET", p, "", ""); st != 404 {
 			t.Fatalf("%s: %d, want 404", p, st)
 		}

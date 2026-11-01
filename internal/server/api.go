@@ -55,9 +55,9 @@ func (s *Server) registerAPI() {
 	}))
 }
 
-// WriteJSON writes v (compact, no HTML escaping) with status. Non-empty
-// warnings are added to an object body as a last "warnings" field.
-func WriteJSON(w http.ResponseWriter, status int, v any, warnings []string) {
+// encodeJSON is v as compact JSON without HTML escaping. Non-empty warnings
+// are added to an object as a last "warnings" field.
+func encodeJSON(v any, warnings []string) ([]byte, error) {
 	b, err := model.Marshal(v)
 	if err == nil && len(warnings) > 0 && len(b) > 1 && b[0] == '{' {
 		ws, _ := model.Marshal(warnings)
@@ -67,6 +67,13 @@ func WriteJSON(w http.ResponseWriter, status int, v any, warnings []string) {
 		}
 		b = append(append(append(b[:len(b)-1:len(b)-1], sep+`"warnings":`...), ws...), '}')
 	}
+	return b, err
+}
+
+// WriteJSON writes v (compact, no HTML escaping) with status. Non-empty
+// warnings are added to an object body as a last "warnings" field.
+func WriteJSON(w http.ResponseWriter, status int, v any, warnings []string) {
+	b, err := encodeJSON(v, warnings)
 	if err != nil {
 		status, b = http.StatusInternalServerError, []byte(`{"error":"encoding the response failed","exit_code":3}`)
 	}
