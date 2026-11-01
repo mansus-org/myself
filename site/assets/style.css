@@ -48,6 +48,8 @@ a:hover { text-decoration-thickness: 4px; }
   display: inline-flex; align-items: center; min-height: 44px;
   font-variation-settings: "wdth" 125; font-weight: 700; font-size: 0.9375rem;
 }
+.mark + .chrome-link { margin-left: auto; }
+.chrome-link + .chrome-link { margin-left: clamp(16px, 2.5vw, 32px); }
 
 /* ---------- type ---------- */
 .h2 {
