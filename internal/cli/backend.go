@@ -19,7 +19,7 @@ type backend interface {
 	Describe(entity string, depth int, at *string) (brain.DescribeResult, error)
 	Ls(typ, at *string) (brain.LsResult, error)
 	Relations() (brain.RelationsResult, error)
-	Search(text string, at *string) (brain.SearchResult, error)
+	Search(text string, at *string, n *int) (brain.SearchResult, error)
 	Path(a, b string, maxDepth int) (brain.PathResult, error)
 	Log(since *string, n *int) (brain.RecordsResult, error)
 	History(subject string, relation *string) (brain.RecordsResult, error)
@@ -59,8 +59,8 @@ func (b localBackend) Describe(entity string, depth int, at *string) (brain.Desc
 }
 func (b localBackend) Ls(typ, at *string) (brain.LsResult, error) { return brain.Ls(b.st, typ, at) }
 func (b localBackend) Relations() (brain.RelationsResult, error)  { return brain.Relations(), nil }
-func (b localBackend) Search(text string, at *string) (brain.SearchResult, error) {
-	return brain.Search(b.st, text, at)
+func (b localBackend) Search(text string, at *string, n *int) (brain.SearchResult, error) {
+	return brain.Search(b.st, text, at, n)
 }
 func (b localBackend) Path(a, c string, maxDepth int) (brain.PathResult, error) {
 	return brain.Path(b.st, a, c, maxDepth)
