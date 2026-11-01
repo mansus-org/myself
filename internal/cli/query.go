@@ -88,8 +88,9 @@ func newRelationsCmd(cfg *Config) *cobra.Command {
 }
 
 func newSearchCmd(cfg *Config) *cobra.Command {
+	var n int
 	cmd := &cobra.Command{
-		Use:   "search <text...>",
+		Use:   "search <text...> [-n N]",
 		Short: "Find live records whose subject, relation or object contains text",
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
@@ -99,8 +100,13 @@ func newSearchCmd(cfg *Config) *cobra.Command {
 		},
 	}
 	at := addAtFlag(cmd)
+	cmd.Flags().IntVarP(&n, "n", "n", 0, "keep only the first N matches")
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		res, err := backendFor(cmd, cfg).Search(joinObject(args), at.value())
+		var nP *int
+		if cmd.Flags().Changed("n") {
+			nP = &n
+		}
+		res, err := backendFor(cmd, cfg).Search(joinObject(args), at.value(), nP)
 		if err != nil {
 			return err
 		}

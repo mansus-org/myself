@@ -360,6 +360,11 @@ func TestRememberAndQueries(t *testing.T) {
 	if len(search.Matches) != 1 || search.Matches[0].Object != "go" {
 		t.Fatalf("search %+v", search)
 	}
+	e.ok("GET", "/api/v1/search?q=RELAY&n=1", adminToken, "", 200, &search)
+	if len(search.Matches) != 1 || search.Matches[0].Object != "project" {
+		t.Fatalf("search -n %+v", search)
+	}
+	e.fails("GET", "/api/v1/search?q=RELAY&n=0", adminToken, "", 400, 1, "-n must be at least 1")
 	e.fails("GET", "/api/v1/search", adminToken, "", 400, 1, "search needs <text>")
 
 	var path struct {
