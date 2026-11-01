@@ -48,6 +48,8 @@ a:hover { text-decoration-thickness: 4px; }
   display: inline-flex; align-items: center; min-height: 44px;
   font-variation-settings: "wdth" 125; font-weight: 700; font-size: 0.9375rem;
 }
+.mark + .chrome-link { margin-left: auto; }
+.chrome-link + .chrome-link { margin-left: clamp(16px, 2.5vw, 32px); }
 
 /* ---------- type ---------- */
 .h2 {
@@ -166,6 +168,9 @@ code {
 }
 .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 36px; }
 .step { min-width: 0; }
+.connect .steps { margin-top: 48px; }
+.connect .note { margin-top: 16px; }
+.connect .links { margin-top: 12px; }
 .step__text { margin: 0 0 14px; max-width: 62ch; }
 .step__n {
   display: inline-block; min-width: 1.6em; margin-right: 0.6em; text-align: center;

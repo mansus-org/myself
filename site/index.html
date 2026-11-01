@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>myself · your agent remembers, in one file you own · Mansus</title>
-<meta name="description" content="myself is a small command-line tool that lets your coding agent remember people, projects and decisions across sessions. What it learns lands in one JSONL file you own. First release (v0.1) is in progress.">
+<title>myself · your agents remember, in one brain you own · Mansus</title>
+<meta name="description" content="myself lets your coding agents remember people, projects and decisions across sessions. What they learn lands in one JSONL file you own, used locally by the CLI or shared from your own server over the CLI, MCP and a web app.">
 <link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,6 +16,7 @@
 
 <header class="chrome">
   <a class="mark" href="#top" aria-label="Mansus, back to top">mansus</a>
+  <a class="chrome-link" href="/app/">Web app</a>
   <a class="chrome-link" href="https://github.com/mansus-org/myself">GitHub</a>
 </header>
 
@@ -29,7 +30,7 @@
       <span class="spine" aria-hidden="true">REMEMBER</span>
       <noscript><span class="fallback" aria-hidden="true">m</span></noscript>
     </h1>
-    <p class="statement">Your agent remembers people, projects and decisions across sessions. What it learns lands in one file you own.</p>
+    <p class="statement">Your agents remember people, projects and decisions across sessions. One file you own, on your laptop or shared from your server.</p>
   </section>
 
   <!-- The story across sessions: three terminal windows, read in order. -->
@@ -114,7 +115,7 @@ mon 10:03  - uses npm   moved to bun</span>
   <!-- Install: planned methods, available from v0.1. -->
   <section class="install" id="install" aria-labelledby="install-h">
     <h2 class="h2" id="install-h">Install</h2>
-    <p class="status"><strong>Available from v0.1.</strong> The first release is in progress, so none of this installs yet. <a href="https://github.com/mansus-org/myself">Watch the repo on GitHub</a> to hear when it ships.</p>
+    <p class="status"><strong>v0.1.1 is out</strong> for Linux and macOS. Binaries are on <a href="https://github.com/mansus-org/myself/releases">GitHub releases</a>.</p>
 
     <figure class="win win--term">
       <div class="win__bar">
@@ -173,6 +174,52 @@ mon 10:03  - uses npm   moved to bun</span>
     <p class="note">Other harnesses: any agent that can run shell commands can use myself. <code>myself prime</code> prints a brief to paste into its system prompt.</p>
   </section>
 
+  <!-- Connect: one server, three ways in. -->
+  <section class="install connect" id="connect" aria-labelledby="connect-h">
+    <h2 class="h2" id="connect-h">Connect your agents</h2>
+    <p class="status">Run one server and give each agent its own token. Every agent then reads and writes the same brain.</p>
+
+    <figure class="win win--term">
+      <div class="win__bar">
+        <figcaption class="win__title">bash <span class="win__sub">on the server</span></figcaption>
+        <button class="copy" type="button" aria-label="Copy the server commands">Copy</button>
+      </div>
+<pre class="win__body" tabindex="0"><code><span class="c"># the server only ever sees the admin token's hash</span>
+<span class="p">$</span> export MYSELF_ADMIN_TOKEN_SHA256=$(printf %s "$ADMIN_TOKEN" | sha256sum | cut -d' ' -f1)
+<span class="p">$</span> myself serve --addr :8080</code></pre>
+    </figure>
+
+    <ol class="steps">
+      <li class="step">
+        <p class="step__text"><span class="step__n">1</span>The CLI, in remote mode. Set two variables and every command runs on the server, with the same output.</p>
+        <figure class="win win--term">
+          <div class="win__bar">
+            <figcaption class="win__title">bash <span class="win__sub">on each agent's machine</span></figcaption>
+            <button class="copy" type="button" aria-label="Copy the remote mode commands">Copy</button>
+          </div>
+<pre class="win__body" tabindex="0"><code><span class="p">$</span> export MYSELF_URL=https://myself.example.com
+<span class="p">$</span> export MYSELF_TOKEN=mys_...
+<span class="p">$</span> myself whoami</code></pre>
+        </figure>
+      </li>
+      <li class="step">
+        <p class="step__text"><span class="step__n">2</span>MCP, for any harness that speaks it. In Claude Code:</p>
+        <figure class="win win--term">
+          <div class="win__bar">
+            <figcaption class="win__title">bash</figcaption>
+            <button class="copy" type="button" aria-label="Copy the claude mcp add command">Copy</button>
+          </div>
+<pre class="win__body" tabindex="0"><code><span class="p">$</span> claude mcp add --transport http myself https://myself.example.com/mcp --header "Authorization: Bearer &lt;token&gt;"</code></pre>
+        </figure>
+        <p class="note">Other MCP clients take the same URL and header.</p>
+      </li>
+      <li class="step">
+        <p class="step__text"><span class="step__n">3</span>The web app, for you. Sign in at <code>/app</code> with a token to browse entities and their history, follow the graph, watch the log as agents write, and create or revoke tokens.</p>
+        <p class="links"><a href="/app/">Open the web app</a></p>
+      </li>
+    </ol>
+  </section>
+
   <!-- What you get: ruled rows, each with its own sign. -->
   <section class="ideas" aria-labelledby="ideas-h">
     <h2 class="h2" id="ideas-h">What you get</h2>
@@ -180,12 +227,17 @@ mon 10:03  - uses npm   moved to bun</span>
       <li class="row">
         <span class="row__sign" data-glyph="agent" aria-hidden="true"></span>
         <h3 class="row__title">Works with the agent you already run</h3>
-        <p class="row__text">The agent does the extracting before it calls myself. So there are no extra LLM calls, no server and no API keys, and it works offline.</p>
+        <p class="row__text">The agent does the extracting before it calls myself. So there are no extra LLM calls and no API keys, and on a local file it works offline.</p>
       </li>
       <li class="row">
         <span class="row__sign" data-glyph="cli" aria-hidden="true"></span>
         <h3 class="row__title">One binary, called from Bash</h3>
         <p class="row__text">Claude Code, Codex, pi, or any agent that can run a shell command can call it. Put the binary on your <code>$PATH</code>, add a skill file, and the agent can use it.</p>
+      </li>
+      <li class="row">
+        <span class="row__sign" data-glyph="hub" aria-hidden="true"></span>
+        <h3 class="row__title">One brain for all your agents</h3>
+        <p class="row__text"><code>myself serve</code> puts the file behind HTTP, with a token per agent. Agents on other machines use the same CLI against it, harnesses without a shell connect over MCP, and you browse and fix it in a web app.</p>
       </li>
       <li class="row">
         <span class="row__sign" data-glyph="triple" aria-hidden="true"></span>
@@ -200,7 +252,7 @@ mon 10:03  - uses npm   moved to bun</span>
       <li class="row">
         <span class="row__sign" data-glyph="dream" aria-hidden="true"></span>
         <h3 class="row__title">Dreaming tidies up</h3>
-        <p class="row__text"><code>myself dream</code> lists duplicate entities and near-duplicate predicates. The agent merges them with ordinary commands.</p>
+        <p class="row__text"><code>myself dream</code> lists names that are probably the same thing, like <code>relay</code> and <code>relays</code>. The agent merges them with ordinary commands.</p>
       </li>
       <li class="row">
         <span class="row__sign" data-glyph="file" aria-hidden="true"></span>
@@ -230,22 +282,23 @@ mon 10:03  - uses npm   moved to bun</span>
 
   <!-- Reference. -->
   <section class="ref" aria-labelledby="ref-h">
-    <h2 class="h2" id="ref-h">Fourteen commands</h2>
+    <h2 class="h2" id="ref-h">Fifteen commands</h2>
     <dl class="cmds">
-      <div><dt>remember</dt><dd>save a fact or give an entity a type</dd></div>
+      <div><dt>remember</dt><dd>save a fact, or many from stdin</dd></div>
       <div><dt>forget</dt><dd>retire a fact; it stays in the history</dd></div>
-      <div><dt>alias</dt><dd>make a second name point at one entity</dd></div>
       <div><dt>describe</dt><dd>everything known about one entity, both directions</dd></div>
       <div><dt>ls</dt><dd>list entities, optionally of one type</dd></div>
-      <div><dt>predicates</dt><dd>the verbs in use, with counts</dd></div>
-      <div><dt>search</dt><dd>find entities and facts by text</dd></div>
+      <div><dt>relations</dt><dd>the seven relations a fact can use</dd></div>
+      <div><dt>search</dt><dd>find facts by text</dd></div>
       <div><dt>path</dt><dd>how two entities connect</dd></div>
-      <div><dt>log</dt><dd>what was written, newest first</dd></div>
-      <div><dt>history</dt><dd>every past version of a fact</dd></div>
+      <div><dt>log</dt><dd>what was written, in order</dd></div>
+      <div><dt>history</dt><dd>every past version of a subject's facts</dd></div>
       <div><dt>prime</dt><dd>a short brief for the start of a session</dd></div>
-      <div><dt>dream</dt><dd>report duplicates and untyped things</dd></div>
-      <div><dt>export</dt><dd>write the brain out, for example <code>--obsidian</code></dd></div>
+      <div><dt>dream</dt><dd>report near-duplicate names</dd></div>
+      <div><dt>export</dt><dd>write the brain out as Obsidian notes</dd></div>
       <div><dt>sync</dt><dd>pull and push the brain file through git</dd></div>
+      <div><dt>serve</dt><dd>share the brain over HTTP: API, MCP, web app</dd></div>
+      <div><dt>whoami</dt><dd>which token the CLI uses on a server</dd></div>
     </dl>
   </section>
 

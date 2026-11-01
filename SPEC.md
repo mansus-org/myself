@@ -241,7 +241,7 @@ vault/project.md        vault/relay.md        vault/software.md
 | `GET /healthz` | `ok`, no auth. |
 | `/api/v1/...` | the REST API below. Everything under `/api/` answers JSON. |
 | `/mcp` | the MCP endpoint, see MCP below. |
-| `/app` | not registered yet (404). Reserved for the web UI. |
+| `GET /app`, `GET /app/...` | the web app: files embedded from `internal/server/web/`; every path that is not a file (except under `/app/assets/`) gets `index.html`, and the app routes itself. `/app` redirects to `/app/`. Served with a strict `Content-Security-Policy` (only same-origin scripts, styles, fonts and API calls; no inline code), `Cache-Control: no-cache` plus an `ETag` (fonts: one year, immutable). The app calls the API below with the token the reader pastes in, kept in `sessionStorage`, or `localStorage` if they tick "Remember on this device". |
 
 Every request is logged on stderr as one line: `<method> <path> <status> <duration> <token name or ->`. The query string and tokens are never logged.
 
