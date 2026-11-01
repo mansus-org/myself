@@ -69,6 +69,7 @@ type lsInput struct {
 type searchInput struct {
 	Q  string `json:"q" jsonschema:"text to find, case-insensitive, in subject, relation or object of live facts"`
 	At string `json:"at,omitempty" jsonschema:"as of this time (RFC 3339 or YYYY-MM-DD)"`
+	N  *int   `json:"n,omitempty" jsonschema:"keep only the first N matches"`
 }
 
 type pathInput struct {
@@ -189,7 +190,7 @@ func (s *Server) mcpServer(id Identity, cache *mcp.SchemaCache) *mcp.Server {
 			if in.Q == "" {
 				return mcpOut{}, brain.Usagef("search needs <text>")
 			}
-			res, err := brain.Search(st, in.Q, opt(in.At))
+			res, err := brain.Search(st, in.Q, opt(in.At), in.N)
 			return linesOut(res), err
 		})
 
