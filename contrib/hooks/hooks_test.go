@@ -514,3 +514,117 @@ func cleanEnv(extra ...string) []string {
 	}
 	return append(env, extra...)
 }
+
+func promptInput(prompt string) string {
+	b, _ := json.Marshal(map[string]string{"prompt": prompt, "session_id": "p1", "hook_event_name": "UserPromptSubmit"})
+	return string(b)
+}
+
+func recallBrain(e *env) {
+	e.myself("remember", "pragmatic-programmer", "is", "book")
+	e.myself("remember", "pragmatic-programmer", "has", "tip 10: communicate, writing is part of the craft")
+	e.myself("remember", "audience", "is", "concept")
+	e.myself("remember", "audience", "related", "pragmatic-programmer")
+	e.myself("remember", "relay", "uses", "bun")
+}
+
+func TestPromptRecallInjectsEntity(t *testing.T) {
+	parsers(t, func(t *testing.T, e *env) {
+		recallBrain(e)
+		out := e.hook("prompt-recall.sh", promptInput("Please rewrite the article, applying the Pragmatic-Programmer advice"))
+		for _, want := range []string{"What myself recalls for this prompt", "pragmatic-programmer\n  is book\n", "tip 10: communicate"} {
+			if !strings.Contains(out, want) {
+				t.Errorf("output missing %q:\n%s", want, out)
+			}
+		}
+		if strings.Contains(out, "relay") {
+			t.Errorf("unrelated entity recalled:\n%s", out)
+		}
+	})
+}
+
+func TestPromptRecallRanksByDistinctWords(t *testing.T) {
+	parsers(t, func(t *testing.T, e *env) {
+		e.myself("remember", "alpha", "has", "garden garden garden garden")
+		e.myself("remember", "beta", "has", "garden")
+		e.myself("remember", "beta", "has", "kettle")
+		out := e.hook("prompt-recall.sh", promptInput("garden kettle"))
+		a, b := strings.Index(out, "\nalpha\n"), strings.Index(out, "\nbeta\n")
+		if a < 0 || b < 0 || b > a {
+			t.Errorf("want beta (2 words) before alpha (1 word):\n%s", out)
+		}
+	})
+}
+
+func TestPromptRecallBudget(t *testing.T) {
+	parsers(t, func(t *testing.T, e *env) {
+		recallBrain(e)
+		e.myself("remember", "pragmatic-programmer", "has", strings.Repeat("long tip ", 100))
+		e.extra = []string{"MYSELF_RECALL_BUDGET=300"}
+		out := e.hook("prompt-recall.sh", promptInput("pragmatic programmer"))
+		if out == "" {
+			t.Fatal("want some output")
+		}
+		header, body, _ := strings.Cut(out, "\n")
+		if !strings.HasPrefix(header, "What myself recalls") || len(body) > 301 {
+			t.Errorf("body is %d characters, budget 300:\n%s", len(body), out)
+		}
+	})
+}
+
+func TestPromptRecallSilent(t *testing.T) {
+	parsers(t, func(t *testing.T, e *env) {
+		if out := e.hook("prompt-recall.sh", promptInput("pragmatic programmer")); out != "" {
+			t.Errorf("empty store: want no output, got %q", out)
+		}
+		recallBrain(e)
+		for name, in := range map[string]string{
+			"no match":   promptInput("zzzqqq nothing here"),
+			"stop words": promptInput("what is the one for you"),
+			"empty":      promptInput(""),
+			"no prompt":  `{"session_id":"p1"}`,
+			"not json":   "garbage",
+			"no stdin":   "",
+		} {
+			if out := e.hook("prompt-recall.sh", in); out != "" {
+				t.Errorf("%s: want no output, got %q", name, out)
+			}
+		}
+		e.extra = []string{"MYSELF_RECALL=off"}
+		if out := e.hook("prompt-recall.sh", promptInput("pragmatic programmer")); out != "" {
+			t.Errorf("MYSELF_RECALL=off: want no output, got %q", out)
+		}
+		e.extra = nil
+		e.bin = filepath.Join(t.TempDir(), "no-such-myself")
+		if out := e.hook("prompt-recall.sh", promptInput("pragmatic programmer")); out != "" {
+			t.Errorf("myself missing: want no output, got %q", out)
+		}
+	})
+}
+
+func TestPromptRecallRemoteMode(t *testing.T) {
+	const token = "hooks-test-admin"
+	e := newEnv(t)
+	srv, err := server.New(server.Config{File: filepath.Join(t.TempDir(), "remote.jsonl"), AdminHash: server.HashToken(token)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := httptest.NewServer(srv)
+	defer ts.Close()
+	e.extra = []string{"MYSELF_URL=" + ts.URL, "MYSELF_TOKEN=" + token}
+	e.store = filepath.Join(t.TempDir(), "unused.jsonl") // must not be touched
+
+	recallBrain(e)
+	out := e.hook("prompt-recall.sh", promptInput("what does the pragmatic programmer say"))
+	if !strings.Contains(out, "tip 10: communicate") {
+		t.Errorf("recall from the server missing:\n%s", out)
+	}
+	if _, err := os.Stat(e.store); err == nil {
+		t.Error("the local store was written in remote mode")
+	}
+
+	ts.Close()
+	if out := e.hook("prompt-recall.sh", promptInput("pragmatic programmer")); out != "" {
+		t.Errorf("server down: want no output, got %q", out)
+	}
+}
