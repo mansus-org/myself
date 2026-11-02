@@ -527,14 +527,69 @@ func TestPromptRecallBudget(t *testing.T) {
 	parsers(t, func(t *testing.T, e *env) {
 		recallBrain(e)
 		e.myself("remember", "pragmatic-programmer", "has", strings.Repeat("long tip ", 100))
+		e.myself("remember", "pragmatic-patterns", "has", "short fact")
 		e.extra = []string{"MYSELF_RECALL_BUDGET=300"}
-		out := e.hook("prompt-recall.sh", promptInput("pragmatic programmer"))
-		if out == "" {
-			t.Fatal("want some output")
+		out := e.hook("prompt-recall.sh", promptInput("pragmatic programmer patterns"))
+		if !strings.HasPrefix(out, "What myself recalls") || len(out) > 300 {
+			t.Errorf("output is %d characters, budget 300:\n%s", len(out), out)
 		}
-		header, body, _ := strings.Cut(out, "\n")
-		if !strings.HasPrefix(header, "What myself recalls") || len(body) > 301 {
-			t.Errorf("body is %d characters, budget 300:\n%s", len(body), out)
+		if !strings.Contains(out, "pragmatic-patterns\n  has short fact\n") {
+			t.Errorf("a big entity crowded out the next one:\n%s", out)
+		}
+	})
+}
+
+func TestPromptRecallSpecificWordBeatsCommonWord(t *testing.T) {
+	parsers(t, func(t *testing.T, e *env) {
+		// "project" hits 4 entities, "zebra" only one.
+		for _, n := range []string{"p1", "p2", "p3", "p4"} {
+			e.myself("remember", n, "is", "project")
+		}
+		e.myself("remember", "stripes", "has", "zebra crossing")
+		out := e.hook("prompt-recall.sh", promptInput("project zebra"))
+		s, p := strings.Index(out, "\nstripes\n"), strings.Index(out, "\np1\n")
+		if s < 0 || (p >= 0 && p < s) {
+			t.Errorf("want stripes (specific word) first:\n%s", out)
+		}
+
+		// A word that hits more than MYSELF_RECALL_MAX_HITS entities is dropped.
+		e.extra = []string{"MYSELF_RECALL_MAX_HITS=3"}
+		if out := e.hook("prompt-recall.sh", promptInput("project")); out != "" {
+			t.Errorf("common word: want no output, got %q", out)
+		}
+	})
+}
+
+func TestPromptRecallPluralFallback(t *testing.T) {
+	parsers(t, func(t *testing.T, e *env) {
+		e.myself("remember", "gardener", "has", "a kettle")
+		if out := e.hook("prompt-recall.sh", promptInput("kettles")); !strings.Contains(out, "\ngardener\n") {
+			t.Errorf("kettles should find kettle:\n%s", out)
+		}
+	})
+}
+
+func TestPromptRecallOnlySubjectsNoDuplicates(t *testing.T) {
+	parsers(t, func(t *testing.T, e *env) {
+		recallBrain(e) // "book" and "project" are only ever objects
+		out := e.hook("prompt-recall.sh", promptInput("pragmatic programmer book project concept"))
+		seen := map[string]bool{}
+		for _, line := range strings.Split(out, "\n")[1:] {
+			if line == "" || strings.HasPrefix(line, " ") {
+				continue
+			}
+			if seen[line] {
+				t.Errorf("entity %q printed twice:\n%s", line, out)
+			}
+			seen[line] = true
+		}
+		for _, typ := range []string{"book", "project", "concept"} {
+			if seen[typ] {
+				t.Errorf("type node %q printed:\n%s", typ, out)
+			}
+		}
+		if !seen["pragmatic-programmer"] {
+			t.Errorf("pragmatic-programmer missing:\n%s", out)
 		}
 	})
 }
