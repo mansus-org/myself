@@ -17,6 +17,7 @@ If `myself` is not installed (`command -v myself` fails), install it first: `cur
 - **Write** when something durable is learned: a new project, person or tool and how they relate, a decision with lasting effect, a correction to how you work.
 - **Session start:** a SessionStart hook may already have injected `myself prime`. If not, run `myself prime`.
 - **Session end:** see the rules below. A Stop hook may nudge you once.
+- **Each prompt:** a UserPromptSubmit hook may add "What myself recalls for this prompt", facts matched to the words of the prompt. Use them, and search or describe for more.
 
 ## Cheat sheet
 

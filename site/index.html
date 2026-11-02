@@ -311,6 +311,13 @@ storefront is project</span></code></pre>
         ]
       }
     ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "~/.myself/hooks/prompt-recall.sh", "timeout": 10 }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [
@@ -327,7 +334,8 @@ storefront is project</span></code></pre>
       <ul class="list">
         <li><code>session-start.sh</code> prints <code>myself prime --budget 4000</code>, which Claude Code adds to the session context. <code>MYSELF_PRIME_BUDGET</code> changes the budget.</li>
         <li><code>stop-nudge.sh</code> blocks the first stop of a session once, asking whether anything is worth remembering, but only if nothing was written to the brain since the session started and the session edited files, ran 3 or more Bash commands, or left uncommitted changes. <code>MYSELF_NUDGE=off</code> turns it off.</li>
-        <li>Both are POSIX sh and exit quietly when <code>myself</code> is missing or fails. If <code>~/.local/bin</code> is not on the hooks' <code>PATH</code>, set <code>MYSELF_BIN</code> to the full path of the binary.</li>
+        <li><code>prompt-recall.sh</code> runs on every prompt: it searches the brain for the prompt's key words and prints <code>myself describe</code> for the entities that match the most of them, up to <code>MYSELF_RECALL_BUDGET</code> characters (default 3000). It prints nothing when nothing matches. <code>MYSELF_RECALL=off</code> turns it off.</li>
+        <li>All are POSIX sh and exit quietly when <code>myself</code> is missing or fails. If <code>~/.local/bin</code> is not on the hooks' <code>PATH</code>, set <code>MYSELF_BIN</code> to the full path of the binary.</li>
         <li>Claude Code's own file-based auto-memory can take "remember..." requests first. Add <code>"env": { "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1" }</code> to the same file to leave it to myself.</li>
       </ul>
       <h3 class="h3" id="pi">Other harnesses: pi</h3>
