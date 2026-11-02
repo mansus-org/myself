@@ -683,3 +683,50 @@ func TestPromptRecallRemoteMode(t *testing.T) {
 		t.Errorf("server down: want no output, got %q", out)
 	}
 }
+
+func TestPromptRecallEntityMax(t *testing.T) {
+	parsers(t, func(t *testing.T, e *env) {
+		e.myself("remember", "big", "is", "zebra")
+		for i := 0; i < 30; i++ {
+			e.myself("remember", "big", "has", fmt.Sprintf("fact number %d about stripes", i))
+		}
+		e.extra = []string{"MYSELF_RECALL_ENTITY_MAX=200"}
+		out := e.hook("prompt-recall.sh", promptInput("stripes"))
+		_, body, _ := strings.Cut(out, "\n")
+		if !strings.Contains(out, "  … (myself describe big for all)\n") {
+			t.Errorf("want the pointer line:\n%s", out)
+		}
+		if len(body) > 200 || strings.Contains(out, "fact number 29") {
+			t.Errorf("entity is %d characters, cap 200:\n%s", len(body), out)
+		}
+		if !strings.Contains(out, "\nbig\n  is zebra\n  has fact number 0 about stripes\n") {
+			t.Errorf("want whole lines from the start:\n%s", out)
+		}
+	})
+}
+
+func TestPromptRecallHubPenalty(t *testing.T) {
+	parsers(t, func(t *testing.T, e *env) {
+		// Both are hit by "zebra" in one record; a-hub is mostly related links.
+		e.myself("remember", "a-hub", "has", "zebra")
+		for _, n := range []string{"x", "y", "z"} {
+			e.myself("remember", "a-hub", "related", n)
+		}
+		e.myself("remember", "z-leaf", "has", "zebra")
+		e.myself("remember", "z-leaf", "does", "graze")
+		out := e.hook("prompt-recall.sh", promptInput("zebra"))
+		h, l := strings.Index(out, "\na-hub\n"), strings.Index(out, "\nz-leaf\n")
+		if h < 0 || l < 0 || l > h {
+			t.Errorf("want z-leaf before a-hub:\n%s", out)
+		}
+	})
+}
+
+func TestPromptRecallWholeWordsOnly(t *testing.T) {
+	parsers(t, func(t *testing.T, e *env) {
+		e.myself("remember", "loom", "has", "threads")
+		if out := e.hook("prompt-recall.sh", promptInput("reads")); out != "" {
+			t.Errorf("substring hit: want no output, got %q", out)
+		}
+	})
+}
