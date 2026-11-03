@@ -136,8 +136,8 @@ func TestPrimeBudgets(t *testing.T) {
 			t.Errorf("budget %d: cut inside a line: %q", budget, text)
 		}
 	}
-	// Part A capped at 3/5 when an index follows: self does not fit in 40
-	// at 3/5 (24), so the first lines are cut and the header cannot fit.
+	// Part A capped at 3/4 when an index follows: self does not fit in 40
+	// at 3/4 (30), so the first lines are cut and the header cannot fit.
 	text, truncated := primeText(g, 40)
 	if !truncated || strings.Contains(text, "Also in the brain") {
 		t.Errorf("budget 40: truncated=%v\n%s", truncated, text)
@@ -188,5 +188,33 @@ func TestPrimeBudgetSweep(t *testing.T) {
 		if n := utf8.RuneCountInString(text); n > budget {
 			t.Fatalf("budget %d: len %d\n%s", budget, n, text)
 		}
+	}
+}
+
+func TestPrimeLineCap(t *testing.T) {
+	var triples []string
+	for i := 0; i < 30; i++ {
+		triples = append(triples, fmt.Sprintf("item-%02d is big", i), fmt.Sprintf("item-%02d has x", i))
+	}
+	triples = append(triples, "solo is small", "solo has x")
+	text, truncated := primeText(primeGraph(triples...), 1000)
+	if !truncated {
+		t.Error("not truncated")
+	}
+	// No self: Part B has the whole budget, so the cap is 1000/5 = 200.
+	var big, small string
+	for _, l := range strings.Split(text, "\n") {
+		switch {
+		case strings.HasPrefix(l, "  big ("):
+			big = l
+		case strings.HasPrefix(l, "  small ("):
+			small = l
+		}
+	}
+	if n := utf8.RuneCountInString(big); n > 200 || !strings.Contains(big, ", … +") {
+		t.Errorf("big line len %d: %q", n, big)
+	}
+	if small != "  small (1): solo" {
+		t.Errorf("small line missing: %q\n%s", small, text)
 	}
 }

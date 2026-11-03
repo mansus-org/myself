@@ -15,7 +15,7 @@
 #
 # Environment:
 #   MYSELF_BIN           myself binary (default: myself on PATH)
-#   MYSELF_PRIME_BUDGET  characters passed to `myself prime --budget` (default 4000)
+#   MYSELF_PRIME_BUDGET  characters passed to `myself prime --budget` (default 7000)
 #   MYSELF_FILE          brain file, passed through to myself
 #   MYSELF_URL, MYSELF_TOKEN  run against a myself server (remote mode); both are
 #                        passed through, so the hook primes from the server. An
@@ -24,7 +24,7 @@
 
 bin=${MYSELF_BIN:-myself}
 jq=${MYSELF_HOOKS_JQ:-jq}
-budget=${MYSELF_PRIME_BUDGET:-4000}
+budget=${MYSELF_PRIME_BUDGET:-7000}
 dir="${TMPDIR:-/tmp}/myself-hooks"
 
 input=$(cat 2>/dev/null) || input=

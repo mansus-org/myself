@@ -39,6 +39,9 @@ const primeHeader = "Also in the brain, not loaded (run `myself describe <name>`
 // primeOther is the index group of entities with no `is` record.
 const primeOther = "other"
 
+// primeMinLine is the least a type line of the index may be capped at.
+const primeMinLine = 60
+
 // primeMoreTypes is the index trailer when not every type line fits.
 func primeMoreTypes(k int) string {
 	return fmt.Sprintf("  … and %d more types (myself ls)", k)
@@ -54,9 +57,10 @@ func primeMoreTypes(k int) string {
 // listed under each; one with none goes last under `other`. Types are ordered
 // by the summed live record count of their members (descending, then name),
 // names within a type by their own count (descending, then name). A line that
-// does not fit loses names from its end and finishes with `, … +K`; types
-// after it are replaced by a primeMoreTypes trailer. Part A uses at most
-// budget*3/5 characters when Part B has at least one entry, otherwise the
+// does not fit, or is over the line cap, loses names from its end and
+// finishes with `, … +K`; types after a line cut by the budget are replaced
+// by a primeMoreTypes trailer. Part A uses at most
+// budget*3/4 characters when Part B has at least one entry, otherwise the
 // whole budget; Part B uses what is left. Every cut is at a line boundary,
 // and the total never exceeds budget.
 func primeText(g *graph.Graph, budget int) (text string, truncated bool) {
@@ -114,10 +118,10 @@ func primeText(g *graph.Graph, budget int) (text string, truncated bool) {
 	}
 
 	// When nothing is to be indexed, Part A may take the whole budget. If a
-	// cut entity then moves to the index, re-render Part A with the 3/5 cap.
+	// cut entity then moves to the index, re-render Part A with the 3/4 cap.
 	b, used, missing, cut := renderA(budget)
 	if len(candidates) > 0 || len(missing) > 0 {
-		b, used, missing, cut = renderA(budget * 3 / 5)
+		b, used, missing, cut = renderA(budget * 3 / 4)
 	}
 	truncated = cut
 
@@ -157,42 +161,50 @@ func primeText(g *graph.Graph, budget int) (text string, truncated bool) {
 		return a < c
 	})
 
-	// Fit the index into the budget Part A left, reserving room for the
+	// Fit the index into the budget Part A left. Each type line is capped at
+	// max(primeMinLine, B/5) characters, B being the room left for Part B, so
+	// one big type cannot take the whole index. Room is reserved for the
 	// primeMoreTypes trailer whenever types remain after a line.
 	if len(types) > 0 {
 		size := func(s string) int { return utf8.RuneCountInString(s) + 1 }
-		avail := budget - used - size(primeHeader)
+		room := budget - used
+		lineCap := max(primeMinLine, room/5)
+		avail := room - size(primeHeader)
 		n := len(types)
 		var lines []string
 		total := 0
-		more := false
 		for i, t := range types {
 			names := members[t]
 			reserve := 0
 			if i < n-1 {
 				reserve = size(primeMoreTypes(n - i - 1))
 			}
-			line := primeTypeLine(t, names, len(names))
-			if total+size(line)+reserve <= avail {
+			kcap := len(names)
+			for kcap > 1 && utf8.RuneCountInString(primeTypeLine(t, names, kcap)) > lineCap {
+				kcap--
+			}
+			placed, budgetCut := false, false
+			for k := kcap; k >= 1; k-- {
+				line := primeTypeLine(t, names, k)
+				if total+size(line)+reserve > avail {
+					continue
+				}
 				lines = append(lines, line)
 				total += size(line)
-				continue
-			}
-			more = true
-			for k := len(names) - 1; k >= 1; k-- {
-				line = primeTypeLine(t, names, k)
-				if total+size(line)+reserve <= avail {
-					lines = append(lines, line)
-					total += size(line)
-					break
+				placed, budgetCut = true, k < kcap
+				if k < len(names) {
+					truncated = true
 				}
+				break
 			}
-			break
+			if !placed || budgetCut {
+				break
+			}
 		}
 		rest := func() int { return n - len(lines) }
-		if more {
+		if rest() > 0 {
 			truncated = true
-			for len(lines) > 0 && rest() > 0 && total+size(primeMoreTypes(rest())) > avail {
+			for len(lines) > 0 && total+size(primeMoreTypes(rest())) > avail {
 				total -= size(lines[len(lines)-1])
 				lines = lines[:len(lines)-1]
 			}
