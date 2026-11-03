@@ -15,7 +15,7 @@
 #
 # Environment:
 #   MYSELF_BIN           myself binary (default: myself on PATH)
-#   MYSELF_PRIME_BUDGET  characters passed to `myself prime --budget` (default 4000)
+#   MYSELF_PRIME_BUDGET  characters passed to `myself prime --budget` (default 7000)
 #   MYSELF_FILE          brain file, passed through to myself
 #   MYSELF_URL, MYSELF_TOKEN  run against a myself server (remote mode); both are
 #                        passed through, so the hook primes from the server. An
@@ -24,7 +24,7 @@
 
 bin=${MYSELF_BIN:-myself}
 jq=${MYSELF_HOOKS_JQ:-jq}
-budget=${MYSELF_PRIME_BUDGET:-4000}
+budget=${MYSELF_PRIME_BUDGET:-7000}
 dir="${TMPDIR:-/tmp}/myself-hooks"
 
 input=$(cat 2>/dev/null) || input=
@@ -57,5 +57,5 @@ command -v "$bin" >/dev/null 2>&1 || exit 0
 text=$("$bin" prime --budget "$budget" 2>/dev/null) || exit 0
 [ -n "$text" ] || exit 0
 
-printf 'What myself remembers (`myself prime`; query more with myself describe|search|path|log):\n%s\n' "$text"
+printf 'What myself remembers (`myself prime`; entities listed by name only are not loaded: run `myself describe <name>` before working on one; also search|path|log):\n%s\n' "$text"
 exit 0

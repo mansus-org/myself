@@ -15,7 +15,7 @@ If `myself` is not installed (`command -v myself` fails), install it first: `cur
 
 - **Recall** before guessing: a name you don't recognise, "what do you know about X", "how does X relate to Y", "what happened lately".
 - **Write** when something durable is learned: a new project, person or tool and how they relate, a decision with lasting effect, a correction to how you work.
-- **Session start:** a SessionStart hook may already have injected `myself prime`. If not, run `myself prime`.
+- **Session start:** a SessionStart hook may already have injected `myself prime`. If not, run `myself prime`. It shows `self` and its neighbours in full and lists every other entity by name only; before working on a project, repo, person or tool named there (or in the task), run `myself describe <name>` first.
 - **Session end:** see the rules below. A Stop hook may nudge you once.
 
 ## Cheat sheet

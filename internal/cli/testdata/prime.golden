@@ -23,34 +23,26 @@ remembered <uuid-3>
 0
 $ myself prime
 --- stdout
-project
-  is software
-  <- is: relay
-relay
-  is project
-  uses bun
-software
-  <- is: project
+Also in the brain, not loaded (run `myself describe <name>` before working on any of these, or before saying you don't know about one):
+  project (1): relay
+  software (1): project
 --- stderr
 --- exit
 0
 $ myself prime --budget 40
 --- stdout
-project
-  is software
-  <- is: relay
 --- stderr
 --- exit
 0
 $ myself prime --budget 40 --json
 --- stdout
-{"budget":40,"truncated":true,"text":"project\n  is software\n  <- is: relay\n"}
+{"budget":40,"truncated":true,"text":""}
 --- stderr
 --- exit
 0
 $ myself prime --json
 --- stdout
-{"budget":2000,"truncated":false,"text":"project\n  is software\n  <- is: relay\nrelay\n  is project\n  uses bun\nsoftware\n  <- is: project\n"}
+{"budget":2000,"truncated":false,"text":"Also in the brain, not loaded (run `myself describe <name>` before working on any of these, or before saying you don't know about one):\n  project (1): relay\n  software (1): project\n"}
 --- stderr
 --- exit
 0

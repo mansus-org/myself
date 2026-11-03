@@ -49,27 +49,10 @@ mansus
   <- self related
 solo
   related self
-zeta
-  has a
-  has b
-  has c
-  has d
-tool
-  <- is: alpha, beta, gamma
-alpha
-  is tool
-beta
-  is tool
-gamma
-  is tool
-org
-  <- is: mansus
-person
-  <- is: felipe
-project
-  <- is: relay
-relay
-  is project
+Also in the brain, not loaded (run `myself describe <name>` before working on any of these, or before saying you don't know about one):
+  tool (3): alpha, beta, gamma
+  project (1): relay
+  other (1): zeta
 --- stderr
 --- exit
 0
@@ -78,7 +61,6 @@ $ myself prime --budget 60
 self
   is agent
   related felipe
-  related mansus
 --- stderr
 --- exit
 0
