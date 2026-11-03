@@ -72,26 +72,30 @@ func newServeCmd(cfg *Config) *cobra.Command {
 				return StoreErr(err)
 			}
 			fmt.Fprintf(stderr, "serving %s on %s\n", cfg.File, ln.Addr())
-
-			hs := &http.Server{Handler: srv, ReadHeaderTimeout: 10 * time.Second}
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
-			errc := make(chan error, 1)
-			go func() { errc <- hs.Serve(ln) }()
-			select {
-			case err := <-errc:
-				return StoreErr(err)
-			case <-ctx.Done():
-			}
-			shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-			if err := hs.Shutdown(shutdown); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				return StoreErr(err)
-			}
-			return nil
+			return runServer(ctx, srv, ln)
 		},
 	}
 	cmd.Flags().StringVar(&addr, "addr", ":8080", "address to listen on")
 	cmd.Flags().StringVar(&site, "site", "", "directory served at / (default: the embedded landing page)")
 	return cmd
+}
+
+// runServer serves srv on ln until ctx is done, then shuts down cleanly.
+func runServer(ctx context.Context, srv http.Handler, ln net.Listener) error {
+	hs := &http.Server{Handler: srv, ReadHeaderTimeout: 10 * time.Second}
+	errc := make(chan error, 1)
+	go func() { errc <- hs.Serve(ln) }()
+	select {
+	case err := <-errc:
+		return StoreErr(err)
+	case <-ctx.Done():
+	}
+	shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := hs.Shutdown(shutdown); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return StoreErr(err)
+	}
+	return nil
 }

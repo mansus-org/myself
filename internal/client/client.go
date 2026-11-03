@@ -328,3 +328,16 @@ func (c *Client) serverError(status int, data []byte) error {
 	}
 	return &brain.ExitError{Code: code, Err: errors.New(eb.Error)}
 }
+
+// LoginCode is a one-time code that signs the web app in as the caller.
+type LoginCode struct {
+	Code    string `json:"code"`
+	Expires string `json:"expires"`
+}
+
+// LoginCode asks the server for a one-time web login code.
+func (c *Client) LoginCode() (LoginCode, error) {
+	var out LoginCode
+	err := c.post("/api/v1/login-codes", struct{}{}, &out)
+	return out, err
+}
