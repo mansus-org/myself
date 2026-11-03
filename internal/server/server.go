@@ -30,6 +30,7 @@ type Server struct {
 	mux       *http.ServeMux
 	cache     *cache
 	tokens    *Tokens
+	logins    *logins
 	adminHash string
 	log       *log.Logger
 	now       func() time.Time
@@ -59,6 +60,7 @@ func New(cfg Config) (*Server, error) {
 		mux:       http.NewServeMux(),
 		cache:     &cache{path: cfg.File},
 		tokens:    tokens,
+		logins:    newLogins(),
 		adminHash: cfg.AdminHash,
 		log:       log.New(out, "", log.LstdFlags|log.LUTC),
 		now:       now,
