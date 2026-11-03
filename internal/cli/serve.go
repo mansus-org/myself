@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -83,8 +84,27 @@ func newServeCmd(cfg *Config) *cobra.Command {
 }
 
 // runServer serves srv on ln until ctx is done, then shuts down cleanly.
+//
+// Shutdown only closes idle connections, and it counts a connection that has
+// not sent a request yet (a browser's spare preconnect, an HTTP client's extra
+// dial) as idle after 5 seconds. Those are closed at once instead, or Ctrl-C
+// would hang for 5 seconds.
 func runServer(ctx context.Context, srv http.Handler, ln net.Listener) error {
-	hs := &http.Server{Handler: srv, ReadHeaderTimeout: 10 * time.Second}
+	var mu sync.Mutex
+	fresh := map[net.Conn]struct{}{} // accepted, no request yet
+	hs := &http.Server{
+		Handler:           srv,
+		ReadHeaderTimeout: 10 * time.Second,
+		ConnState: func(c net.Conn, st http.ConnState) {
+			mu.Lock()
+			defer mu.Unlock()
+			if st == http.StateNew {
+				fresh[c] = struct{}{}
+			} else {
+				delete(fresh, c)
+			}
+		},
+	}
 	errc := make(chan error, 1)
 	go func() { errc <- hs.Serve(ln) }()
 	select {
@@ -92,6 +112,11 @@ func runServer(ctx context.Context, srv http.Handler, ln net.Listener) error {
 		return StoreErr(err)
 	case <-ctx.Done():
 	}
+	mu.Lock()
+	for c := range fresh {
+		c.Close()
+	}
+	mu.Unlock()
 	shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := hs.Shutdown(shutdown); err != nil && !errors.Is(err, http.ErrServerClosed) {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -235,5 +236,38 @@ func TestGraphWebRemoteErrors(t *testing.T) {
 	errb.Reset()
 	if code := Execute([]string{"graph", "--web"}, &out, &errb); code != ExitStore || !strings.Contains(errb.String(), "does not support web login links") || out.Len() != 0 {
 		t.Fatalf("old server: exit %d, stderr %q", code, errb.String())
+	}
+}
+
+// A connection that never sent a request (a browser's spare preconnect, or an
+// HTTP client's extra dial) must not hold up shutdown: net/http only counts
+// such a connection as idle after 5 seconds.
+func TestRunServerStopsWithUnusedConnection(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { done <- runServer(ctx, http.NewServeMux(), ln) }()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	// Make sure the server has accepted it before stopping.
+	time.Sleep(200 * time.Millisecond)
+
+	start := time.Now()
+	cancel()
+	select {
+	case err := <-done:
+		if err != nil || time.Since(start) > 2*time.Second {
+			t.Fatalf("stop: %v after %v", err, time.Since(start))
+		}
+	case <-time.After(8 * time.Second):
+		t.Fatal("did not stop")
 	}
 }
