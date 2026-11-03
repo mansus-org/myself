@@ -90,6 +90,7 @@ myself export --obsidian <dir>
 myself sync [--export DIR]
 myself merge-driver <base> <ours> <theirs>
 myself serve [--addr ADDR] [--site DIR]
+myself graph --web [--addr ADDR] [--open]
 myself whoami
 ```
 
@@ -109,6 +110,7 @@ Global flags: `--file PATH`, `--json`, `--url URL`, `--token TOKEN` (remote mode
 - `sync [--export DIR]`: backs the store up with git. The store directory (that of the resolved file) must be a git work tree, else it prints setup instructions on stderr and exits 1. It sets the merge driver config and the `.gitattributes` line, commits the store as `myself: N records since last sync`, then `git pull --rebase` (falling back to a merge) and `git push` if a remote exists. `--export DIR` runs `export --obsidian DIR` after pulling. Git missing or failing exits 3.
 - `merge-driver <base> <ours> <theirs>`: git merge driver (`%O %A %B`); writes the union of the complete lines of all three, sorted by `uuid`, to `<ours>`. Exit 1 on I/O errors.
 - `serve [--addr ADDR] [--site DIR]`: serves the store over HTTP (section 10) on `ADDR` (default `:8080`) until SIGINT or SIGTERM. `serve` is local only: if `--token`/`MYSELF_TOKEN` or `--url`/`MYSELF_URL` is set it prints a warning on stderr (the token is the client token, the admin token is checked against `MYSELF_ADMIN_TOKEN_SHA256`; the URL is ignored) and carries on. Exit 1 if `MYSELF_ADMIN_TOKEN_SHA256` is set but not 64 hex characters, 3 if the address cannot be bound or `tokens.json` cannot be read.
+- `graph --web [--addr ADDR] [--open]`: prints one link that opens the graph page of the web app, signed in, with no token to paste (section 10, Login links). Without `--web` it exits 1 (`graph needs --web: ...`). The link goes to stdout, everything else to stderr. `--open` (default: on when `xdg-open` or `open` exists and stdout is a terminal) opens it in the browser. Local mode (no URL): serves the store like `serve`, on `ADDR` (default `127.0.0.1:0`, a free port), with an admin token generated at startup that exists only as its hash in memory and is never printed, written or put in the environment; the link is `http://127.0.0.1:PORT/app/#login=<code>`; it runs until SIGINT or SIGTERM. If a myself server already answers on `ADDR` it exits 1 instead of guessing at its token. Remote mode (`MYSELF_URL`): starts nothing, calls `POST /api/v1/login-codes` with `MYSELF_TOKEN`, prints `<url>/app/#login=<code>` and exits; a server without the endpoint is exit 3 `... does not support web login links`, a missing token is exit 1.
 - `whoami`: prints who the commands act as. Local: `local store <path>`. Remote (section 10): three lines `name <name>`, `scope <read|write>`, `admin <true|false>`.
 
 ## 6. Output
@@ -241,7 +243,7 @@ vault/project.md        vault/relay.md        vault/software.md
 | `GET /healthz` | `ok`, no auth. |
 | `/api/v1/...` | the REST API below. Everything under `/api/` answers JSON. |
 | `/mcp` | the MCP endpoint, see MCP below. |
-| `GET /app`, `GET /app/...` | the web app: files embedded from `internal/server/web/`; every path that is not a file (except under `/app/assets/`) gets `index.html`, and the app routes itself. `/app` redirects to `/app/`. Served with a strict `Content-Security-Policy` (only same-origin scripts, styles, fonts and API calls; no inline code), `Cache-Control: no-cache` plus an `ETag` (fonts: one year, immutable). The app calls the API below with the token the reader pastes in, kept in `sessionStorage`, or `localStorage` if they tick "Remember on this device". |
+| `GET /app`, `GET /app/...` | the web app: files embedded from `internal/server/web/`; every path that is not a file (except under `/app/assets/`) gets `index.html`, and the app routes itself. `/app` redirects to `/app/`. Served with a strict `Content-Security-Policy` (only same-origin scripts, styles, fonts and API calls; no inline code), `Cache-Control: no-cache` plus an `ETag` (fonts: one year, immutable). The app calls the API below with the token the reader pastes in, kept in `sessionStorage`, or `localStorage` if they tick "Remember on this device"; or with the session from a login link (Auth below), kept in `sessionStorage`. |
 
 Every request is logged on stderr as one line: `<method> <path> <status> <duration> <token name or ->`. The query string and tokens are never logged.
 
@@ -251,11 +253,12 @@ Every request is logged on stderr as one line: `<method> <path> <status> <durati
 - **Admin token:** the token whose sha256 (lowercase hex) equals the env `MYSELF_ADMIN_TOKEN_SHA256`, compared in constant time. The server never sees the plaintext anywhere else. Admin has write scope and is the only caller of import and the token endpoints.
 - **Agent tokens:** `mys_` followed by 64 hex characters (32 random bytes), created by the admin with scope `read` or `write`. Only their sha256 is stored, in `tokens.json` next to the store file (mode 0600, written to a temp file and renamed, under a flock on `tokens.json.lock`). `last_used` is updated at most once a minute. Deleting a token revokes it immediately.
 - **Scopes:** `read` may call every `GET` endpoint. `write` may also call `remember` and `forget`. Admin-only: `import` and `tokens`.
+- **Login links:** `POST /api/v1/login-codes` (any valid token) returns a single-use code (`mysl_` and 64 hex characters, 2 minutes). The web app opens it from `<base>/app/#login=<code>`: the code is in the URL fragment, so it is never sent in a request or logged; the app removes it from the address bar, then calls `POST /api/v1/login-codes/redeem` (no auth, the code is the credential) and keeps the returned session token (`myss_`, 12 hours) in `sessionStorage`. A session is a bearer token for the API with the identity of the token that made the code (an admin code gives an admin session, a read token a read session). Codes and sessions live in memory only, keyed by their sha256 and compared in constant time; a restart ends them. A session outlives the revocation of the token that made it, up to 12 hours. At most 1000 of each are held.
 - If `MYSELF_ADMIN_TOKEN_SHA256` is unset or empty, every `/api/` and `/mcp` request answers 503 (`/` and `/healthz` still work). The server never runs open.
 
 ### Responses and errors
 
-- Success: status 200 (201 for a created token), `Content-Type: application/json`, the section 6 shape of the command as one compact JSON value (no HTML escaping) and a newline.
+- Success: status 200 (201 for a created token or login code), `Content-Type: application/json`, the section 6 shape of the command as one compact JSON value (no HTML escaping) and a newline.
 - Warnings that the CLI prints on stderr (corrupt lines, the `"is"` sentence warning) are added as a last field `"warnings":["..."]` to an object body, without the `warning: ` prefix. The field is absent when there are none.
 - Errors: `{"error":"<message>","exit_code":N}`. The message is what the CLI prints after `error: `.
 
@@ -264,7 +267,7 @@ Every request is logged on stderr as one line: `<method> <path> <status> <durati
 | 400 | 1 | usage: bad parameter, bad body, unknown relation, empty object, bad `at` |
 | 404 | 2 | not found (as in section 6); also an unknown `/api/` route |
 | 500 | 3 | store error: unreadable or unwritable file, lock timeout |
-| 401 | 3 | missing, invalid or revoked token (with `WWW-Authenticate: Bearer`) |
+| 401 | 3 | missing, invalid or revoked token, or an expired session (with `WWW-Authenticate: Bearer`) |
 | 403 | 3 | the token lacks the scope (`write`, or admin) |
 | 503 | 3 | `MYSELF_ADMIN_TOKEN_SHA256` is not set |
 
@@ -294,6 +297,8 @@ Query parameters map to the CLI flags. A parameter that is present but empty cou
 | `GET /api/v1/tokens` | admin | | `[{"id","name","scope","created","last_used"},...]`, oldest first; `last_used` is null until first use |
 | `POST /api/v1/tokens` | admin | | request `{"name":"claude-runner","scope":"write"}`; reply 201, the listed fields plus `"token":"mys_..."`, the only time the plaintext is returned |
 | `DELETE /api/v1/tokens/{id}` | admin | | `{"deleted":"<id>"}`; 404 `unknown token "<id>"` |
+| `POST /api/v1/login-codes` | read (any valid token or session) | | no body; reply 201 `{"code":"mysl_...","expires":"<RFC 3339>"}`; 429 while 1000 codes are pending |
+| `POST /api/v1/login-codes/redeem` | none | | request `{"code":"mysl_..."}`; reply `{"token":"myss_...","expires":"<RFC 3339>","name","scope","admin"}`; the code is spent. 401 `invalid, used or expired login code`; 503 while disabled |
 
 Details:
 
