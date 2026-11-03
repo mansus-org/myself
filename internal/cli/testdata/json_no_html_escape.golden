@@ -12,7 +12,7 @@ remembered <uuid-2>
 0
 $ myself prime --json
 --- stdout
-{"budget":2000,"truncated":false,"text":"a\n  uses x < y && z > w\n  <- is: b\nb\n  is a\n"}
+{"budget":2000,"truncated":false,"text":"Also in the brain, not loaded (run `myself describe <name>` before working on any of these, or before saying you don't know about one):\n  a (2 facts)\n  b (a; 1 fact)\n"}
 --- stderr
 --- exit
 0
