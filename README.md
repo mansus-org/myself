@@ -198,6 +198,7 @@ Arguments are positional and everything after the relation is the object, so quo
 | `prime [--budget CHARS]` | compact summary to paste into an agent context |
 | `dream` | report near-duplicate subjects (read-only) |
 | `serve [--addr :8080] [--site DIR]` | serve the brain over HTTP (see [Server](#server)) |
+| `graph --web [--addr ADDR] [--open]` | print a link that opens the graph in the web app, signed in (see [Web app](#web-app)) |
 | `export --obsidian <dir>` | write one Markdown note per entity |
 | `sync [--export DIR]` | back the store up with git |
 | `merge-driver <base> <ours> <theirs>` | git merge driver used by `sync` |
@@ -319,6 +320,8 @@ myself prime
 ### Web app
 
 `/app` is a web app for the same brain, built into the binary (plain ES modules and CSS from `internal/server/web/`, no build step). Sign in by pasting a token, admin or agent; it stays in the tab unless you tick "Remember on this device". A read token can browse, a write token can also add and forget facts, and only the admin token sees the Tokens page.
+
+**One command to the graph.** `myself graph --web` prints a link that opens the Graph page already signed in, with nothing to start or paste. On a local store it serves the brain on `127.0.0.1` (a free port, or `--addr`) with a throwaway admin token kept in memory, opens your browser if it can, and stops on Ctrl-C. With `MYSELF_URL` and `MYSELF_TOKEN` set it asks that server for a login code, prints `<url>/app/#login=<code>` and exits. The link holds a one-time code (valid 2 minutes, in the URL fragment so it is not sent or logged), not your token; the app trades it for a 12-hour session of the same scope as the token that made it. Needs a server that has `POST /api/v1/login-codes`.
 
 - **Entities**: every entity with its types, a name filter and type buttons (`ls`). An entity page shows its facts both ways (`describe`), a depth control, "as of" time travel (`--at`), and its history with forgotten facts struck through and their reasons. A write token gets a Forget button on each fact.
 - **Graph**: the whole graph (`/api/v1/graph`) as a force layout. Drag, zoom, hover for neighbours, click to open; Find focuses an entity, Type dithers everything else.

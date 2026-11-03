@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -72,26 +73,54 @@ func newServeCmd(cfg *Config) *cobra.Command {
 				return StoreErr(err)
 			}
 			fmt.Fprintf(stderr, "serving %s on %s\n", cfg.File, ln.Addr())
-
-			hs := &http.Server{Handler: srv, ReadHeaderTimeout: 10 * time.Second}
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
-			errc := make(chan error, 1)
-			go func() { errc <- hs.Serve(ln) }()
-			select {
-			case err := <-errc:
-				return StoreErr(err)
-			case <-ctx.Done():
-			}
-			shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-			if err := hs.Shutdown(shutdown); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				return StoreErr(err)
-			}
-			return nil
+			return runServer(ctx, srv, ln)
 		},
 	}
 	cmd.Flags().StringVar(&addr, "addr", ":8080", "address to listen on")
 	cmd.Flags().StringVar(&site, "site", "", "directory served at / (default: the embedded landing page)")
 	return cmd
+}
+
+// runServer serves srv on ln until ctx is done, then shuts down cleanly.
+//
+// Shutdown only closes idle connections, and it counts a connection that has
+// not sent a request yet (a browser's spare preconnect, an HTTP client's extra
+// dial) as idle after 5 seconds. Those are closed at once instead, or Ctrl-C
+// would hang for 5 seconds.
+func runServer(ctx context.Context, srv http.Handler, ln net.Listener) error {
+	var mu sync.Mutex
+	fresh := map[net.Conn]struct{}{} // accepted, no request yet
+	hs := &http.Server{
+		Handler:           srv,
+		ReadHeaderTimeout: 10 * time.Second,
+		ConnState: func(c net.Conn, st http.ConnState) {
+			mu.Lock()
+			defer mu.Unlock()
+			if st == http.StateNew {
+				fresh[c] = struct{}{}
+			} else {
+				delete(fresh, c)
+			}
+		},
+	}
+	errc := make(chan error, 1)
+	go func() { errc <- hs.Serve(ln) }()
+	select {
+	case err := <-errc:
+		return StoreErr(err)
+	case <-ctx.Done():
+	}
+	mu.Lock()
+	for c := range fresh {
+		c.Close()
+	}
+	mu.Unlock()
+	shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := hs.Shutdown(shutdown); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return StoreErr(err)
+	}
+	return nil
 }

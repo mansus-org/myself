@@ -45,6 +45,8 @@ func (s *Server) registerAPI() {
 	api("GET /api/v1/tokens", Admin, s.listTokens)
 	api("POST /api/v1/tokens", Admin, s.createToken)
 	api("DELETE /api/v1/tokens/{id}", Admin, s.deleteToken)
+	api("POST /api/v1/login-codes", Read, s.createLoginCode)
+	s.mux.HandleFunc("POST /api/v1/login-codes/redeem", s.redeemLoginCode)
 	// Anything else under /api is a JSON 404 (or 503 while disabled).
 	s.mux.Handle("/api/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if s.adminHash == "" {

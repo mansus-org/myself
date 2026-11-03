@@ -61,6 +61,7 @@ func newRoot(stdout, stderr io.Writer) *cobra.Command {
 		newMergeDriverCmd(),
 		newWhoamiCmd(cfg),
 		newServeCmd(cfg),
+		newGraphCmd(cfg),
 	)
 	return root
 }

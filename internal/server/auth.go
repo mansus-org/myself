@@ -83,6 +83,12 @@ func (s *Server) authenticate(r *http.Request) (Identity, error) {
 	if subtle.ConstantTimeCompare([]byte(HashToken(token)), []byte(s.adminHash)) == 1 {
 		return Identity{Name: AdminName, Scope: ScopeWrite, Admin: true}, nil
 	}
+	if strings.HasPrefix(token, sessionPrefix) {
+		if id, ok := s.session(token); ok {
+			return id, nil
+		}
+		return Identity{}, &authError{http.StatusUnauthorized, "invalid or expired session"}
+	}
 	info, ok, err := s.tokens.Check(token, s.now())
 	if err != nil {
 		s.log.Printf("tokens: saving last_used: %v", err)

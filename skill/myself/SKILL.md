@@ -34,6 +34,7 @@ myself log [--since TIME] [-n N]        # every record in order, forgets include
 myself history <subject> [<relation>]   # all records ever for a subject, forgotten ones too
 myself prime [--budget CHARS]           # compact brain summary for context
 myself dream                            # report near-duplicate subjects; writes nothing
+myself graph --web                      # print (and open) a one-time link to the graph in the web UI
 myself export --obsidian <dir>          # one markdown note per entity
 ```
 

@@ -91,3 +91,35 @@ export function graph() {
 export function dropGraph() {
   graphP = null;
 }
+
+// takeLoginCode returns the one-time code from a #login=<code> fragment and
+// removes the fragment from the address bar, so it is not left in history.
+export function takeLoginCode() {
+  const code = new URLSearchParams(location.hash.slice(1)).get("login");
+  if (code === null) return "";
+  history.replaceState(null, "", location.pathname + location.search);
+  return code;
+}
+
+// redeemLogin trades a login code for a session token.
+export async function redeemLogin(code) {
+  let res;
+  try {
+    res = await fetch("/api/v1/login-codes/redeem", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ code }),
+      cache: "no-store",
+    });
+  } catch {
+    throw new APIError(0, "Can't reach the server. Check your connection and try again.", 0);
+  }
+  let data = null;
+  try {
+    data = await res.json();
+  } catch {
+    // Handled below by status.
+  }
+  if (res.ok && data && data.token) return data.token;
+  throw new APIError(res.status, data && data.error ? data.error : `The server answered ${res.status}.`, data && data.exit_code);
+}
