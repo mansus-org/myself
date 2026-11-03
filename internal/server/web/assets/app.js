@@ -1,5 +1,5 @@
 // The myself web app: sign-in, chrome and a small history router over /app.
-import { api, auth } from "./api.js";
+import { api, auth, takeLoginCode, redeemLogin } from "./api.js";
 import { h, put, state, errorText } from "./dom.js";
 import { mBitmap } from "./bitmap.js";
 import { entitiesPage, entityPage, searchPage, logPage, primePage, dreamPage } from "./pages.js";
@@ -218,6 +218,18 @@ function signIn(message) {
 }
 
 async function boot() {
+  // A link from `myself graph --web`: sign in with its one-time code, land on the graph.
+  const code = takeLoginCode();
+  if (code) {
+    try {
+      auth.save(await redeemLogin(code), false);
+      history.replaceState(null, "", "/app/graph");
+    } catch (err) {
+      return signIn(err.status === 401
+        ? "That login link was already used or has expired. Run the command again for a new one, or paste a token."
+        : errorText(err));
+    }
+  }
   if (!auth.token) return signIn();
   try {
     auth.identity = await api("whoami");
