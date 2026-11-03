@@ -24,8 +24,8 @@ remembered <uuid-3>
 $ myself prime
 --- stdout
 Also in the brain, not loaded (run `myself describe <name>` before working on any of these, or before saying you don't know about one):
-  project (software; 2 facts)
-  relay (project; 2 facts)
+  project (1): relay
+  software (1): project
 --- stderr
 --- exit
 0
@@ -42,7 +42,7 @@ $ myself prime --budget 40 --json
 0
 $ myself prime --json
 --- stdout
-{"budget":2000,"truncated":false,"text":"Also in the brain, not loaded (run `myself describe <name>` before working on any of these, or before saying you don't know about one):\n  project (software; 2 facts)\n  relay (project; 2 facts)\n"}
+{"budget":2000,"truncated":false,"text":"Also in the brain, not loaded (run `myself describe <name>` before working on any of these, or before saying you don't know about one):\n  project (1): relay\n  software (1): project\n"}
 --- stderr
 --- exit
 0

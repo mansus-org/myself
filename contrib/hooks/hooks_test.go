@@ -187,7 +187,7 @@ func TestSessionStartInjectsPrime(t *testing.T) {
 		e.myself("remember", "relay", "is", "project")
 		e.myself("remember", "i", "does", "a coding agent that keeps notes in myself")
 		out := e.hook("session-start.sh", startInput("s1"))
-		for _, want := range []string{"`myself prime`", "Also in the brain, not loaded", "\n  relay (project; 1 fact)\n", "self\n  does a coding agent that keeps notes in myself\n"} {
+		for _, want := range []string{"`myself prime`", "Also in the brain, not loaded", "\n  project (1): relay\n", "self\n  does a coding agent that keeps notes in myself\n"} {
 			if !strings.Contains(out, want) {
 				t.Errorf("output missing %q:\n%s", want, out)
 			}
@@ -439,7 +439,7 @@ func TestRemoteMode(t *testing.T) {
 	e.myself("remember", "relay", "is", "project")
 	time.Sleep(1100 * time.Millisecond) // start marker has second precision
 	out := e.hook("session-start.sh", startInput("r1"))
-	if !strings.Contains(out, "\n  relay (project; 1 fact)\n") {
+	if !strings.Contains(out, "\n  project (1): relay\n") {
 		t.Errorf("prime from the server missing:\n%s", out)
 	}
 	tr := transcript(t, "Write")

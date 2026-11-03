@@ -41,6 +41,8 @@ var primeFixture = []string{
 	"scratch has a lone fact",
 }
 
+const primeTestHeader = "Also in the brain, not loaded (run `myself describe <name>` before working on any of these, or before saying you don't know about one):\n"
+
 func TestPrimeIndexOrderAndFormat(t *testing.T) {
 	text, truncated := primeText(primeGraph(primeFixture...), 4000)
 	if truncated {
@@ -49,37 +51,74 @@ func TestPrimeIndexOrderAndFormat(t *testing.T) {
 	want := "self\n  is agent\n  related felipe\n" +
 		"agent\n  <- is: self\n" +
 		"felipe\n  is person\n  has a long note\n  <- self related\n" +
-		"Also in the brain, not loaded (run `myself describe <name>` before working on any of these, or before saying you don't know about one):\n" +
-		"  casa-mimosa (place, project; 3 facts)\n" +
-		"  relay (project; 3 facts)\n" +
-		"  bun (tool; 1 fact)\n" +
-		"  scratch (1 fact)\n"
+		primeTestHeader +
+		"  project (2): casa-mimosa, relay\n" +
+		"  place (1): casa-mimosa\n" +
+		"  tool (1): bun\n" +
+		"  other (1): scratch\n"
 	if text != want {
 		t.Errorf("got:\n%s\nwant:\n%s", text, want)
 	}
-	for _, typ := range []string{"  project (", "  person (", "  place (", "  tool ("} {
+	for _, typ := range []string{"  person (", "  agent ("} {
 		if strings.Contains(text, typ) {
 			t.Errorf("type node indexed: %q", typ)
 		}
+	}
+	if strings.Contains(text, "fact") {
+		t.Errorf("fact counts in the index:\n%s", text)
+	}
+}
+
+func TestPrimeIndexOrderByMemberCount(t *testing.T) {
+	// big is a type with one heavy member; many has three light ones, but
+	// fewer records in total.
+	g := primeGraph(
+		"a is many", "a has x",
+		"b is many", "b has x",
+		"c is many", "c has x",
+		"h is big", "h has 1", "h has 2", "h has 3", "h has 4", "h has 5", "h has 6", "h has 7",
+		"z has x", "y has x", "y has z",
+	)
+	text, _ := primeText(g, 4000)
+	want := primeTestHeader +
+		"  big (1): h\n" +
+		"  many (3): a, b, c\n" +
+		"  other (2): y, z\n"
+	if text != want {
+		t.Errorf("got:\n%s\nwant:\n%s", text, want)
 	}
 }
 
 func TestPrimeIndexMore(t *testing.T) {
 	g := primeGraph(primeFixture...)
 	full, _ := primeText(g, 4000)
-	// Leave room for one index line and the trailer: a "… and K more" line
-	// naming the other three.
-	j := strings.Index(full, "  relay (")
-	budget := utf8.RuneCountInString(full[:j]) + utf8.RuneCountInString(primeMore(3)) + 1
+	// Room for the project line and the trailer for the three other types.
+	j := strings.Index(full, "  place (")
+	budget := utf8.RuneCountInString(full[:j]) + utf8.RuneCountInString(primeMoreTypes(3)) + 1
 	text, truncated := primeText(g, budget)
 	if !truncated {
 		t.Error("not truncated")
 	}
-	if !strings.HasSuffix(text, "  casa-mimosa (place, project; 3 facts)\n  … and 3 more (myself ls, myself search <text>)\n") {
+	if !strings.HasSuffix(text, "  project (2): casa-mimosa, relay\n  … and 3 more types (myself ls)\n") {
 		t.Errorf("missing trailer:\n%s", text)
 	}
-	if strings.Contains(text, "scratch") || strings.Contains(text, "relay (") {
-		t.Errorf("cut lines present:\n%s", text)
+	if n := utf8.RuneCountInString(text); n > budget {
+		t.Errorf("len %d > budget %d", n, budget)
+	}
+}
+
+func TestPrimeIndexShortLine(t *testing.T) {
+	g := primeGraph(primeFixture...)
+	full, _ := primeText(g, 4000)
+	j := strings.Index(full, "  project (")
+	short := "  project (2): casa-mimosa, … +1"
+	budget := utf8.RuneCountInString(full[:j]) + utf8.RuneCountInString(short) + 1 + utf8.RuneCountInString(primeMoreTypes(3)) + 1
+	text, truncated := primeText(g, budget)
+	if !truncated {
+		t.Error("not truncated")
+	}
+	if !strings.HasSuffix(text, short+"\n  … and 3 more types (myself ls)\n") {
+		t.Errorf("missing cut line:\n%s", text)
 	}
 	if n := utf8.RuneCountInString(text); n > budget {
 		t.Errorf("len %d > budget %d", n, budget)
@@ -111,7 +150,7 @@ func TestPrimeCutEntityMovesToIndex(t *testing.T) {
 	if !truncated {
 		t.Error("not truncated")
 	}
-	if !strings.Contains(text, "  felipe (person; 5 facts)\n") && !strings.Contains(text, "\nfelipe\n") {
+	if !strings.Contains(text, "\nfelipe\n") && !strings.Contains(text, "person (1): felipe") {
 		t.Errorf("felipe neither printed nor indexed:\n%s", text)
 	}
 	if n := utf8.RuneCountInString(text); n > 300 {
@@ -123,7 +162,7 @@ func TestPrimeNoSelf(t *testing.T) {
 	g := primeGraph("relay is project", "relay has a server", "bun is tool")
 	text, truncated := primeText(g, 4000)
 	want := "Also in the brain, not loaded (run `myself describe <name>` before working on any of these, or before saying you don't know about one):\n" +
-		"  relay (project; 2 facts)\n  bun (tool; 1 fact)\n"
+		"  project (1): relay\n  tool (1): bun\n"
 	if text != want || truncated {
 		t.Errorf("got %v:\n%s", truncated, text)
 	}
@@ -139,5 +178,15 @@ func TestPrimeOnlySelf(t *testing.T) {
 	text, truncated := primeText(primeGraph("self is agent"), 4000)
 	if truncated || strings.Contains(text, "Also in the brain") {
 		t.Errorf("unexpected index: %v\n%s", truncated, text)
+	}
+}
+
+func TestPrimeBudgetSweep(t *testing.T) {
+	g := primeGraph(primeFixture...)
+	for budget := 1; budget <= 400; budget++ {
+		text, _ := primeText(g, budget)
+		if n := utf8.RuneCountInString(text); n > budget {
+			t.Fatalf("budget %d: len %d\n%s", budget, n, text)
+		}
 	}
 }
