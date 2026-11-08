@@ -45,10 +45,6 @@ var primeFixture = []string{
 
 const primeTestHeader = "Also in the brain, not loaded (run `myself describe <name>` before working on any of these, or before saying you don't know about one):\n"
 
-func primeTestMore(k int) string {
-	return fmt.Sprintf("  … and %d more (myself ls, myself search <text>)\n", k)
-}
-
 func TestPrimeIndexOrderAndFormat(t *testing.T) {
 	text, truncated := primeText(primeGraph(primeFixture...), 4000)
 	if truncated {
@@ -98,7 +94,7 @@ func TestPrimeIndexMore(t *testing.T) {
 		"  bun (tool; 1 fact)",
 		"  scratch (1 fact)",
 	}
-	trailer := regexp.MustCompile(`(?m)^  … and (\d+) more \(myself ls, myself search <text>\)$`)
+	trailer := regexp.MustCompile(`(?m)^  … and (\d+) more \(myself ls <type>, myself search <text>\)$`)
 	checked := 0
 	for budget := 150; budget <= 500; budget++ {
 		text, truncated := primeText(g, budget)
@@ -171,7 +167,7 @@ func TestPrimeTrimsLeastUsedFirst(t *testing.T) {
 	if smalls == 20 {
 		t.Error("nothing was trimmed")
 	}
-	want := fmt.Sprintf("  … and %d more (myself ls, myself search <text>)", 20-smalls)
+	want := fmt.Sprintf("  … and %d more (myself ls <type>, myself search <text>)", 20-smalls)
 	if !strings.Contains(text, want) {
 		t.Errorf("trailer should count the %d trimmed light topics:\n%s", 20-smalls, text)
 	}
@@ -233,6 +229,89 @@ func TestPrimeCutEntityMovesToIndex(t *testing.T) {
 	}
 	if checked == 0 {
 		t.Error("no budget cut a Part A entity with an index left")
+	}
+}
+
+// TestPrimePartlyPrintedEntityIsNotIndexed is the other half of the rule: an
+// entity whose block started printing is not listed in the index, even when
+// the block was cut short.
+func TestPrimePartlyPrintedEntityIsNotIndexed(t *testing.T) {
+	triples := append([]string{}, primeFixture...)
+	for i := 1; i <= 8; i++ {
+		triples = append(triples, fmt.Sprintf("felipe has a long note %d", i))
+	}
+	g := primeGraph(triples...)
+	checked := 0
+	for budget := 200; budget <= 900; budget++ {
+		text, _ := primeText(g, budget)
+		if !strings.Contains(text, "\nfelipe\n") || !strings.Contains(text, primeTestHeader) {
+			continue
+		}
+		checked++
+		if strings.Contains(text, "  felipe (") {
+			t.Errorf("budget %d: felipe printed in Part A and indexed:\n%s", budget, text)
+			break
+		}
+	}
+	if checked == 0 {
+		t.Error("no budget printed felipe partly with an index left")
+	}
+}
+
+// TestPrimeIndexTypesAreEntityNames checks the types on an index line are the
+// entity names the rest of the tool prints, not the raw text typed after `is`:
+// normalized, so case and spacing cannot duplicate a type, and each listed
+// once.
+func TestPrimeIndexTypesAreEntityNames(t *testing.T) {
+	g := primeGraph(
+		"relay is Project",
+		"relay is project",
+		"relay is My Tool",
+		"relay has a server",
+	)
+	text, truncated := primeText(g, 4000)
+	want := primeTestHeader + "  relay (my-tool, project; 4 facts)\n"
+	if text != want || truncated {
+		t.Errorf("got %v:\n%s\nwant:\n%s", truncated, text, want)
+	}
+}
+
+// TestPrimeIndexTypeWithComma covers a type whose text contains a comma: it is
+// one entity name, normalized the way `myself ls` prints it, and the line
+// still has one type.
+func TestPrimeIndexTypeWithComma(t *testing.T) {
+	g := primeGraph("odd is a, b")
+	text, _ := primeText(g, 4000)
+	want := primeTestHeader + "  odd (" + model.NormalizeName("a, b") + "; 1 fact)\n"
+	if text != want {
+		t.Errorf("got:\n%s\nwant:\n%s", text, want)
+	}
+}
+
+// TestPrimeIndexForgets checks a forgotten record lowers the fact count, and a
+// forgotten `is` record drops the type.
+func TestPrimeIndexForgets(t *testing.T) {
+	recs := []model.Record{
+		{UUID: "00000000-0000-4000-8000-000000000001", Subject: "relay", Relation: "is", Object: "project", Time: "2026-01-01T00:00:00Z"},
+		{UUID: "00000000-0000-4000-8000-000000000002", Subject: "relay", Relation: "is", Object: "tool", Time: "2026-01-01T00:00:00Z"},
+		{UUID: "00000000-0000-4000-8000-000000000003", Subject: "relay", Relation: "has", Object: "a server", Time: "2026-01-01T00:00:00Z"},
+		{UUID: "00000000-0000-4000-8000-000000000004", Subject: "00000000-0000-4000-8000-000000000002", Relation: "forget", Object: "gone", Time: "2026-01-02T00:00:00Z"},
+		{UUID: "00000000-0000-4000-8000-000000000005", Subject: "00000000-0000-4000-8000-000000000003", Relation: "forget", Object: "gone", Time: "2026-01-02T00:00:00Z"},
+	}
+	text, truncated := primeText(NewSnapshot(recs).Graph(), 4000)
+	want := primeTestHeader + "  relay (project; 1 fact)\n"
+	if text != want || truncated {
+		t.Errorf("got %v:\n%s\nwant:\n%s", truncated, text, want)
+	}
+}
+
+// TestPrimeIndexSelfLoop covers an entity linked to itself: describe prints the
+// record twice, once out and once in, and so does the count.
+func TestPrimeIndexSelfLoop(t *testing.T) {
+	text, _ := primeText(primeGraph("loop related loop"), 4000)
+	want := primeTestHeader + "  loop (2 facts)\n"
+	if text != want {
+		t.Errorf("got:\n%s\nwant:\n%s", text, want)
 	}
 }
 

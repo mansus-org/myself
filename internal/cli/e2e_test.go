@@ -294,6 +294,7 @@ var cases = []struct {
 		pipe("zeta has a\nzeta has b\nzeta has c\nzeta has d\nalpha is tool\nbeta is tool\ngamma is tool\nrelay is project\nself is agent\nself related felipe\nfelipe is person\nself related mansus\nmansus is org\nsolo related self\n", "remember", "-"),
 		run("prime"),
 		run("prime", "--budget", "60"),
+		run("prime", "--budget", "420"),
 	}},
 	{"dream", []step{
 		run("dream"),

@@ -43,9 +43,11 @@ const (
 	primePartACapOf = 5
 )
 
-// primeMore is the index trailer when not every index line fits.
+// primeMore is the index trailer when not every index line fits. It points at
+// the two ways to find what is not listed: the entities of a type, and a
+// substring search.
 func primeMore(k int) string {
-	return fmt.Sprintf("  … and %d more (myself ls, myself search <text>)", k)
+	return fmt.Sprintf("  … and %d more (myself ls <type>, myself search <text>)", k)
 }
 
 // primeText renders two parts, cut to budget characters. Part A is full
@@ -129,7 +131,10 @@ func primeText(g *graph.Graph, budget int) (text string, truncated bool) {
 		n    int
 	}
 	entries := make([]entry, 0, len(candidates)+len(missing))
-	for _, n := range append(append([]string{}, candidates...), missing...) {
+	for _, n := range candidates {
+		entries = append(entries, entry{n, facts(n)})
+	}
+	for _, n := range missing {
 		entries = append(entries, entry{n, facts(n)})
 	}
 	sort.Slice(entries, func(i, j int) bool {
@@ -140,7 +145,7 @@ func primeText(g *graph.Graph, budget int) (text string, truncated bool) {
 	})
 	lines := make([]string, len(entries))
 	for i, e := range entries {
-		lines[i] = primeIndexLine(e.name, g.Out(e.name), e.n)
+		lines[i] = primeIndexLine(e.name, g.TypesOf(e.name), e.n)
 	}
 
 	// Fit the index into the budget Part A left. With p of the n lines
@@ -188,19 +193,10 @@ func primeText(g *graph.Graph, budget int) (text string, truncated bool) {
 }
 
 // primeIndexLine is one index line: `  <name> (<types>; <N> facts)`, with the
-// types (the objects of the entity's live outgoing `is` records, sorted,
-// comma-separated) omitted when there are none, and `1 fact` at N=1. N counts
-// the entity's live records, outgoing and incoming.
-func primeIndexLine(name string, out []model.Record, n int) string {
-	seen := make(map[string]bool)
-	var types []string
-	for _, r := range out {
-		if r.Relation == "is" && !seen[r.Object] {
-			seen[r.Object] = true
-			types = append(types, r.Object)
-		}
-	}
-	sort.Strings(types)
+// types (entity names, sorted, from graph.TypesOf) omitted when there are
+// none, and `1 fact` at N=1. N is the entity's live record count, outgoing
+// and incoming.
+func primeIndexLine(name string, types []string, n int) string {
 	facts := fmt.Sprintf("%d facts", n)
 	if n == 1 {
 		facts = "1 fact"

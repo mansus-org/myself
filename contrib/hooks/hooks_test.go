@@ -93,6 +93,17 @@ func (e *env) myself(args ...string) {
 	}
 }
 
+// myselfStdin runs myself with stdin, for `remember -`.
+func (e *env) myselfStdin(stdin string, args ...string) {
+	e.t.Helper()
+	cmd := exec.Command(binary, args...)
+	cmd.Env = e.environ()
+	cmd.Stdin = strings.NewReader(stdin)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		e.t.Fatalf("myself %v: %v\n%s", args, err, out)
+	}
+}
+
 // hook runs a script with the given stdin and returns its stdout. Hooks must
 // always exit 0 and write nothing to stderr.
 func (e *env) hook(script, stdin string) string {
@@ -207,6 +218,23 @@ func TestSessionStartEmptyStore(t *testing.T) {
 	e.requireCommand("prime")
 	if out := e.hook("session-start.sh", startInput("s1")); out != "" {
 		t.Errorf("empty store: want no output, got %q", out)
+	}
+}
+
+// TestSessionStartDefaultBudget pins the budget the hook uses when
+// MYSELF_PRIME_BUDGET is unset: the per-entity index needs more room than the
+// old one, so a brain whose prime does not fit in 2000 characters still has to
+// reach its last index line.
+func TestSessionStartDefaultBudget(t *testing.T) {
+	e := newEnv(t)
+	e.requireCommand("prime")
+	var b strings.Builder
+	for i := 0; i < 80; i++ {
+		fmt.Fprintf(&b, "topic-%02d is project\ntopic-%02d has a note\n", i, i)
+	}
+	e.myselfStdin(b.String(), "remember", "-")
+	if out := e.hook("session-start.sh", startInput("s1")); !strings.Contains(out, "  topic-79 (project; 2 facts)\n") {
+		t.Errorf("default budget drops the tail of the index:\n%s", out)
 	}
 }
 

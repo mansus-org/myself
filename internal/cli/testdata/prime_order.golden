@@ -66,6 +66,30 @@ self
 --- stderr
 --- exit
 0
+$ myself prime --budget 420
+--- stdout
+self
+  is agent
+  related felipe
+  related mansus
+  <- solo related
+agent
+  <- is: self
+felipe
+  is person
+  <- self related
+mansus
+  is org
+  <- self related
+solo
+  related self
+Also in the brain, not loaded (run `myself describe <name>` before working on any of these, or before saying you don't know about one):
+  zeta (4 facts)
+  alpha (tool; 1 fact)
+  … and 3 more (myself ls <type>, myself search <text>)
+--- stderr
+--- exit
+0
 --- file
 {"uuid":"<uuid-1>","subject":"zeta","relation":"has","object":"a","time":"<time>"}
 {"uuid":"<uuid-2>","subject":"zeta","relation":"has","object":"b","time":"<time>"}

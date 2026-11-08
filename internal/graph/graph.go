@@ -291,3 +291,22 @@ func (g *Graph) Types() []string {
 	sort.Strings(out)
 	return out
 }
+
+// TypesOf returns the types of name: the entities its live `is` records point
+// at, as entity names, each once, sorted. Unknown names give nil.
+func (g *Graph) TypesOf(name string) []string {
+	id, ok := g.lookup(name)
+	if !ok {
+		return nil
+	}
+	seen := make(map[int]bool, len(g.isOut[id]))
+	var out []string
+	for _, o := range g.isOut[id] {
+		if !seen[o] {
+			seen[o] = true
+			out = append(out, g.names[o])
+		}
+	}
+	sort.Strings(out)
+	return out
+}
