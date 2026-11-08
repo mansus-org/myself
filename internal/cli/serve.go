@@ -64,13 +64,25 @@ func newServeCmd(cfg *Config) *cobra.Command {
 			if hash == "" {
 				Warnf(stderr, "%s is not set; the API answers 503 to every request", EnvAdminHash)
 			}
-			srv, err := server.New(server.Config{File: cfg.File, Site: siteFS, Skill: myself.Skill, AdminHash: hash, Log: stderr, Version: Version})
+			key, err := server.NewLocalKey()
+			if err != nil {
+				return StoreErr(err)
+			}
+			srv, err := server.New(server.Config{File: cfg.File, Site: siteFS, Skill: myself.Skill, AdminHash: hash, LocalKey: key, Log: stderr, Version: Version})
 			if err != nil {
 				return StoreErr(err)
 			}
 			ln, err := net.Listen("tcp", addr)
 			if err != nil {
 				return StoreErr(err)
+			}
+			// The record of this server is what lets `myself graph --web` on the
+			// same machine ask it for a link instead of failing on a taken port.
+			unrecord, err := localRecord(cfg.File, ln.Addr(), key)
+			if err != nil {
+				Warnf(stderr, "graph --web cannot reuse this server: %v", err)
+			} else {
+				defer unrecord()
 			}
 			fmt.Fprintf(stderr, "serving %s on %s\n", cfg.File, ln.Addr())
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)

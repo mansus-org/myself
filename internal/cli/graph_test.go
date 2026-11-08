@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -158,6 +160,10 @@ func TestGraphWebLocalServesAndStops(t *testing.T) {
 	if _, err := http.Get(base + "/healthz"); err == nil {
 		t.Fatal("still serving after stop")
 	}
+	// The record that lets another command find this server goes with it.
+	if _, err := os.Stat(server.LocalInfoPath(file, port(t, u.Host))); err == nil {
+		t.Fatal("the record of the server outlived it")
+	}
 }
 
 func TestGraphWebLocalAddrInUseByMyself(t *testing.T) {
@@ -171,9 +177,151 @@ func TestGraphWebLocalAddrInUseByMyself(t *testing.T) {
 	u, _ := url.Parse(ts.URL)
 	var out, errb bytes.Buffer
 	code := Execute([]string{"graph", "--web", "--addr", u.Host, "--file", filepath.Join(t.TempDir(), "b.jsonl")}, &out, &errb)
-	if code != ExitUsage || !strings.Contains(errb.String(), "a myself server is already listening on "+u.Host) || out.Len() != 0 {
+	if code != ExitUsage || !strings.Contains(errb.String(), "is recorded as serving") || out.Len() != 0 {
 		t.Fatalf("exit %d, stderr %q", code, errb.String())
 	}
+}
+
+// serveRunning starts `myself serve` in this process on a free loopback port
+// and waits until it says it is up. It stops with the test.
+func serveRunning(t *testing.T, file string) string {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := ln.Addr().String()
+	ln.Close() // the command binds the port itself
+	t.Setenv(EnvAdminHash, server.HashToken("serve-token"))
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	var out, errb lockedBuf
+	root := newRoot(&out, &errb)
+	root.SetArgs([]string{"serve", "--addr", addr, "--file", file})
+	go root.ExecuteContext(ctx)
+	for deadline := time.Now().Add(10 * time.Second); ; time.Sleep(10 * time.Millisecond) {
+		if strings.Contains(errb.String(), "serving "+file) {
+			return addr
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("serve did not start; stderr %q", errb.String())
+		}
+	}
+}
+
+// A myself server that is already up is reused instead of fought over: the link
+// comes from that server and signs in there, and the server is left running.
+func TestGraphWebReusesRunningServer(t *testing.T) {
+	clearClientEnv(t)
+	file := filepath.Join(t.TempDir(), "brain.jsonl")
+	addr := serveRunning(t, file)
+
+	var out, errb bytes.Buffer
+	if code := Execute([]string{"graph", "--web", "--addr", addr, "--file", file}, &out, &errb); code != 0 {
+		t.Fatalf("exit %d, stderr %q", code, errb.String())
+	}
+	base := "http://" + addr
+	login := loginFrom(t, out.String(), base)
+	if !strings.Contains(errb.String(), "already on "+addr) {
+		t.Errorf("stderr does not say the server was reused: %q", errb.String())
+	}
+
+	// The code is the running server's: it redeems there and opens the graph.
+	st, session := redeem(t, base, login)
+	if st != 200 || session == "" {
+		t.Fatalf("redeem at the running server: %d", st)
+	}
+	if st := getGraph(t, base, session); st != 200 {
+		t.Fatalf("graph with the session: %d", st)
+	}
+
+	// Nothing is printed but the link: not the session, not the login key of
+	// the server, which sits in a file next to the store.
+	info, err := server.ReadLocalInfo(file, port(t, addr))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range []string{out.String(), errb.String()} {
+		if strings.Contains(s, session) || strings.Contains(s, info.Key) || strings.Contains(s, "Bearer") {
+			t.Fatalf("secret in output %q", s)
+		}
+	}
+	// The reused server is still up, and the session still works on it.
+	if st := getGraph(t, base, session); st != 200 {
+		t.Fatalf("the reused server stopped: %d", st)
+	}
+}
+
+// A server of another store is not reused: a link into a different brain is
+// not what --file asked for.
+func TestGraphWebReuseOtherStore(t *testing.T) {
+	clearClientEnv(t)
+	dir := t.TempDir()
+	addr := serveRunning(t, filepath.Join(dir, "a.jsonl"))
+	var out, errb bytes.Buffer
+	code := Execute([]string{"graph", "--web", "--addr", addr, "--file", filepath.Join(dir, "b.jsonl")}, &out, &errb)
+	if code != ExitUsage || out.Len() != 0 || !strings.Contains(errb.String(), "serves "+filepath.Join(dir, "a.jsonl")) {
+		t.Fatalf("exit %d, stderr %q", code, errb.String())
+	}
+}
+
+// A server started without its admin hash has its API switched off, and the
+// local login key is no better off than any other caller there.
+func TestGraphWebReuseAPIDisabled(t *testing.T) {
+	clearClientEnv(t)
+	dir := t.TempDir()
+	file := filepath.Join(dir, "b.jsonl")
+	key, err := server.NewLocalKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv, err := server.New(server.Config{File: file, LocalKey: key})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := httptest.NewServer(srv)
+	defer ts.Close()
+	u, _ := url.Parse(ts.URL)
+	unrecord, err := server.WriteLocalInfo(server.LocalInfo{Store: file, Addr: u.Host, Key: key})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer unrecord()
+	var out, errb bytes.Buffer
+	code := Execute([]string{"graph", "--web", "--addr", u.Host, "--file", file}, &out, &errb)
+	if code != ExitUsage || out.Len() != 0 || !strings.Contains(errb.String(), "API disabled") {
+		t.Fatalf("exit %d, stderr %q", code, errb.String())
+	}
+}
+
+// Port taken by something that is not myself at all stays the plain error it
+// was: the user has to free the port or pick another.
+func TestGraphWebPortTakenByOther(t *testing.T) {
+	clearClientEnv(t)
+	other := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, "not myself\n")
+	}))
+	defer other.Close()
+	var out, errb bytes.Buffer
+	u, _ := url.Parse(other.URL)
+	code := Execute([]string{"graph", "--web", "--addr", u.Host, "--file", filepath.Join(t.TempDir(), "b.jsonl")}, &out, &errb)
+	if code != ExitUsage || !strings.Contains(errb.String(), "not a myself server") || out.Len() != 0 {
+		t.Fatalf("exit %d, stderr %q", code, errb.String())
+	}
+}
+
+// port is the port of a host:port address.
+func port(t *testing.T, addr string) int {
+	t.Helper()
+	_, p, err := net.SplitHostPort(addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	n, err := strconv.Atoi(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return n
 }
 
 func TestGraphWebRemote(t *testing.T) {
