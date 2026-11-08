@@ -45,6 +45,10 @@ func (s *Server) registerAPI() {
 	api("GET /api/v1/tokens", Admin, s.listTokens)
 	api("POST /api/v1/tokens", Admin, s.createToken)
 	api("DELETE /api/v1/tokens/{id}", Admin, s.deleteToken)
+	// The local login key of this process also opens this one endpoint, so that
+	// `myself graph --web` can reuse a server that is already running.
+	s.mux.Handle("POST /api/v1/login-codes", s.localOrAuth(Read, s.createLoginCode))
+	s.mux.HandleFunc("POST /api/v1/login-codes/redeem", s.redeemLoginCode)
 	// Anything else under /api is a JSON 404 (or 503 while disabled).
 	s.mux.Handle("/api/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if s.adminHash == "" {

@@ -19,6 +19,7 @@ type Config struct {
 	File      string           // the brain file; tokens.json goes next to it
 	Site      fs.FS            // served at /; nil serves nothing there
 	AdminHash string           // lowercase hex sha256 of the admin token; empty disables the API
+	LocalKey  string           // local login key, see LocalInfo; empty turns it off
 	Log       io.Writer        // request log; nil discards
 	Now       func() time.Time // nil means time.Now
 	Version   string           // reported to MCP clients; empty means "dev"
@@ -30,7 +31,9 @@ type Server struct {
 	mux       *http.ServeMux
 	cache     *cache
 	tokens    *Tokens
+	logins    *logins
 	adminHash string
+	localKey  string
 	log       *log.Logger
 	now       func() time.Time
 	version   string
@@ -59,7 +62,9 @@ func New(cfg Config) (*Server, error) {
 		mux:       http.NewServeMux(),
 		cache:     &cache{path: cfg.File},
 		tokens:    tokens,
+		logins:    newLogins(),
 		adminHash: cfg.AdminHash,
+		localKey:  cfg.LocalKey,
 		log:       log.New(out, "", log.LstdFlags|log.LUTC),
 		now:       now,
 		version:   version,
