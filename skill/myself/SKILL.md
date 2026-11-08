@@ -28,7 +28,7 @@ myself forget <subject> <relation> [<object...>] [--reason TEXT]   # retract mat
 myself describe <entity> [--depth N] [--at TIME]   # facts out of and into an entity, N hops out
 myself ls [<type>] [--at TIME]          # entities that are (transitively) <type>; no arg: all types
 myself relations                        # the closed relation list
-myself search <text> [--at TIME]        # substring match over live facts
+myself search <text> [--at TIME] [-n N]  # substring match over live facts; -n keeps the first N
 myself path <a> <b> [--max-depth N]     # shortest chain of facts linking two entities
 myself log [--since TIME] [-n N]        # every record in order, forgets included
 myself history <subject> [<relation>]   # all records ever for a subject, forgotten ones too
