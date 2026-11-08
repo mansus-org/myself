@@ -155,7 +155,21 @@ Set up Claude Code so every session starts with the brain in context and uses `m
    }
    ```
 
-`session-start.sh` prints `myself prime --budget 4000` (set `MYSELF_PRIME_BUDGET` to change it), which Claude Code adds to the session context, and records the session start time under `${TMPDIR:-/tmp}/myself-hooks/`. `stop-nudge.sh` blocks the first stop of a session once, asking whether anything is worth remembering, but only if nothing was written to the brain since the session started and the session did something: a Write, Edit, MultiEdit or NotebookEdit tool use, 3+ Bash tool uses, or uncommitted changes in a git `cwd`. Bash uses whose command starts with `myself` (or the `MYSELF_BIN` path) do not count, so read-only sessions are not nudged. The nudge asks the agent to repeat its final answer afterwards, so headless runs (`claude -p`) still end with the real answer. Set `MYSELF_NUDGE=off` to disable the nudge entirely. A resumed session (`claude --resume`) gets a fresh start time and can be nudged once more. Both scripts are POSIX sh, use `jq` when present, and exit 0 silently when `myself` is missing or fails. The comments at the top of each script list their settings.
+`session-start.sh` prints `myself prime --budget 4000` (set `MYSELF_PRIME_BUDGET` to change it), which Claude Code adds to the session context, and records the session start time under `${TMPDIR:-/tmp}/myself-hooks/`. `stop-nudge.sh` blocks the first stop of a session once, asking whether anything is worth remembering, but only if nothing was written to the brain since the session started and the session did something: a Write, Edit, MultiEdit or NotebookEdit tool use, 3+ Bash tool uses, or uncommitted changes in a git `cwd`. Bash uses whose command starts with `myself` (or the `MYSELF_BIN` path) do not count, so read-only sessions are not nudged. The nudge asks the agent to repeat its final answer afterwards, so headless runs (`claude -p`) still end with the real answer. Set `MYSELF_NUDGE=off` to disable the nudge entirely. A resumed session (`claude --resume`) gets a fresh start time and can be nudged once more.
+
+4. Optional: recall on every prompt. Agents use the facts in the session-start prime but rarely query the graph for deeper ones on their own. `prompt-recall.sh` brings the relevant part of the brain to the agent with each prompt, at the cost of up to `MYSELF_RECALL_BUDGET` characters (default 3000) of context per prompt. Turn it on by adding this to the `hooks` in `~/.claude/settings.json`:
+
+   ```json
+   "UserPromptSubmit": [
+     {
+       "hooks": [
+         { "type": "command", "command": "~/.myself/hooks/prompt-recall.sh", "timeout": 10 }
+       ]
+     }
+   ]
+   ```
+
+   It takes up to 40 key words from the prompt (lowercased, split on anything but a-z and 0-9, minus stop words and words under 3 letters) and runs `myself search` for each, keeping only records where the word is a whole word, and retrying without a trailing `s` when a word has no hits. Only entities that have their own records are ranked, never bare type nodes like `project`. A word that hits more than `MYSELF_RECALL_MAX_HITS` entities (default 8) is too common and is dropped; each other word gives every entity it hits 1/(entities it hit), so specific words count more. The score is halved for hubs, entities whose own records are mostly `related` links. The top 12 entities (`MYSELF_RECALL_ENTITIES`) are printed once each with `myself describe`, each getting an equal share of the budget left and at most `MYSELF_RECALL_ENTITY_MAX` characters (default 600); a longer one keeps whole lines and ends with a `… (myself describe <entity> for all)` line. The whole output stays within `MYSELF_RECALL_BUDGET` characters (default 3000). It prints nothing when nothing matches. `MYSELF_RECALL=off` disables it. All three scripts are POSIX sh, use `jq` when present, and exit 0 silently when `myself` is missing or fails. The comments at the top of each script list their settings.
 
 Claude Code also has a built-in file-based auto-memory that can take "remember…" requests before `myself` does. On hosts where `myself` should be the only memory, you can turn it off with `"env": { "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1" }` in the same settings file.
 
