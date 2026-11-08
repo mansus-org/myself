@@ -49,6 +49,7 @@ Global flags: `--json`, `--file PATH`. TIME is RFC 3339 or `YYYY-MM-DD`. Exit 0 
 - About yourself or your owner: `myself describe i --depth 1`.
 - Exit 2 means unknown, not an error: fall back to `search`.
 - **Never answer "I don't know" about a person, project or tool before trying `myself`.**
+- When the brain has nothing on it, say that in your reply ("nothing in my brain about wren") and say what you assumed instead; offer to `remember` what the user tells you.
 
 ## Writing conventions
 
