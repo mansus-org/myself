@@ -141,6 +141,10 @@ func TestMCPCallEveryTool(t *testing.T) {
 	if !strings.Contains(text, "go is language") || v["matches"] == nil {
 		t.Errorf("search: %q %v", text, v)
 	}
+	text, v, _ = call(t, cs, "search", map[string]any{"q": "relay", "n": 1})
+	if !strings.Contains(text, "relay is project") || len(v["matches"].([]any)) != 1 {
+		t.Errorf("search -n: %q %v", text, v)
+	}
 
 	text, v, _ = call(t, cs, "path", map[string]any{"from": "relay", "to": "language"})
 	if text != "relay uses go\ngo is language" || v["path"] == nil {
@@ -206,6 +210,7 @@ func TestMCPToolErrors(t *testing.T) {
 		{"forget", map[string]any{}, "forget needs"},
 		{"forget", map[string]any{"subject": "ghost", "relation": "has"}, "ghost"},
 		{"search", map[string]any{"q": ""}, "search needs <text>"},
+		{"search", map[string]any{"q": "x", "n": 0}, "-n must be at least 1"},
 		{"path", map[string]any{"from": "a", "to": ""}, "path needs <a> and <b>"},
 		{"prime", map[string]any{"budget": -3}, "--budget must be at least 1"},
 	} {

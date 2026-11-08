@@ -80,7 +80,7 @@ myself forget <subject> <relation> [<object...>] [--reason TEXT]
 myself describe <entity> [--depth N] [--at TIME]
 myself ls [<type>] [--at TIME]
 myself relations
-myself search <text> [--at TIME]
+myself search <text> [--at TIME] [-n N]
 myself path <a> <b> [--max-depth N]
 myself log [--since TIME] [-n N]
 myself history <subject> [<relation>]
@@ -101,7 +101,7 @@ Global flags: `--file PATH`, `--json`, `--url URL`, `--token TOKEN` (remote mode
 - `describe <entity>`: records where the entity is subject (`out`) or the linked object (`in`). `--depth` defaults to 0 (only that entity); depth N also shows every entity reachable within N hops, breadth-first.
 - `ls <type>`: every entity that reaches `<type>` through a chain of live `is` records (transitive subtypes). `ls` with no argument lists every entity that is the object of a live `is` record. **Decision:** the original text said "either direction"; only the subtype direction is listed, since the supertypes of an entity are already visible with `describe`, and mixing both directions makes `ls software` ambiguous.
 - `path <a> <b>`: shortest chain of live records connecting `a` to `b`, edges walked in either direction; `--max-depth` defaults to 6.
-- `search <text>`: case-insensitive substring match on subject, relation or object of live records.
+- `search <text>`: case-insensitive substring match on subject, relation or object of live records. `-n N` keeps only the first N matches.
 - `log`: every record, forgets included, in uuid order. `--since` filters by time, `-n N` keeps the last N.
 - `history <subject> [<relation>]`: every record, forgotten or not, for that subject (and relation), plus the `forget` records pointing at them, in uuid order.
 - `prime`: a compact summary of the brain to paste into an agent context, cut at line boundaries to fit `--budget` characters (default 2000, never exceeded). It has two parts, with no blank line between them. Part A is full blocks: `self` first (if it exists), then the entities directly linked to it (one hop, breadth-first order), and no others, each rendered as `describe` at depth 0 except that incoming `is` records are folded into one line `  <- is: a, b, c` (subjects sorted, comma-separated). Part A uses at most `budget*3/5` characters when Part B has at least one entry, else the whole budget; it stops at the first line that does not fit. Part B is an index, one line per entity: the line `Also in the brain, not loaded (run `myself describe <name>` before working on any of these, or before saying you don't know about one):`, then `  <name> (<types>; <N> facts)`. It covers every remaining entity that has at least one live outgoing record (pure type nodes such as `project`, which only have records pointing at them, are left out), plus any Part A entity cut before its first line was printed. `<types>` lists the entities that its live outgoing `is` records point at, each once, sorted, comma-separated; they are entity names, normalized as everywhere else, so `relay is Project` and `relay is My Tool` give `my-tool, project`; an entity with no type gets no parentheses beyond the count. `<N>` is what `myself describe <name>` would return: live records with the entity as subject plus live records linked to it as object; the singular is `1 fact`. Lines are ordered by `<N>` descending, then name, so the topics with the most facts are listed first and the ones with the least are trimmed first. When the lines do not all fit, the last ones are dropped and replaced by `  … and <K> more (myself ls <type>, myself search <text>)`, with room always reserved for it; if not even the header and one line fit, the index is left out. `truncated` is true if anything was cut.
@@ -286,7 +286,7 @@ Query parameters map to the CLI flags. A parameter that is present but empty cou
 | `GET /api/v1/describe/{entity}?depth=N&at=TIME` | read | `describe` | as `describe --json` |
 | `GET /api/v1/ls?type=T&at=TIME` | read | `ls [<type>]` | as `ls --json` |
 | `GET /api/v1/relations` | read | `relations` | as `relations --json` |
-| `GET /api/v1/search?q=TEXT&at=TIME` | read | `search` | as `search --json` |
+| `GET /api/v1/search?q=TEXT&at=TIME&n=N` | read | `search` | as `search --json` |
 | `GET /api/v1/path?from=A&to=B&max_depth=N` | read | `path` | as `path --json` |
 | `GET /api/v1/log?since=TIME&n=N` | read | `log` | as `log --json` |
 | `GET /api/v1/history/{subject}?relation=R` | read | `history` | as `history --json` |
@@ -332,7 +332,7 @@ Details:
   | `describe` | read | `entity`, `depth`, `at` | `describe` |
   | `ls` | read | `type`, `at` | `ls` |
   | `relations` | read | none | `relations` |
-  | `search` | read | `q`, `at` | `search` |
+  | `search` | read | `q`, `at`, `n` | `search` |
   | `path` | read | `from`, `to`, `max_depth` | `path` |
   | `log` | read | `since`, `n` | `log` |
   | `history` | read | `subject`, `relation` | `history` |

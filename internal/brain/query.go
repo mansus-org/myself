@@ -89,8 +89,11 @@ type SearchResult struct {
 }
 
 // Search returns the live records whose subject, relation or object
-// contains text, case-insensitively.
-func Search(st Store, text string, at *string) (SearchResult, error) {
+// contains text, case-insensitively, only the first n of them (nil for all).
+func Search(st Store, text string, at *string, n *int) (SearchResult, error) {
+	if n != nil && *n < 1 {
+		return SearchResult{}, Usagef("-n must be at least 1")
+	}
 	snap, err := view(st, at)
 	if err != nil {
 		return SearchResult{}, err
@@ -103,6 +106,9 @@ func Search(st Store, text string, at *string) (SearchResult, error) {
 			strings.Contains(strings.ToLower(r.Object), needle) {
 			matches = append(matches, r)
 		}
+	}
+	if n != nil && len(matches) > *n {
+		matches = matches[:*n]
 	}
 	return SearchResult{matches}, nil
 }
