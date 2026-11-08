@@ -406,7 +406,7 @@ func TestRememberAndQueries(t *testing.T) {
 		Text      string `json:"text"`
 	}
 	e.ok("GET", "/api/v1/prime", adminToken, "", 200, &prime)
-	if prime.Budget != 2000 || prime.Truncated || !strings.Contains(prime.Text, "\n  project (1): relay\n") {
+	if prime.Budget != 2000 || prime.Truncated || !strings.Contains(prime.Text, "\n  relay (project; 2 facts)\n") {
 		t.Fatalf("prime %+v", prime)
 	}
 	e.ok("GET", "/api/v1/prime?budget=10", adminToken, "", 200, &prime)

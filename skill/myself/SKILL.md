@@ -15,7 +15,7 @@ If `myself` is not installed (`command -v myself` fails), install it first: `cur
 
 - **Recall** before guessing: a name you don't recognise, "what do you know about X", "how does X relate to Y", "what happened lately".
 - **Write** when something durable is learned: a new project, person or tool and how they relate, a decision with lasting effect, a correction to how you work.
-- **Session start:** a SessionStart hook may already have injected `myself prime`. If not, run `myself prime`. It shows `self` and its neighbours in full and lists every other entity by name only; before working on a project, repo, person or tool named there (or in the task), run `myself describe <name>` first.
+- **Session start:** a SessionStart hook may already have injected `myself prime`. If not, run `myself prime`. It shows `self` and its neighbours in full, then one line per other topic, no facts: `relay (project; 9 facts)`, biggest count first. The count is what `myself describe <name>` would return, so a big one means real detail is buried there. Before working on a project, repo, person or tool named there (or in the task), run `myself describe <name>` first.
 - **Session end:** see the rules below. A Stop hook may nudge you once.
 
 ## Cheat sheet
@@ -32,7 +32,7 @@ myself search <text> [--at TIME]        # substring match over live facts
 myself path <a> <b> [--max-depth N]     # shortest chain of facts linking two entities
 myself log [--since TIME] [-n N]        # every record in order, forgets included
 myself history <subject> [<relation>]   # all records ever for a subject, forgotten ones too
-myself prime [--budget CHARS]           # compact brain summary for context
+myself prime [--budget CHARS]           # compact brain summary for context (session start uses 4000)
 myself dream                            # report near-duplicate subjects; writes nothing
 myself export --obsidian <dir>          # one markdown note per entity
 ```

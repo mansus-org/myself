@@ -36,39 +36,35 @@ func Prime(st Store, budget int) (PrimeResult, error) {
 // primeHeader opens the index part of a prime output (SPEC section 5).
 const primeHeader = "Also in the brain, not loaded (run `myself describe <name>` before working on any of these, or before saying you don't know about one):"
 
-// primeOther is the index group of entities with no `is` record.
-const primeOther = "other"
+// primePartACap/primePartACapOf is the share of the budget Part A may use when
+// an index follows, so the index always gets at least the rest.
+const (
+	primePartACap   = 3
+	primePartACapOf = 5
+)
 
-// primeMinLine is the least a type line of the index may be capped at.
-const primeMinLine = 60
-
-// primeMoreTypes is the index trailer when not every type line fits.
-func primeMoreTypes(k int) string {
-	return fmt.Sprintf("  … and %d more types (myself ls)", k)
+// primeMore is the index trailer when not every index line fits.
+func primeMore(k int) string {
+	return fmt.Sprintf("  … and %d more (myself ls, myself search <text>)", k)
 }
 
 // primeText renders two parts, cut to budget characters. Part A is full
 // blocks rendered exactly as renderPrimeEntity prints them: `self` first (if
 // it exists), then the entities directly linked to it, breadth-first, and
-// nothing else. Part B is an index of the rest under primeHeader: the
-// entities with at least one live outgoing record, plus any Part A entity cut
-// before its first line was printed, grouped by type, one line per type,
-// `  <type> (<N>): <name>, <name>, ...`. An entity with several types is
-// listed under each; one with none goes last under `other`. Types are ordered
-// by the summed live record count of their members (descending, then name),
-// names within a type by their own count (descending, then name). A line that
-// does not fit, or is over the line cap, loses names from its end and
-// finishes with `, … +K`; types after a line cut by the budget are replaced
-// by a primeMoreTypes trailer. Part A uses at most
-// budget*3/4 characters when Part B has at least one entry, otherwise the
-// whole budget; Part B uses what is left. Every cut is at a line boundary,
-// and the total never exceeds budget.
+// nothing else. Part B is an index of the rest, one line per topic under
+// primeHeader: every entity with at least one live outgoing record, plus any
+// Part A entity cut before its first line was printed, as
+// `  <name> (<types>; <N> facts)`, ordered by live record count (descending,
+// then name) so the least-used topics sit last and are trimmed first. Part A
+// uses at most budget*3/5 characters when Part B has at least one entry,
+// otherwise the whole budget; Part B uses what is left. When the lines do not
+// all fit, the last ones are dropped and replaced by a primeMore trailer that
+// counts them; when not even the header and one line fit, the index is left
+// out altogether. Every cut is at a line boundary, and the total never exceeds
+// budget.
 func primeText(g *graph.Graph, budget int) (text string, truncated bool) {
 	names := g.Entities()
-	count := make(map[string]int, len(names))
-	for _, n := range names {
-		count[n] = len(g.Out(n)) + len(g.In(n))
-	}
+	facts := func(n string) int { return len(g.Out(n)) + len(g.In(n)) }
 
 	// Part A names: `self`, then its one-hop neighbours, BFS order. An empty
 	// list means `self` does not exist.
@@ -118,126 +114,84 @@ func primeText(g *graph.Graph, budget int) (text string, truncated bool) {
 	}
 
 	// When nothing is to be indexed, Part A may take the whole budget. If a
-	// cut entity then moves to the index, re-render Part A with the 3/4 cap.
+	// cut entity then moves to the index, re-render Part A with the cap.
 	b, used, missing, cut := renderA(budget)
 	if len(candidates) > 0 || len(missing) > 0 {
-		b, used, missing, cut = renderA(budget * 3 / 4)
+		b, used, missing, cut = renderA(budget * primePartACap / primePartACapOf)
 	}
 	truncated = cut
 
 	// Part B entries: the candidates plus the Part A entities that got no
-	// line at all.
-	entries := append(append([]string{}, candidates...), missing...)
+	// line at all, in live record count order (descending, then name), so the
+	// least-used topics are the ones trimmed first.
+	type entry struct {
+		name string
+		n    int
+	}
+	entries := make([]entry, 0, len(candidates)+len(missing))
+	for _, n := range append(append([]string{}, candidates...), missing...) {
+		entries = append(entries, entry{n, facts(n)})
+	}
 	sort.Slice(entries, func(i, j int) bool {
-		if count[entries[i]] != count[entries[j]] {
-			return count[entries[i]] > count[entries[j]]
+		if entries[i].n != entries[j].n {
+			return entries[i].n > entries[j].n
 		}
-		return entries[i] < entries[j]
+		return entries[i].name < entries[j].name
 	})
-	members := make(map[string][]string)
-	sum := make(map[string]int)
-	for _, e := range entries {
-		ts := primeTypes(g.Out(e))
-		if len(ts) == 0 {
-			ts = []string{primeOther}
-		}
-		for _, t := range ts {
-			members[t] = append(members[t], e)
-			sum[t] += count[e]
-		}
+	lines := make([]string, len(entries))
+	for i, e := range entries {
+		lines[i] = primeIndexLine(e.name, g.Out(e.name), e.n)
 	}
-	types := make([]string, 0, len(members))
-	for t := range members {
-		types = append(types, t)
-	}
-	sort.Slice(types, func(i, j int) bool {
-		a, c := types[i], types[j]
-		if (a == primeOther) != (c == primeOther) {
-			return c == primeOther
-		}
-		if sum[a] != sum[c] {
-			return sum[a] > sum[c]
-		}
-		return a < c
-	})
 
-	// Fit the index into the budget Part A left. Each type line is capped at
-	// max(primeMinLine, B/5) characters, B being the room left for Part B, so
-	// one big type cannot take the whole index. Room is reserved for the
-	// primeMoreTypes trailer whenever types remain after a line.
-	if len(types) > 0 {
-		size := func(s string) int { return utf8.RuneCountInString(s) + 1 }
-		room := budget - used
-		lineCap := max(primeMinLine, room/5)
-		avail := room - size(primeHeader)
-		n := len(types)
-		var lines []string
-		total := 0
-		for i, t := range types {
-			names := members[t]
-			reserve := 0
-			if i < n-1 {
-				reserve = size(primeMoreTypes(n - i - 1))
+	// Fit the index into the budget Part A left. With p of the n lines
+	// rendered, the exact final size is the header, the p lines, and the
+	// trailer naming n-p when p < n; take the largest p that fits so the
+	// total never exceeds the budget.
+	if len(lines) > 0 {
+		// prefix[i] is the size of the first i lines, so fit(p) is a subtraction.
+		prefix := make([]int, len(lines)+1)
+		for i, l := range lines {
+			prefix[i+1] = prefix[i] + utf8.RuneCountInString(l) + 1
+		}
+		headerSize := utf8.RuneCountInString(primeHeader) + 1
+		fit := func(p int) int {
+			total := headerSize + prefix[p]
+			if p < len(lines) {
+				total += utf8.RuneCountInString(primeMore(len(lines)-p)) + 1
 			}
-			kcap := len(names)
-			for kcap > 1 && utf8.RuneCountInString(primeTypeLine(t, names, kcap)) > lineCap {
-				kcap--
-			}
-			placed, budgetCut := false, false
-			for k := kcap; k >= 1; k-- {
-				line := primeTypeLine(t, names, k)
-				if total+size(line)+reserve > avail {
-					continue
-				}
-				lines = append(lines, line)
-				total += size(line)
-				placed, budgetCut = true, k < kcap
-				if k < len(names) {
-					truncated = true
-				}
-				break
-			}
-			if !placed || budgetCut {
+			return total
+		}
+		p := -1
+		for cand := len(lines); cand >= 0; cand-- {
+			if fit(cand) <= budget-used {
+				p = cand
 				break
 			}
 		}
-		rest := func() int { return n - len(lines) }
-		if rest() > 0 {
+		if p < 1 {
+			// Not room for the header and one name: an index of nothing but a
+			// trailer is noise, so Part B is left out and only the cut is
+			// reported.
 			truncated = true
-			for len(lines) > 0 && total+size(primeMoreTypes(rest())) > avail {
-				total -= size(lines[len(lines)-1])
-				lines = lines[:len(lines)-1]
-			}
-		}
-		if rest() == 0 || total+size(primeMoreTypes(rest())) <= avail {
-			fmt.Fprintln(b, primeHeader)
-			for _, l := range lines {
-				fmt.Fprintln(b, l)
-			}
-			if rest() > 0 {
-				fmt.Fprintln(b, primeMoreTypes(rest()))
-			}
 		} else {
-			truncated = true
+			fmt.Fprintln(b, primeHeader)
+			for i := 0; i < p; i++ {
+				fmt.Fprintln(b, lines[i])
+			}
+			if p < len(lines) {
+				fmt.Fprintln(b, primeMore(len(lines)-p))
+				truncated = true
+			}
 		}
 	}
 	return b.String(), truncated
 }
 
-// primeTypeLine is one index line, `  <type> (<N>): <names>` with N the
-// number of members, showing the first k names and, when k < N, `, … +K` for
-// the K left out.
-func primeTypeLine(typ string, names []string, k int) string {
-	s := fmt.Sprintf("  %s (%d): %s", typ, len(names), strings.Join(names[:k], ", "))
-	if k < len(names) {
-		s += fmt.Sprintf(", … +%d", len(names)-k)
-	}
-	return s
-}
-
-// primeTypes returns the objects of the live outgoing `is` records, sorted
-// and without duplicates.
-func primeTypes(out []model.Record) []string {
+// primeIndexLine is one index line: `  <name> (<types>; <N> facts)`, with the
+// types (the objects of the entity's live outgoing `is` records, sorted,
+// comma-separated) omitted when there are none, and `1 fact` at N=1. N counts
+// the entity's live records, outgoing and incoming.
+func primeIndexLine(name string, out []model.Record, n int) string {
 	seen := make(map[string]bool)
 	var types []string
 	for _, r := range out {
@@ -247,7 +201,14 @@ func primeTypes(out []model.Record) []string {
 		}
 	}
 	sort.Strings(types)
-	return types
+	facts := fmt.Sprintf("%d facts", n)
+	if n == 1 {
+		facts = "1 fact"
+	}
+	if len(types) > 0 {
+		return "  " + name + " (" + strings.Join(types, ", ") + "; " + facts + ")"
+	}
+	return "  " + name + " (" + facts + ")"
 }
 
 // RenderEntity returns the lines of one entity as `describe` prints it

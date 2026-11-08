@@ -50,9 +50,11 @@ mansus
 solo
   related self
 Also in the brain, not loaded (run `myself describe <name>` before working on any of these, or before saying you don't know about one):
-  tool (3): alpha, beta, gamma
-  project (1): relay
-  other (1): zeta
+  zeta (4 facts)
+  alpha (tool; 1 fact)
+  beta (tool; 1 fact)
+  gamma (tool; 1 fact)
+  relay (project; 1 fact)
 --- stderr
 --- exit
 0

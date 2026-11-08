@@ -155,7 +155,7 @@ Set up Claude Code so every session starts with the brain in context and uses `m
    }
    ```
 
-`session-start.sh` prints `myself prime --budget 7000` (set `MYSELF_PRIME_BUDGET` to change it), which Claude Code adds to the session context, and records the session start time under `${TMPDIR:-/tmp}/myself-hooks/`. `stop-nudge.sh` blocks the first stop of a session once, asking whether anything is worth remembering, but only if nothing was written to the brain since the session started and the session did something: a Write, Edit, MultiEdit or NotebookEdit tool use, 3+ Bash tool uses, or uncommitted changes in a git `cwd`. Bash uses whose command starts with `myself` (or the `MYSELF_BIN` path) do not count, so read-only sessions are not nudged. The nudge asks the agent to repeat its final answer afterwards, so headless runs (`claude -p`) still end with the real answer. Set `MYSELF_NUDGE=off` to disable the nudge entirely. A resumed session (`claude --resume`) gets a fresh start time and can be nudged once more. Both scripts are POSIX sh, use `jq` when present, and exit 0 silently when `myself` is missing or fails. The comments at the top of each script list their settings.
+`session-start.sh` prints `myself prime --budget 4000` (set `MYSELF_PRIME_BUDGET` to change it), which Claude Code adds to the session context, and records the session start time under `${TMPDIR:-/tmp}/myself-hooks/`. `stop-nudge.sh` blocks the first stop of a session once, asking whether anything is worth remembering, but only if nothing was written to the brain since the session started and the session did something: a Write, Edit, MultiEdit or NotebookEdit tool use, 3+ Bash tool uses, or uncommitted changes in a git `cwd`. Bash uses whose command starts with `myself` (or the `MYSELF_BIN` path) do not count, so read-only sessions are not nudged. The nudge asks the agent to repeat its final answer afterwards, so headless runs (`claude -p`) still end with the real answer. Set `MYSELF_NUDGE=off` to disable the nudge entirely. A resumed session (`claude --resume`) gets a fresh start time and can be nudged once more. Both scripts are POSIX sh, use `jq` when present, and exit 0 silently when `myself` is missing or fails. The comments at the top of each script list their settings.
 
 Claude Code also has a built-in file-based auto-memory that can take "remember…" requests before `myself` does. On hosts where `myself` should be the only memory, you can turn it off with `"env": { "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1" }` in the same settings file.
 
@@ -173,7 +173,7 @@ If `~/.local/bin` is not on the PATH the hooks run with, set `MYSELF_BIN` to the
 
    Pin a tag or commit with `@<ref>`, from the first release that includes `package.json`.
 
-The package gives pi the [skill](#agent-skill) and a small extension, `contrib/pi/myself.ts`. On the first agent run of each session the extension runs `myself prime --budget 4000` and adds the output to the context, like the Claude Code SessionStart hook. If `myself` is missing, fails or takes more than 10 seconds, it adds nothing.
+The package gives pi the [skill](#agent-skill) and a small extension, `contrib/pi/myself.ts`. On the first agent run of each session the extension runs `myself prime --budget 4000` and adds the output to the context, like the Claude Code SessionStart hook; both use the same budget. If `myself` is missing, fails or takes more than 10 seconds, it adds nothing.
 
 - `MYSELF_PRIME_BUDGET` changes the budget; `MYSELF_BIN` is the path to the binary when it is not on pi's PATH.
 - To use a shared brain, set `MYSELF_URL` and `MYSELF_TOKEN` (see [Remote mode](#remote-mode)) in the environment pi runs in.
@@ -195,7 +195,7 @@ Arguments are positional and everything after the relation is the object, so quo
 | `path <a> <b> [--max-depth N]` | shortest chain of facts linking two entities |
 | `log [--since TIME] [-n N]` | every record, forgets included |
 | `history <subject> [<relation>]` | every record for a subject, forgotten or not |
-| `prime [--budget CHARS]` | compact summary to paste into an agent context |
+| `prime [--budget CHARS]` | compact summary to paste into an agent context: your own facts in full, one line per other topic |
 | `dream` | report near-duplicate subjects (read-only) |
 | `serve [--addr :8080] [--site DIR]` | serve the brain over HTTP (see [Server](#server)) |
 | `export --obsidian <dir>` | write one Markdown note per entity |
