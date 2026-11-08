@@ -50,7 +50,7 @@ maxents=${MYSELF_RECALL_ENTITIES:-12}
 maxhits=${MYSELF_RECALL_MAX_HITS:-8}
 entmax=${MYSELF_RECALL_ENTITY_MAX:-600}
 case $budget$maxwords$maxents$maxhits$entmax in
-'' | *[!0-9]*) exit 0 ;;
+('' | *[!0-9]*) exit 0 ;;
 esac
 
 command -v "$bin" >/dev/null 2>&1 || exit 0
@@ -73,8 +73,8 @@ words=
 n=0
 for w in $(printf '%s' "$prompt" | tr 'A-Z' 'a-z' | tr -c 'a-z0-9' '\n'); do
 	[ "${#w}" -ge 3 ] || continue
-	case "$stop" in *" $w "*) continue ;; esac
-	case " $words " in *" $w "*) continue ;; esac
+	case "$stop" in (*" $w "*) continue ;; esac
+	case " $words " in (*" $w "*) continue ;; esac
 	words="$words $w"
 	n=$((n + 1))
 	[ "$n" -lt "$maxwords" ] || break
@@ -103,7 +103,7 @@ hits=$(
 		subs=$(subjects "$w") || exit 1
 		if [ -z "$subs" ]; then
 			case $w in
-			*[!s]s) subs=$(subjects "${w%s}") || exit 1 ;;
+			(*[!s]s) subs=$(subjects "${w%s}") || exit 1 ;;
 			esac
 		fi
 		printf '%s\n' "$subs" | sort -u | sed -n "/./s/^/$w	/p"
@@ -128,7 +128,7 @@ cands=$(printf '%s\n' "$hits" | awk -F'\t' -v max="$maxhits" '
 # itself, so its score is halved against entities with descriptive records.
 tab='	'
 ranked=$(printf '%s\n' "$cands" | while IFS=$tab read -r score e; do
-	case $e in -*) continue ;; esac
+	case $e in (-*) continue ;; esac
 	"$bin" describe "$e" 2>/dev/null | awk -v s="$score" -v e="$e" '
 		/^  <- / { next }
 		/^  related / { r++ }
