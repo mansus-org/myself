@@ -49,27 +49,12 @@ mansus
   <- self related
 solo
   related self
-zeta
-  has a
-  has b
-  has c
-  has d
-tool
-  <- is: alpha, beta, gamma
-alpha
-  is tool
-beta
-  is tool
-gamma
-  is tool
-org
-  <- is: mansus
-person
-  <- is: felipe
-project
-  <- is: relay
-relay
-  is project
+Also in the brain, not loaded (run `myself describe <name>` before working on any of these, or before saying you don't know about one):
+  zeta (4 facts)
+  alpha (tool; 1 fact)
+  beta (tool; 1 fact)
+  gamma (tool; 1 fact)
+  relay (project; 1 fact)
 --- stderr
 --- exit
 0
@@ -78,7 +63,30 @@ $ myself prime --budget 60
 self
   is agent
   related felipe
+--- stderr
+--- exit
+0
+$ myself prime --budget 420
+--- stdout
+self
+  is agent
+  related felipe
   related mansus
+  <- solo related
+agent
+  <- is: self
+felipe
+  is person
+  <- self related
+mansus
+  is org
+  <- self related
+solo
+  related self
+Also in the brain, not loaded (run `myself describe <name>` before working on any of these, or before saying you don't know about one):
+  zeta (4 facts)
+  alpha (tool; 1 fact)
+  … and 3 more (myself ls <type>, myself search <text>)
 --- stderr
 --- exit
 0

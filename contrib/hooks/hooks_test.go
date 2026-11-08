@@ -93,6 +93,17 @@ func (e *env) myself(args ...string) {
 	}
 }
 
+// myselfStdin runs myself with stdin, for `remember -`.
+func (e *env) myselfStdin(stdin string, args ...string) {
+	e.t.Helper()
+	cmd := exec.Command(binary, args...)
+	cmd.Env = e.environ()
+	cmd.Stdin = strings.NewReader(stdin)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		e.t.Fatalf("myself %v: %v\n%s", args, err, out)
+	}
+}
+
 // hook runs a script with the given stdin and returns its stdout. Hooks must
 // always exit 0 and write nothing to stderr.
 func (e *env) hook(script, stdin string) string {
@@ -187,7 +198,7 @@ func TestSessionStartInjectsPrime(t *testing.T) {
 		e.myself("remember", "relay", "is", "project")
 		e.myself("remember", "i", "does", "a coding agent that keeps notes in myself")
 		out := e.hook("session-start.sh", startInput("s1"))
-		for _, want := range []string{"`myself prime`", "relay\n  is project\n", "self\n  does a coding agent that keeps notes in myself\n"} {
+		for _, want := range []string{"`myself prime`", "Also in the brain, not loaded", "\n  relay (project; 1 fact)\n", "self\n  does a coding agent that keeps notes in myself\n"} {
 			if !strings.Contains(out, want) {
 				t.Errorf("output missing %q:\n%s", want, out)
 			}
@@ -207,6 +218,28 @@ func TestSessionStartEmptyStore(t *testing.T) {
 	e.requireCommand("prime")
 	if out := e.hook("session-start.sh", startInput("s1")); out != "" {
 		t.Errorf("empty store: want no output, got %q", out)
+	}
+}
+
+// TestSessionStartDefaultBudget pins the budget the hook uses when
+// MYSELF_PRIME_BUDGET is unset. The fixture's prime is about 5100 characters,
+// so the default has to be big enough to keep topic-095 (which 2000 drops) and
+// small enough that the output stays under 4600 characters (which 7000, the
+// budget this replaced, is not).
+func TestSessionStartDefaultBudget(t *testing.T) {
+	e := newEnv(t)
+	e.requireCommand("prime")
+	var b strings.Builder
+	for i := 0; i < 160; i++ {
+		fmt.Fprintf(&b, "topic-%03d is project\ntopic-%03d has a note\n", i, i)
+	}
+	e.myselfStdin(b.String(), "remember", "-")
+	out := e.hook("session-start.sh", startInput("s1"))
+	if !strings.Contains(out, "  topic-095 (project; 2 facts)\n") {
+		t.Errorf("default budget is too small, it drops topic-095:\n%s", out)
+	}
+	if n := len(out); n > 4600 {
+		t.Errorf("default budget is too big: %d characters of output", n)
 	}
 }
 
@@ -439,7 +472,7 @@ func TestRemoteMode(t *testing.T) {
 	e.myself("remember", "relay", "is", "project")
 	time.Sleep(1100 * time.Millisecond) // start marker has second precision
 	out := e.hook("session-start.sh", startInput("r1"))
-	if !strings.Contains(out, "relay\n  is project\n") {
+	if !strings.Contains(out, "\n  relay (project; 1 fact)\n") {
 		t.Errorf("prime from the server missing:\n%s", out)
 	}
 	tr := transcript(t, "Write")
@@ -470,7 +503,7 @@ func cleanEnv(extra ...string) []string {
 	var env []string
 	for _, e := range os.Environ() {
 		keep := true
-		for _, v := range []string{"MYSELF_URL", "MYSELF_TOKEN", "MYSELF_TIMEOUT", "MYSELF_FILE"} {
+		for _, v := range []string{"MYSELF_URL", "MYSELF_TOKEN", "MYSELF_TIMEOUT", "MYSELF_FILE", "MYSELF_PRIME_BUDGET"} {
 			if strings.HasPrefix(e, v+"=") {
 				keep = false
 			}

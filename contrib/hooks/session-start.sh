@@ -57,5 +57,5 @@ command -v "$bin" >/dev/null 2>&1 || exit 0
 text=$("$bin" prime --budget "$budget" 2>/dev/null) || exit 0
 [ -n "$text" ] || exit 0
 
-printf 'What myself remembers (`myself prime`; query more with myself describe|search|path|log):\n%s\n' "$text"
+printf 'What myself remembers (`myself prime`; entities listed by name only are not loaded: run `myself describe <name>` before working on one; also search|path|log):\n%s\n' "$text"
 exit 0

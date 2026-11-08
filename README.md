@@ -173,7 +173,7 @@ If `~/.local/bin` is not on the PATH the hooks run with, set `MYSELF_BIN` to the
 
    Pin a tag or commit with `@<ref>`, from the first release that includes `package.json`.
 
-The package gives pi the [skill](#agent-skill) and a small extension, `contrib/pi/myself.ts`. On the first agent run of each session the extension runs `myself prime --budget 4000` and adds the output to the context, like the Claude Code SessionStart hook. If `myself` is missing, fails or takes more than 10 seconds, it adds nothing.
+The package gives pi the [skill](#agent-skill) and a small extension, `contrib/pi/myself.ts`. On the first agent run of each session the extension runs `myself prime --budget 4000` and adds the output to the context, like the Claude Code SessionStart hook; both use the same budget. If `myself` is missing, fails or takes more than 10 seconds, it adds nothing.
 
 - `MYSELF_PRIME_BUDGET` changes the budget; `MYSELF_BIN` is the path to the binary when it is not on pi's PATH.
 - To use a shared brain, set `MYSELF_URL` and `MYSELF_TOKEN` (see [Remote mode](#remote-mode)) in the environment pi runs in.
@@ -195,7 +195,7 @@ Arguments are positional and everything after the relation is the object, so quo
 | `path <a> <b> [--max-depth N]` | shortest chain of facts linking two entities |
 | `log [--since TIME] [-n N]` | every record, forgets included |
 | `history <subject> [<relation>]` | every record for a subject, forgotten or not |
-| `prime [--budget CHARS]` | compact summary to paste into an agent context |
+| `prime [--budget CHARS]` | compact summary to paste into an agent context: your own facts in full, one line per other topic |
 | `dream` | report near-duplicate subjects (read-only) |
 | `serve [--addr :8080] [--site DIR]` | serve the brain over HTTP (see [Server](#server)) |
 | `graph --web [--addr ADDR] [--open]` | print a link that opens the graph in the web app, signed in (see [Web app](#web-app)) |

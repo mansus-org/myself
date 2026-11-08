@@ -69,6 +69,8 @@ func TestSpecExample(t *testing.T) {
 	eq(t, g.SubtypesOf("project"), []string{"relay"})
 	eq(t, g.SubtypesOf("relay"), []string(nil))
 	eq(t, g.Types(), []string{"project", "software"})
+	eq(t, g.TypesOf("relay"), []string{"project"})
+	eq(t, g.TypesOf("software"), []string(nil))
 	p, ok := g.ShortestPath("relay", "software", 6)
 	if !ok {
 		t.Fatal("no path")
@@ -91,6 +93,20 @@ func TestNamesAreNormalized(t *testing.T) {
 	}
 	eq(t, uuids(g.Out("me")), []string{"0001"})
 	eq(t, g.SubtypesOf(" PROJECT. "), []string{"relay-app"})
+}
+
+// TestTypesOfNormalizesAndDedups: the types of an entity are entity names, each
+// once, sorted, whatever the spacing and case typed after `is`.
+func TestTypesOfNormalizesAndDedups(t *testing.T) {
+	g := Build([]model.Record{
+		rec(1, "relay", "is", "Project"),
+		rec(2, "relay", "is", " project "),
+		rec(3, "relay", "is", "My Tool"),
+		rec(4, "relay", "uses", "bun"),
+	})
+	eq(t, g.TypesOf("relay"), []string{"my-tool", "project"})
+	eq(t, g.TypesOf("bun"), []string(nil))
+	eq(t, g.TypesOf("nope"), []string(nil))
 }
 
 func TestLiteralObjectMakesNoEdge(t *testing.T) {
