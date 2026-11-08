@@ -95,9 +95,9 @@ func TestNamesAreNormalized(t *testing.T) {
 	eq(t, g.SubtypesOf(" PROJECT. "), []string{"relay-app"})
 }
 
-// TestTypesOfChecksDedup: the types of an entity are entity names, each once,
-// sorted, whatever the spacing and case typed after `is`.
-func TestTypesOfChecksDedup(t *testing.T) {
+// TestTypesOfNormalizesAndDedups: the types of an entity are entity names, each
+// once, sorted, whatever the spacing and case typed after `is`.
+func TestTypesOfNormalizesAndDedups(t *testing.T) {
 	g := Build([]model.Record{
 		rec(1, "relay", "is", "Project"),
 		rec(2, "relay", "is", " project "),

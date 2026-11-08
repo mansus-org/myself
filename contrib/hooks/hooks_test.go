@@ -222,19 +222,24 @@ func TestSessionStartEmptyStore(t *testing.T) {
 }
 
 // TestSessionStartDefaultBudget pins the budget the hook uses when
-// MYSELF_PRIME_BUDGET is unset: the per-entity index needs more room than the
-// old one, so a brain whose prime does not fit in 2000 characters still has to
-// reach its last index line.
+// MYSELF_PRIME_BUDGET is unset. The fixture's prime is about 5100 characters,
+// so the default has to be big enough to keep topic-095 (which 2000 drops) and
+// small enough that the output stays under 4600 characters (which 7000, the
+// budget this replaced, is not).
 func TestSessionStartDefaultBudget(t *testing.T) {
 	e := newEnv(t)
 	e.requireCommand("prime")
 	var b strings.Builder
-	for i := 0; i < 80; i++ {
-		fmt.Fprintf(&b, "topic-%02d is project\ntopic-%02d has a note\n", i, i)
+	for i := 0; i < 160; i++ {
+		fmt.Fprintf(&b, "topic-%03d is project\ntopic-%03d has a note\n", i, i)
 	}
 	e.myselfStdin(b.String(), "remember", "-")
-	if out := e.hook("session-start.sh", startInput("s1")); !strings.Contains(out, "  topic-79 (project; 2 facts)\n") {
-		t.Errorf("default budget drops the tail of the index:\n%s", out)
+	out := e.hook("session-start.sh", startInput("s1"))
+	if !strings.Contains(out, "  topic-095 (project; 2 facts)\n") {
+		t.Errorf("default budget is too small, it drops topic-095:\n%s", out)
+	}
+	if n := len(out); n > 4600 {
+		t.Errorf("default budget is too big: %d characters of output", n)
 	}
 }
 
@@ -498,7 +503,7 @@ func cleanEnv(extra ...string) []string {
 	var env []string
 	for _, e := range os.Environ() {
 		keep := true
-		for _, v := range []string{"MYSELF_URL", "MYSELF_TOKEN", "MYSELF_TIMEOUT", "MYSELF_FILE"} {
+		for _, v := range []string{"MYSELF_URL", "MYSELF_TOKEN", "MYSELF_TIMEOUT", "MYSELF_FILE", "MYSELF_PRIME_BUDGET"} {
 			if strings.HasPrefix(e, v+"=") {
 				keep = false
 			}

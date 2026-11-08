@@ -282,7 +282,7 @@ func TestPrimeIndexTypesAreEntityNames(t *testing.T) {
 func TestPrimeIndexTypeWithComma(t *testing.T) {
 	g := primeGraph("odd is a, b")
 	text, _ := primeText(g, 4000)
-	want := primeTestHeader + "  odd (" + model.NormalizeName("a, b") + "; 1 fact)\n"
+	want := primeTestHeader + "  odd (a,-b; 1 fact)\n"
 	if text != want {
 		t.Errorf("got:\n%s\nwant:\n%s", text, want)
 	}
