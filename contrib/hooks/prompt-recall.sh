@@ -38,7 +38,9 @@
 #   MYSELF_FILE          brain file, passed through to myself
 #   MYSELF_URL, MYSELF_TOKEN  run against a myself server (remote mode). An
 #                        unreachable server prints nothing after the first failed search
-#   MYSELF_HOOKS_JQ      jq binary (default: jq); without it a sed fallback parses stdin
+#   MYSELF_HOOKS_JQ      jq binary (default: jq); without it an awk/sed fallback
+#                        parses stdin, using only POSIX syntax (GNU sed and BSD
+#                        sed, the macOS one, must agree)
 
 [ "$MYSELF_RECALL" = off ] && exit 0
 
@@ -61,9 +63,38 @@ if command -v "$jq" >/dev/null 2>&1; then
 	prompt=$(printf '%s' "$input" | "$jq" -r '.prompt // empty' 2>/dev/null)
 	jqok=1
 else
-	prompt=$(printf '%s' "$input" | tr -d '\n' |
-		sed -n 's/.*"prompt"[[:space:]]*:[[:space:]]*"\(\([^"\\]\|\\.\)*\)".*/\1/p' |
-		sed 's/\\[nrt]/ /g')
+	# awk, not sed: a JSON string value needs alternation to step over \",
+	# and `\|` in a BRE is a GNU extension BSD sed reads as a literal bar.
+	prompt=$(printf '%s' "$input" | tr -d '\n' | awk '
+		BEGIN { key = "\"prompt\"" }
+		{
+			line = $0; at = 0; from = 1
+			while (from <= length(line)) {
+				r = index(substr(line, from), key)
+				if (!r) break
+				at = from + r - 1
+				from = at + length(key)
+			}
+			if (!at) next
+			s = substr(line, at + length(key))
+			if (!match(s, /^[ \t]*:[ \t]*"/)) next
+			s = substr(s, RSTART + RLENGTH)
+			v = ""
+			for (i = 1; i <= length(s); i++) {
+				c = substr(s, i, 1)
+				if (c == "\\") {
+					i++
+					d = substr(s, i, 1)
+					if (d == "n" || d == "r" || d == "t")
+						d = " "
+					v = v d
+					continue
+				}
+				if (c == "\"") break
+				v = v c
+			}
+			print v
+		}')
 	jqok=
 fi
 [ -n "$prompt" ] || exit 0
@@ -88,8 +119,10 @@ subjects() {
 	if [ -n "$jqok" ]; then
 		printf '%s' "$res" | "$jq" -r '.matches[]? | [.subject, "\(.subject) \(.relation) \(.object)"] | @tsv' 2>/dev/null
 	else
+		# The separator is a literal tab, not \t: BSD sed copies \t to the
+		# output as a "t" and the awk below would see one field.
 		printf '%s' "$res" | tr '}' '\n' |
-			sed -n 's/.*"subject":"\([^"]*\)","relation":"\([^"]*\)","object":"\(.*\)","time".*/\1\t\1 \2 \3/p'
+			sed -n 's/.*"subject":"\([^"]*\)","relation":"\([^"]*\)","object":"\(.*\)","time".*/\1	\1 \2 \3/p'
 	fi | awk -F'\t' -v w="$1" '{
 		t = tolower($2); gsub(/[^a-z0-9]+/, " ", t)
 		if (index(" " t " ", " " w " ")) print $1
