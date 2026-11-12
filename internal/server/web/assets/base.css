@@ -154,10 +154,6 @@ input[type="checkbox"], input[type="radio"] { width: 22px; height: 22px; margin:
 .tools--row .field { width: auto; }
 
 .section { margin-top: clamp(32px, 5vw, 56px); }
-.section--hop { margin-top: 32px; }
-.h2--hop { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; }
-.h2--hop a { text-decoration-thickness: 3px; overflow-wrap: anywhere; }
-.hop { font-family: var(--font-text); font-stretch: 100%; font-weight: 700; font-size: 0.9375rem; letter-spacing: 0; }
 
 .facts { margin: 0; padding: 0; list-style: none; }
 .fact {
