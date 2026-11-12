@@ -1,0 +1,24 @@
+/* The Entities screen: the type facets and the entity list. */
+
+/* ---------- entities ---------- */
+
+.facets { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.facets .label { width: 100%; margin: 0; }
+.facet {
+  min-height: 44px; padding: 0 12px;
+  border: 2px solid var(--ink); border-radius: 0; background: var(--paper); color: var(--ink);
+  font: inherit; font-weight: 700; font-size: 0.9375rem; cursor: pointer;
+}
+.facet:hover { text-decoration: underline; text-decoration-thickness: 2px; }
+.facet[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+
+.entities { margin: 0; padding: 0; list-style: none; }
+.entity {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px;
+  padding: 10px 0; background: var(--dots);
+}
+.entity__name {
+  display: inline-flex; align-items: center; min-height: 32px;
+  font-weight: 700; font-size: 1.1875rem; overflow-wrap: anywhere;
+}
+.entity .meta { margin-left: auto; }

@@ -1,6 +1,6 @@
-// Token admin: list, create (plaintext shown once), revoke. Admin token only.
-import { api, auth } from "./api.js";
-import { h, put, time, state, dialog, copyButton, errorText } from "./dom.js";
+// Settings: the agent-token list, create form and one-time secret.
+import { api, auth } from "../api.js";
+import { h, put, time, state, dialog, copyButton, errorText } from "../dom.js";
 
 export async function tokensPage() {
   const v = document.getElementById("view");

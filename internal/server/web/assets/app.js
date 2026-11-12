@@ -1,11 +1,16 @@
 // The myself web app: sign-in, chrome and a small history router over /app.
 import { api, auth, takeLoginCode, redeemLogin } from "./api.js";
 import { h, put, state, errorText } from "./dom.js";
-import { mBitmap } from "./bitmap.js";
-import { entitiesPage, entityPage, searchPage, logPage, primePage, dreamPage } from "./pages.js";
-import { addPage } from "./write.js";
-import { tokensPage } from "./tokens.js";
-import { graphPage } from "./graph.js";
+import { entitiesPage } from "./screens/entities.js";
+import { entityPage } from "./screens/entity.js";
+import { searchPage } from "./screens/search.js";
+import { logPage } from "./screens/log.js";
+import { addPage } from "./screens/add.js";
+import { dreamPage } from "./screens/dream.js";
+import { primePage } from "./screens/prime.js";
+import { tokensPage } from "./screens/settings.js";
+import { graphPage } from "./screens/graph.js";
+import { renderSignIn } from "./screens/signin.js";
 
 const view = document.getElementById("view");
 const nav = document.getElementById("nav");
@@ -160,61 +165,7 @@ function signedOutChrome() {
 function signIn(message) {
   signedOutChrome();
   document.title = "Sign in · myself";
-  const input = h("input", {
-    id: "token", name: "token", type: "password", required: true, autocomplete: "off",
-    spellcheck: "false", autocapitalize: "off", "aria-describedby": "token-help",
-  });
-  const remember = h("input", { id: "remember", type: "checkbox" });
-  const err = h("p", { class: "form-error", role: "alert", hidden: !message }, message || "");
-  const submit = h("button", { type: "submit", class: "btn btn--ink" }, "Sign in");
-  const form = h("form", { class: "signin__form", novalidate: true },
-    h("label", { for: "token", class: "label" }, "Token"),
-    input,
-    h("p", { id: "token-help", class: "help" },
-      "The admin token, or an agent token that starts with mys_. Ask whoever runs this server for one."),
-    h("label", { class: "check" }, remember,
-      h("span", {}, "Remember on this device"),
-    ),
-    h("p", { class: "help" }, "Unchecked, the token is forgotten when you close this tab. Checked, it stays in this browser until you sign out."),
-    err,
-    submit,
-  );
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const token = input.value.trim();
-    if (!token) {
-      err.textContent = "Paste a token first.";
-      err.hidden = false;
-      input.focus();
-      return;
-    }
-    submit.disabled = true;
-    submit.textContent = "Checking…";
-    try {
-      const id = await api("whoami", { token });
-      auth.save(token, remember.checked);
-      auth.identity = id;
-      buildChrome();
-      render();
-    } catch (ex) {
-      err.textContent = ex.status === 401 ? "That token was refused: it is invalid or was revoked." : errorText(ex);
-      err.hidden = false;
-      submit.disabled = false;
-      submit.textContent = "Sign in";
-      input.focus();
-    }
-  });
-  view.replaceChildren(
-    h("section", { class: "signin" },
-      h("div", { class: "signin__m" }, mBitmap()),
-      h("div", { class: "signin__body" },
-        h("h1", { class: "title signin__title" }, "myself"),
-        h("p", { class: "statement" }, "Browse, search and fix what your agents remember."),
-        form,
-      ),
-    ),
-  );
-  input.focus();
+  renderSignIn(view, message, () => { buildChrome(); render(); });
 }
 
 async function boot() {
