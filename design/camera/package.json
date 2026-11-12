@@ -1,0 +1,9 @@
+{
+  "name": "myself-camera",
+  "private": true,
+  "description": "Screenshots and design checks of the web app at /app; see screens.ts",
+  "type": "module",
+  "devDependencies": {
+    "puppeteer-core": "24.43.1"
+  }
+}
