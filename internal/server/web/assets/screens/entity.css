@@ -1,0 +1,27 @@
+/* One entity: its header, tools, hops and history. */
+
+.entity-head { display: grid; gap: 14px; margin: 0 0 24px; }
+.banner { margin: 0; font-weight: 700; }
+.tools--entity { display: flex; flex-wrap: wrap; align-items: end; gap: 12px 24px; margin-bottom: 8px; }
+.tools--entity > .field { width: 200px; }
+.at-form { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
+.at-form .field { width: 250px; }
+
+.section--hop { margin-top: 32px; }
+.h2--hop { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; }
+.h2--hop a { text-decoration-thickness: 3px; overflow-wrap: anywhere; }
+.hop { font-family: var(--font-text); font-stretch: 100%; font-weight: 700; font-size: 0.9375rem; letter-spacing: 0; }
+
+.history { margin: 16px 0 0; padding: 0; list-style: none; }
+.hist {
+  display: grid; grid-template-columns: 11rem minmax(0, 1fr); gap: 2px 16px;
+  padding: 8px 0; background: var(--dots);
+}
+.hist__fact { overflow-wrap: anywhere; }
+.hist del { text-decoration-thickness: 2px; }
+.hist__why { grid-column: 2; font-size: 0.9375rem; font-weight: 700; }
+
+@media (max-width: 640px) {
+  .hist { grid-template-columns: minmax(0, 1fr); }
+  .hist__why { grid-column: 1; }
+}

@@ -1,0 +1,18 @@
+/* Sign in: the token form and its mark. */
+
+/* ---------- sign in ---------- */
+
+.signin {
+  display: grid; grid-template-columns: minmax(180px, 40%) minmax(0, 1fr);
+  gap: clamp(24px, 5vw, 72px); align-items: end;
+  padding-top: clamp(8px, 4vw, 48px);
+}
+.signin__m svg { display: block; width: 100%; height: auto; }
+.signin__title { margin-bottom: 0.15em; }
+.signin__body .statement { margin: 0 0 28px; max-width: 30ch; font-size: 1.25rem; line-height: 1.35; }
+.signin__form { display: grid; gap: 10px; max-width: 460px; }
+.signin__form .btn { justify-self: start; min-width: 140px; }
+@media (max-width: 720px) {
+  .signin { grid-template-columns: minmax(0, 1fr); gap: 20px; padding-top: 0; }
+  .signin__m { width: 46%; }
+}

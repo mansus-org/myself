@@ -1,0 +1,40 @@
+/* The Graph screen: toolbar, canvas, panel and legend. */
+
+/* ---------- graph ---------- */
+
+.g-tools { display: flex; flex-wrap: wrap; align-items: end; gap: 12px 20px; margin-bottom: 12px; }
+.g-find { min-width: 0; flex: 1 1 300px; max-width: 460px; }
+.g-find .row { flex-wrap: nowrap; }
+.g-find input { flex: 1; min-width: 0; }
+.g-tools > .field { width: 220px; }
+.g-zoom { gap: 6px; }
+.g-body { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 16px; }
+.g-stage {
+  position: relative; height: max(420px, calc(100dvh - 250px));
+  border: 3px solid var(--ink); overflow: hidden;
+}
+.g-canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+.g-canvas:focus-visible { outline: 3px solid var(--ink); outline-offset: -8px; }
+.g-tip {
+  position: absolute; max-width: 220px; padding: 4px 8px;
+  border: 2px solid var(--ink); background: var(--paper);
+  font-size: 0.9375rem; pointer-events: none; overflow-wrap: anywhere;
+}
+.g-panel { min-width: 0; }
+.g-panel__name { margin: 0 0 8px; font-size: 1.375rem; font-weight: 800; overflow-wrap: anywhere; }
+.g-panel p { margin: 0 0 10px; }
+.g-nb { margin: 0 0 14px; padding: 0; list-style: none; max-height: 40vh; overflow: auto; }
+.g-nb li { background: var(--dots); }
+.g-foot { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 24px; }
+.g-foot .count { margin: 10px 0 0; }
+.legend { margin: 10px 0 0; font-size: 0.9375rem; }
+.sw { display: inline-block; vertical-align: middle; margin-left: 6px; }
+.sw--node { width: 11px; height: 11px; background: var(--ink); }
+.sw--type { width: 11px; height: 11px; border: 3px solid var(--ink); }
+.sw--is { width: 22px; height: 2px; background: var(--ink); }
+.sw--rel { width: 22px; height: 2px; background: linear-gradient(90deg, var(--ink) 40%, transparent 0) 0 0 / 5px 2px repeat-x; }
+@media (max-width: 860px) {
+  .g-body { grid-template-columns: minmax(0, 1fr); }
+  .g-stage { height: max(320px, 62dvh); }
+  .g-tools > .field { width: auto; flex: 1 1 160px; }
+}

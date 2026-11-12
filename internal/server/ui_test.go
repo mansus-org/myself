@@ -3,6 +3,8 @@ package server
 import (
 	"io"
 	"net/http"
+	"path"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -61,8 +63,8 @@ func TestUI(t *testing.T) {
 	// Assets, with their types and cache headers.
 	for _, c := range []struct{ path, ctype, cache string }{
 		{"/app/assets/app.js", "text/javascript; charset=utf-8", "no-cache"},
-		{"/app/assets/graph.js", "text/javascript; charset=utf-8", "no-cache"},
-		{"/app/assets/app.css", "text/css; charset=utf-8", "no-cache"},
+		{"/app/assets/screens/graph.js", "text/javascript; charset=utf-8", "no-cache"},
+		{"/app/assets/base.css", "text/css; charset=utf-8", "no-cache"},
 		{"/app/assets/fonts/atkinson-next.woff2", "font/woff2", "public, max-age=31536000, immutable"},
 	} {
 		resp, body := get(t, e, "GET", c.path, nil)
@@ -84,14 +86,52 @@ func TestUI(t *testing.T) {
 		}
 	}
 
-	// Every module app.js imports is served.
-	_, js := get(t, e, "GET", "/app/assets/app.js", nil)
-	for _, line := range strings.Split(js, "\n") {
-		if i := strings.Index(line, `from "./`); i >= 0 {
-			name := strings.TrimSuffix(line[i+len(`from "./`):], `";`)
-			if resp, _ := get(t, e, "GET", "/app/assets/"+name, nil); resp.StatusCode != 200 {
-				t.Fatalf("import %s: %d", name, resp.StatusCode)
+	// Every module reachable from app.js by a static relative import is served.
+	importPath := regexp.MustCompile(`(?m)^\s*import\b[^;\n]*\bfrom\s+"([^"]+)"`)
+	seen := map[string]bool{}
+	queue := []string{"/app/assets/app.js"}
+	for len(queue) > 0 {
+		mod := queue[0]
+		queue = queue[1:]
+		if seen[mod] {
+			continue
+		}
+		seen[mod] = true
+		resp, js := get(t, e, "GET", mod, nil)
+		if resp.StatusCode != 200 {
+			t.Fatalf("module %s: %d", mod, resp.StatusCode)
+		}
+		if got := resp.Header.Get("Content-Type"); got != "text/javascript; charset=utf-8" {
+			t.Fatalf("module %s: type %q", mod, got)
+		}
+		for _, m := range importPath.FindAllStringSubmatch(js, -1) {
+			rel := m[1]
+			if !strings.HasPrefix(rel, "./") && !strings.HasPrefix(rel, "../") {
+				continue
 			}
+			queue = append(queue, path.Clean(path.Join(path.Dir(mod), rel)))
+		}
+	}
+
+	// Every stylesheet the index links is served as CSS.
+	linkTag := regexp.MustCompile(`<link\s+[^>]*rel="stylesheet"[^>]*>`)
+	hrefAttr := regexp.MustCompile(`href="([^"]+)"`)
+	_, index := get(t, e, "GET", "/app/", nil)
+	tags := linkTag.FindAllString(index, -1)
+	if len(tags) == 0 {
+		t.Fatal("index: no stylesheet links")
+	}
+	for _, tag := range tags {
+		m := hrefAttr.FindStringSubmatch(tag)
+		if m == nil {
+			t.Fatalf("stylesheet link without href: %s", tag)
+		}
+		resp, _ := get(t, e, "GET", m[1], nil)
+		if resp.StatusCode != 200 {
+			t.Fatalf("stylesheet %s: %d", m[1], resp.StatusCode)
+		}
+		if got := resp.Header.Get("Content-Type"); got != "text/css; charset=utf-8" {
+			t.Fatalf("stylesheet %s: type %q", m[1], got)
 		}
 	}
 

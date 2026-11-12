@@ -1,0 +1,29 @@
+/* Settings: the agent-token table, its form and the secret box. */
+
+/* ---------- tokens ---------- */
+
+.table { width: 100%; border-collapse: collapse; font-size: 1rem; }
+.table th, .table td { padding: 8px 12px 8px 0; text-align: left; vertical-align: middle; background: var(--dots); }
+.table thead th { font-size: 0.9375rem; }
+.table tbody th { font-weight: 700; overflow-wrap: anywhere; }
+.table td:last-child { text-align: right; padding-right: 0; }
+@media (max-width: 640px) {
+  .table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .table, .table tbody, .table tr, .table th, .table td { display: block; }
+  .table tr { padding: 10px 0; background: var(--dots); }
+  .table th, .table td { background: none; padding: 2px 0; }
+  .table td[data-label]::before { content: attr(data-label) ": "; font-weight: 700; }
+  .table td:last-child { text-align: left; padding-top: 8px; }
+}
+.token-form { max-width: 520px; margin-top: 8px; }
+.secret-box {
+  margin: 0 0 32px; padding: 18px;
+  border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink);
+}
+.secret-box__title { margin: 0 0 6px; font-size: 1.125rem; font-weight: 800; }
+.secret-box p { margin: 0 0 12px; }
+.secret {
+  display: block; margin: 0 0 14px; padding: 12px;
+  border: 2px solid var(--ink);
+  font-size: 1rem; word-break: break-all; user-select: all;
+}

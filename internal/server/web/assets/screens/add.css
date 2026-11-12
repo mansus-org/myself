@@ -1,0 +1,13 @@
+/* Add facts: the one-fact and bulk forms and their result. */
+
+/* ---------- add facts ---------- */
+
+.split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(24px, 4vw, 56px); }
+@media (max-width: 860px) { .split { grid-template-columns: minmax(0, 1fr); } }
+.fact-form { display: grid; grid-template-columns: minmax(0, 1fr) 9rem; gap: 12px; }
+.fact-form .field--obj, .fact-form .check, .fact-form .row { grid-column: 1 / -1; }
+.result { margin-top: 32px; }
+.result__box { padding: 16px; border: 3px solid var(--ink); }
+.result__head { margin: 0 0 8px; font-weight: 800; font-size: 1.125rem; }
+.result .fact { grid-template-columns: minmax(0, 1fr); display: block; }
+.warning { margin: 10px 0 0; font-weight: 700; }

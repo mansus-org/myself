@@ -1,0 +1,9 @@
+/* Dream: the near-duplicate groups. */
+
+.dream { margin: 0; padding: 0; list-style: none; }
+.dream__group {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px;
+  padding: 12px 0; background: var(--dots);
+  font-weight: 700; font-size: 1.1875rem;
+}
+.dream__eq { font-size: 1.5rem; }

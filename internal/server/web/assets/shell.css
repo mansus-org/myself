@@ -1,0 +1,52 @@
+/* The shell: the header chrome and the main content frame. */
+
+/* ---------- chrome ---------- */
+
+.chrome {
+  display: flex; align-items: center; gap: 8px 16px; flex-wrap: wrap;
+  padding: 10px var(--pad);
+  background: var(--dots);
+}
+.mark {
+  display: inline-flex; align-items: center; min-height: 44px;
+  text-decoration: none;
+  font-family: var(--font-display); font-stretch: 150%; font-weight: 860;
+  font-size: 1.5rem; letter-spacing: -0.02em;
+}
+.nav { flex: 1 1 auto; }
+.nav__list { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.nav__link {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0 10px;
+  font-weight: 700; font-size: 1rem; text-decoration: none;
+}
+.nav__link:hover { text-decoration: underline; text-decoration-thickness: 2px; }
+.nav__link[aria-current="page"] { background: var(--ink); color: var(--paper); }
+.who { display: flex; align-items: center; gap: 10px; margin-left: auto; font-size: 0.9375rem; }
+.who strong { font-weight: 700; }
+.chrome .menu-btn { display: none; }
+.menu-btn[aria-expanded="true"] { background: var(--ink); color: var(--paper); }
+
+/* The nav row needs about 900 px; below that the pages, who you are and Sign out
+   fold behind a labelled Menu button, so the header stays one row on a phone. */
+@media (max-width: 940px) {
+  .chrome .menu-btn:not([hidden]) { display: inline-flex; margin-left: auto; }
+  .nav, .who { flex-basis: 100%; display: none; }
+  .menu-open .nav { display: block; }
+  .menu-open .who:not([hidden]) { display: flex; margin: 0 0 8px; padding: 0 12px; justify-content: space-between; }
+  .nav__list { flex-direction: column; gap: 0; padding: 4px 0 4px; }
+  .nav__link { width: 100%; padding: 0 12px; }
+}
+@media (max-width: 560px) {
+  .mark { font-size: 1.25rem; }
+}
+
+/* ---------- page ---------- */
+
+main {
+  display: block;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: clamp(20px, 4vw, 48px) var(--pad) 96px;
+}
+main:focus { outline: none; }
+.is-wide main { max-width: none; padding-bottom: 32px; }

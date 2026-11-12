@@ -1,8 +1,8 @@
 // The graph: GET /api/v1/graph drawn on a canvas with a small force layout
 // (Barnes-Hut repulsion, springs on links, a pull to the centre). Two inks
 // only: what is out of focus is drawn as dither, never as grey.
-import { api, auth, graph as fetchGraph } from "./api.js";
-import { h, put, entityHref, link, state } from "./dom.js";
+import { api, auth, graph as fetchGraph } from "../api.js";
+import { h, put, entityHref, link, state } from "../dom.js";
 
 const INK = "#141414";
 const PAPER = "#e4e2db";
