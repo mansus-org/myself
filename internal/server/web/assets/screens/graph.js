@@ -385,7 +385,9 @@ export async function graphPage(ctx) {
     // facts, most first (the selected entity before everything); a label that
     // would overlap one already placed this frame is left out, except the
     // selected entity's. With something selected or hovered only its focus set
-    // is labelled, so a dithered entity never keeps an ink label.
+    // is labelled, so a dithered entity never keeps an ink label. A box grows
+    // by 4 px on every side before the test, so two labels that only touch
+    // never read as one word.
     c.font = "600 14px 'Atkinson Hyperlegible Next', system-ui, sans-serif";
     c.textBaseline = "middle";
     c.lineJoin = "round";
@@ -407,7 +409,11 @@ export async function graphPage(ctx) {
       const text = n.name;
       const x = sx(n) + (n.size * zs) / 2 + 5, y = sy(n);
       if (x > W || y < -10 || y > H + 10 || x < -200) continue;
-      const box = { x, y: y - 9, w: c.measureText(text).width, h: 18 };
+      const pad = 4;
+      const box = {
+        x: x - pad, y: y - 9 - pad,
+        w: c.measureText(text).width + pad * 2, h: 18 + pad * 2,
+      };
       const clash = boxes.some((b) => box.x < b.x + b.w && b.x < box.x + box.w && box.y < b.y + b.h && b.y < box.y + box.h);
       if (clash && n !== selected) continue;
       boxes.push(box);
