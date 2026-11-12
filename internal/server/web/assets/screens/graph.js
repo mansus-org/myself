@@ -2,7 +2,7 @@
 // (Barnes-Hut repulsion, springs on links, a pull to the centre). Two inks
 // only: what is out of focus is drawn as dither, never as grey.
 import { api, auth, graph as fetchGraph } from "../api.js";
-import { h, put, entityHref, link, state } from "../dom.js";
+import { h, put, entityHref, link, state, normalizeName } from "../dom.js";
 
 const INK = "#141414";
 const PAPER = "#e4e2db";
@@ -185,6 +185,10 @@ export async function graphPage(ctx) {
   const typeSel = h("select", { id: "g-type" },
     h("option", { value: "" }, "All entities"),
     types.entities.map((t) => h("option", { value: t }, t)));
+  const recentSel = h("select", { id: "g-recent" },
+    h("option", { value: "" }, "All"),
+    h("option", { value: "24h" }, "24 h"),
+    h("option", { value: "7d" }, "7 d"));
   const zoomIn = h("button", { type: "button", class: "btn btn--square", "aria-label": "Zoom in" }, "+");
   const zoomOut = h("button", { type: "button", class: "btn btn--square", "aria-label": "Zoom out" }, "−");
   const fitBtn = h("button", { type: "button", class: "btn" }, "Fit");
@@ -192,7 +196,7 @@ export async function graphPage(ctx) {
 
   const canvas = h("canvas", {
     class: "g-canvas", tabindex: "0", role: "application",
-    "aria-label": `Graph of ${nodes.length} entities and ${links.length} links. Arrow keys pan, plus and minus zoom, 0 fits. Use Find to pick an entity; its links are listed next to the graph.`,
+    "aria-label": `Graph of ${nodes.length} entities and ${links.length} links. Arrow keys pan, plus and minus zoom, 0 fits. Enter opens the selected entity, Escape clears it. Use Find to pick an entity; its links are listed next to the graph.`,
     "aria-describedby": "g-legend",
   });
   const tip = h("div", { class: "g-tip", hidden: true, "aria-hidden": "true" });
@@ -203,6 +207,7 @@ export async function graphPage(ctx) {
     h("div", { class: "g-tools" },
       findForm,
       h("div", { class: "field" }, h("label", { for: "g-type", class: "label" }, "Type"), typeSel),
+      h("div", { class: "field" }, h("label", { for: "g-recent", class: "label" }, "Recent"), recentSel),
       h("div", { class: "row g-zoom" }, zoomOut, zoomIn, fitBtn),
     ),
     h("div", { class: "g-body" }, stage, panel),
@@ -212,7 +217,7 @@ export async function graphPage(ctx) {
         h("span", { class: "sw sw--node", "aria-hidden": "true" }), " entity ",
         h("span", { class: "sw sw--type", "aria-hidden": "true" }), " a type (something is one) ",
         h("span", { class: "sw sw--is", "aria-hidden": "true" }), " is ",
-        h("span", { class: "sw sw--rel", "aria-hidden": "true" }), " other link. Hover or tap to see neighbours; click to open."),
+        h("span", { class: "sw sw--rel", "aria-hidden": "true" }), " other link. Hover or tap to see neighbours; click to select, double-click to open."),
       msg,
     ),
   );
@@ -221,10 +226,24 @@ export async function graphPage(ctx) {
   const layout = new Layout(nodes, links);
   const view = { x: 0, y: 0, k: 1 };
   let W = 0, H = 0, dpr = 1;
-  let hover = null, selected = null, filter = null;
+  let hover = null, selected = null, typeFilter = null, recentFilter = null;
+  let typeName = "", recentWindow = "";
+  let pendingFocus = null;
   let userMoved = false;
   let raf = 0;
   const c2d = canvas.getContext("2d");
+
+  // setURL merges these keys into the address's query string and drops the
+  // empty ones. The path is whatever the route is now, never a fixed one.
+  function setURL(patch) {
+    const q = new URLSearchParams(location.search);
+    for (const [k, v] of Object.entries(patch)) {
+      if (v) q.set(k, v);
+      else q.delete(k);
+    }
+    const s = q.toString();
+    history.replaceState(null, "", location.pathname + (s ? "?" + s : ""));
+  }
 
   // 2x2 checkerboard: the dither for anything out of focus.
   const tile = document.createElement("canvas");
@@ -278,7 +297,7 @@ export async function graphPage(ctx) {
     c.fillStyle = PAPER;
     c.fillRect(0, 0, W, H);
     const fs = focusSet();
-    const lit = (n) => (!filter || filter.has(n.name)) && (!fs || fs.has(n));
+    const lit = (n) => (!typeFilter || typeFilter.has(n.name)) && (!recentFilter || recentFilter.has(n.name)) && (!fs || fs.has(n));
     const linkLit = (l) => (fs ? fs.has(l.s) && fs.has(l.t) && (l.s === (selected || hover) || l.t === (selected || hover)) : lit(l.s) && lit(l.t));
 
     // Links: lit ones in ink, solid for "is" and dotted otherwise; the rest dithered.
@@ -322,21 +341,39 @@ export async function graphPage(ctx) {
       }
     }
 
-    // Labels with a paper halo, so they read over links.
-    c.font = "600 13px 'Atkinson Hyperlegible Next', system-ui, sans-serif";
+    // Labels with a paper halo, so they read over links. Placed in order of
+    // facts, most first (the selected entity before everything); a label that
+    // would overlap one already placed this frame is left out, except the
+    // selected entity's.
+    c.font = "600 14px 'Atkinson Hyperlegible Next', system-ui, sans-serif";
     c.textBaseline = "middle";
     c.lineJoin = "round";
     const all = nodes.length <= 40 || view.k >= 2;
-    for (const n of nodes) {
-      const show = fs ? fs.has(n) : all ? lit(n) : landmarks.has(n) && lit(n);
-      if (!show && !(filter && filter.size <= 30 && filter.has(n.name))) continue;
+    const showing = new Set();
+    if (typeFilter || recentFilter) {
+      // A filter labels what it lights, never what it dithers.
+      for (const n of nodes) if (lit(n)) showing.add(n);
+    } else if (all) {
+      for (const n of nodes) showing.add(n);
+    } else {
+      for (const n of nodes) if (landmarks.has(n)) showing.add(n);
+    }
+    if (fs) for (const n of fs) showing.add(n);
+    const order = [...showing].sort((a, b) => (a === selected ? -1 : b === selected ? 1 : b.records - a.records));
+    const boxes = [];
+    for (const n of order) {
+      const text = n.name;
       const x = sx(n) + (n.size * zs) / 2 + 5, y = sy(n);
       if (x > W || y < -10 || y > H + 10 || x < -200) continue;
+      const box = { x, y: y - 9, w: c.measureText(text).width, h: 18 };
+      const clash = boxes.some((b) => box.x < b.x + b.w && b.x < box.x + box.w && box.y < b.y + b.h && b.y < box.y + box.h);
+      if (clash && n !== selected) continue;
+      boxes.push(box);
       c.strokeStyle = PAPER;
       c.lineWidth = 4;
-      c.strokeText(n.name, x, y);
+      c.strokeText(text, x, y);
       c.fillStyle = INK;
-      c.fillText(n.name, x, y);
+      c.fillText(text, x, y);
     }
   }
 
@@ -346,6 +383,11 @@ export async function graphPage(ctx) {
       layout.tick();
       if (!userMoved) fit();
       raf = requestAnimationFrame(loop);
+    } else if (pendingFocus) {
+      // The opening ?focus= waits for the layout, so it centres on where the
+      // entity settled rather than where it started.
+      centerOn(pendingFocus);
+      pendingFocus = null;
     }
     draw();
   }
@@ -354,14 +396,18 @@ export async function graphPage(ctx) {
   };
 
   // ---------- selection and panel ----------
+  function centerOn(n) {
+    userMoved = true;
+    view.k = Math.max(view.k, 1.4);
+    view.x = W / 2 - n.x * view.k;
+    view.y = H / 2 - n.y * view.k;
+  }
+
   function select(n, { center = false } = {}) {
     selected = n;
-    if (n && center) {
-      userMoved = true;
-      view.k = Math.max(view.k, 1.4);
-      view.x = W / 2 - n.x * view.k;
-      view.y = H / 2 - n.y * view.k;
-    }
+    pendingFocus = null;
+    if (n && center) centerOn(n);
+    setURL({ focus: n ? n.name : "" });
     renderPanel();
     draw();
   }
@@ -403,21 +449,77 @@ export async function graphPage(ctx) {
     select(n, { center: true });
   });
 
-  typeSel.addEventListener("change", async () => {
-    const t = typeSel.value;
-    if (!t) {
-      filter = null;
-      msg.textContent = "";
+  // Recent names what was written in its window; Type alone keeps its message.
+  function sayStatus() {
+    if (recentFilter) {
+      const n = recentFilter.size, win = recentWindow === "7d" ? "7 d" : "24 h";
+      msg.textContent = n
+        ? `${n} ${n === 1 ? "entity" : "entities"} written in the last ${win}.`
+        : `Nothing written in the last ${win}.`;
+    } else if (typeFilter) {
+      msg.textContent = `${typeFilter.size} ${typeFilter.size === 1 ? "entity is" : "entities are"} ${typeName}; the rest are dithered.`;
     } else {
-      try {
-        filter = new Set((await api("ls", { query: { type: t } })).entities);
-        msg.textContent = `${filter.size} ${filter.size === 1 ? "entity is" : "entities are"} ${t}; the rest are dithered.`;
-      } catch (err) {
-        msg.textContent = err.message;
-        return;
-      }
+      msg.textContent = "";
     }
-    draw();
+  }
+
+  async function applyType(t) {
+    if (!t) {
+      typeFilter = null;
+      typeName = "";
+      sayStatus();
+      draw();
+      return;
+    }
+    try {
+      typeFilter = new Set((await api("ls", { query: { type: t } })).entities);
+      typeName = t;
+      sayStatus();
+      draw();
+    } catch (err) {
+      msg.textContent = err.message;
+    }
+  }
+
+  // since is RFC 3339 UTC without milliseconds, as the log endpoint wants it.
+  const since = (win) => new Date(Date.now() - (win === "7d" ? 7 : 1) * 24 * 3600 * 1000).toISOString().replace(/\.\d{3}Z$/, "Z");
+
+  async function applyRecent(win) {
+    if (!win) {
+      recentFilter = null;
+      recentWindow = "";
+      sayStatus();
+      draw();
+      return;
+    }
+    try {
+      const res = await api("log", { query: { since: since(win) } });
+      // Every fact remembered in the window touches its subject and, when it
+      // names one, its object. A forget touches nothing: it is not a write.
+      const touched = new Set();
+      for (const r of res.records) {
+        if (r.relation === "forget") continue;
+        touched.add(r.subject);
+        const o = normalizeName(r.object);
+        if (byName.has(o)) touched.add(o);
+      }
+      recentFilter = touched;
+      recentWindow = win;
+      sayStatus();
+      draw();
+    } catch (err) {
+      msg.textContent = err.message;
+    }
+  }
+
+  typeSel.addEventListener("change", () => {
+    setURL({ type: typeSel.value });
+    applyType(typeSel.value);
+  });
+
+  recentSel.addEventListener("change", () => {
+    setURL({ recent: recentSel.value });
+    applyRecent(recentSel.value);
   });
 
   const zoomAt = (f, px = W / 2, py = H / 2) => {
@@ -539,12 +641,9 @@ export async function graphPage(ctx) {
     }
     if (moved || e.type === "pointercancel") return;
     if (d.node) {
-      // Mouse: click opens. Touch and pen: first tap selects, second opens.
-      if (downAt[2] === "mouse" || selected === d.node) ctx.navigate(entityHref(d.node.name));
-      else {
-        select(d.node);
-        showTip(d.node, sx(d.node), sy(d.node));
-      }
+      // Every click or tap selects; a double-click opens (see dblclick).
+      select(d.node);
+      if (downAt[2] !== "mouse") showTip(d.node, sx(d.node), sy(d.node));
     } else if (selected) {
       select(null);
       showTip(null);
@@ -552,6 +651,11 @@ export async function graphPage(ctx) {
   }
   canvas.addEventListener("pointerup", release);
   canvas.addEventListener("pointercancel", release);
+  canvas.addEventListener("dblclick", (e) => {
+    const [px, py] = local(e);
+    const n = hit(px, py);
+    if (n) ctx.navigate(entityHref(n.name));
+  });
   canvas.addEventListener("pointerleave", (e) => {
     if (e.pointerType === "mouse" && hover) {
       hover = null;
@@ -581,9 +685,29 @@ export async function graphPage(ctx) {
       fit();
       draw();
     } else if (e.key === "Enter" && selected) ctx.navigate(entityHref(selected.name));
+    else if (e.key === "Escape" && selected) select(null);
     else return;
     e.preventDefault();
   });
+
+  // ---------- the address ----------
+  // An unknown focus, type or recent is ignored and dropped from the address.
+  const wantType = ctx.query.get("type") || "";
+  const wantRecent = ctx.query.get("recent") || "";
+  const wantFocus = ctx.query.get("focus") || "";
+  const initialType = types.entities.includes(wantType) ? wantType : "";
+  const initialRecent = wantRecent === "24h" || wantRecent === "7d" ? wantRecent : "";
+  const initialFocus = byName.get(wantFocus) || null;
+  typeSel.value = initialType;
+  recentSel.value = initialRecent;
+  setURL({ type: initialType, recent: initialRecent, focus: initialFocus ? initialFocus.name : "" });
+  applyType(initialType);
+  applyRecent(initialRecent);
+  if (initialFocus) {
+    select(initialFocus);
+    // Centring waits for the layout to settle, or happens now under reduced motion.
+    pendingFocus = initialFocus;
+  }
 
   // ---------- run ----------
   const ro = new ResizeObserver(resize);
@@ -594,6 +718,10 @@ export async function graphPage(ctx) {
     for (let i = 0; i < 300 && layout.hot; i++) layout.tick();
     layout.alpha = 0;
     fit();
+    if (pendingFocus) {
+      centerOn(pendingFocus);
+      pendingFocus = null;
+    }
     draw();
   } else kick();
 
