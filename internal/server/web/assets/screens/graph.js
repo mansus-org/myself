@@ -344,21 +344,23 @@ export async function graphPage(ctx) {
     // Labels with a paper halo, so they read over links. Placed in order of
     // facts, most first (the selected entity before everything); a label that
     // would overlap one already placed this frame is left out, except the
-    // selected entity's.
+    // selected entity's. With something selected or hovered only its focus set
+    // is labelled, so a dithered entity never keeps an ink label.
     c.font = "600 14px 'Atkinson Hyperlegible Next', system-ui, sans-serif";
     c.textBaseline = "middle";
     c.lineJoin = "round";
     const all = nodes.length <= 40 || view.k >= 2;
-    const showing = new Set();
-    if (typeFilter || recentFilter) {
-      // A filter labels what it lights, never what it dithers.
-      for (const n of nodes) if (lit(n)) showing.add(n);
-    } else if (all) {
-      for (const n of nodes) showing.add(n);
-    } else {
-      for (const n of nodes) if (landmarks.has(n)) showing.add(n);
+    const showing = new Set(fs || []);
+    if (!fs) {
+      if (typeFilter || recentFilter) {
+        // A filter labels what it lights, never what it dithers.
+        for (const n of nodes) if (lit(n)) showing.add(n);
+      } else if (all) {
+        for (const n of nodes) showing.add(n);
+      } else {
+        for (const n of nodes) if (landmarks.has(n)) showing.add(n);
+      }
     }
-    if (fs) for (const n of fs) showing.add(n);
     const order = [...showing].sort((a, b) => (a === selected ? -1 : b === selected ? 1 : b.records - a.records));
     const boxes = [];
     for (const n of order) {
@@ -450,9 +452,11 @@ export async function graphPage(ctx) {
   });
 
   // Recent names what was written in its window; Type alone keeps its message.
+  // With both on, the number is what they leave lit: the intersection.
   function sayStatus() {
     if (recentFilter) {
-      const n = recentFilter.size, win = recentWindow === "7d" ? "7 d" : "24 h";
+      const n = typeFilter ? [...recentFilter].filter((name) => typeFilter.has(name)).length : recentFilter.size;
+      const win = recentWindow === "7d" ? "7 d" : "24 h";
       msg.textContent = n
         ? `${n} ${n === 1 ? "entity" : "entities"} written in the last ${win}.`
         : `Nothing written in the last ${win}.`;
