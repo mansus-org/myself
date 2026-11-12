@@ -341,6 +341,10 @@ async function shoot(browser: Browser, bin: string, width: number, brain: Brain,
         }
       }
       for (const finding of await page.evaluate(lint, coarse)) problems.push(`${label}: design: ${finding}`);
+      // A focused input's caret blinks, so two runs would differ. Hidden through the CSSOM, which
+      // the app's CSP allows; an injected <style> would be blocked, and bypassing the CSP here
+      // would hide real CSP violations.
+      await page.evaluate(() => document.documentElement.style.setProperty("caret-color", "transparent"));
       await page.screenshot({ path: join(out, `${label}.png`), fullPage: true });
       current = null;
     }
