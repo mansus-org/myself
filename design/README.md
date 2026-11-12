@@ -1,75 +1,140 @@
 # myself, design notes
 
-Why the landing page looks the way it does. It is built in the (R)Evolution language:
-1-bit e-ink, two inks, one display face. Files: `site/index.html`, `site/assets/style.css`,
-`site/assets/bitmap.js` (the m, its shells and the signs), `site/assets/landing.js` (the load flash and the Copy buttons),
-`site/assets/player.js` (plays `demo.cast`).
-Screenshots at 1440 and 390 wide are in `screenshots/`.
+Why the landing page looks the way it does. It is built in the (R)Evolution language —
+1-bit e-ink, two inks, one display face — at the web app's scale. Files: `site/index.html`,
+`site/assets/style.css`, `site/assets/bitmap.js` (the m, its shells and the signs),
+`site/assets/landing.js` (the load flash, the menu, the current section and the Copy buttons),
+`site/assets/player.js` (plays `demo.cast`). Screenshots at 1440 and 390 wide are in
+`screenshots/`.
 
 ## The idea
 
-The page is one letter shedding a shell. The big m is the sign of the project: three stems are
+The page is one letter shedding a shell. The m is the sign of the project: three stems are
 three nodes, the arches are the edges between them. Behind it stands a dithered ghost of the shell
 it grew out of, the m before it had a middle stem. That is molting, the one idea the page keeps
 returning to: nothing is overwritten, the old shell stays readable. At the bottom the same pair
-swaps places: the old shell is inked, the new m is the ghost, and the layout mirrors as in
-(R)Evolution.
+swaps places: the old shell is inked, the new m is the ghost.
 
-Design read: a tool announcement for people who run agents, in the Mansus 1-bit language.
-Dials: ENERGY 3 / RHYTHM 3 / MOTION 2.
+Design read: the documentation for a CLI that people read and copy from, in the web app's 1-bit
+language. It is the same product as `/app`, so it uses the same scale, shell and components.
+Dials: ENERGY 2 / RHYTHM 2 / MOTION 1.
 
-Copy: the page opens as a product page (memory across sessions, in one file you own) and then works as the
-README does: a live example, then install and setup instructions in sections with anchors, linked from an
-"On this page" list, each ending with a link to the same section of the README. There is no invented proof:
-no numbers, users or speed claims. Every command and output on the page was run against a v0.2.0 binary
-(throwaway store), so uuids and times are real. The status is stated once, in Install: v0.2.0 is out.
+Copy: the page opens as a product page (memory across sessions, in one file you own) and then works
+as the README does: a live example, then install and setup instructions in sections with anchors,
+linked from the sidebar, each ending with a link to the same section of the README. There is no
+invented proof: no numbers, users or speed claims. Every command and output on the page was run
+against a v0.2.0 binary (throwaway store), so uuids and times are real. The status is stated once,
+in Install: v0.2.0 is out.
+
+### History
+
+The first landing was a poster: a 58vw m, a vertical REMEMBER spine, Anybody headings up to
+104 px, 44 px controls, and terminal windows with ink title bars and offset shadows. It announced
+the tool well and read poorly as documentation. The redesign keeps the language, the m and the
+story, and gives them the app's scale and shell: one 32 px title, 16 px section labels, 32 px
+controls, copy blocks, a sidebar.
 
 ## Decisions, one line each
 
-- **Palette:** paper `#e4e2db`, ink `#141414` (14.2:1). Grey is only ever dither.
-- **Typeface:** Anybody (width 50, weight 900) for display only: section and day headings, the wordmark, the spine.
-  Everything people read (statements, body, lists, tables, buttons, nav) is Atkinson Hyperlegible Next, and
-  commands and files are Atkinson Hyperlegible Mono, as in the web app. The page became documentation, read and
-  copied from, so it took the same display/reading split. Fonts are self-hosted in `site/assets/fonts/` (no CDN).
-- **Bitmaps:** the m, three shells and seven 7×7 signs are drawn cell by cell and rendered as
-  crisp SVG. Dither is real squares on a sub-grid, so it stays 1-bit at any size.
-- **Terminal windows:** kept by owner decision (overrides antislop R-05); myself is a CLI and the terminal is the product.
-  A window is a 3px ink frame with an ink title bar (`bash`, plus the Copy button) over a paper body, with a small
-  offset shadow for the elevation of "this is where you type". No traffic-light dots, no dark theme. Copy takes only
-  the lines after `$`, never output or comments.
-- **Files are not terminals:** the `~/.claude/settings.json` snippets use a lighter panel: 2px frame, paper title bar with the
-  path and a dotted rule, no shadow. Ink bar means "you type this", paper bar means "you paste this into a file".
-- **Cross-session example:** the hero example is a story in three windows, staggered down the page (stacked on mobile):
-  Monday the agent saves facts, Thursday a fresh session starts from `myself prime`, later the user asks with
-  `describe`, `history` and `path`. All three show the same facts (storefront, bun, npm, alice), so the value is visible: nothing is re-explained.
-- **Live example:** right after the hero, `demo.cast` plays in a terminal window with Play/Pause and Replay
-  (both buttons, so keyboard works). It starts when scrolled into view and never loops. The window holds the
-  finished session as plain HTML, which is what shows without JS and under `prefers-reduced-motion` (no autoplay
-  there; Play still works). The screen is a fixed height and scrolls, like the terminal it was recorded in.
-- **On this page:** a ruled, numbered list of the sections, plus the README and SPEC.md links.
-- **Doc sections:** Install, Use with Claude Code, Connect to a shared brain (server, tokens, remote mode, MCP,
-  web app with a screenshot), Commands (a table that stacks per command on phones), How it stores memory,
-  Obsidian mirror, Molting and dreaming, Non-goals. On wide screens the heading holds a sticky left column and
-  the body reads on the right; below 1100 px they stack. Self-hosting examples use `<your-server>`.
-- **Install:** after the story. The release line (v0.1.1, install script, `go install`), then three numbered steps for Claude Code (skill, SessionStart hook,
-  `Bash(myself:*)`) and one line for other harnesses. Every block has a Copy button (terminals copy commands only): 44 px tall, 3px focus
-  ring, "Copied" for 1.5 s, and when the Clipboard API is missing or refuses it selects the text instead.
-  Long lines scroll inside the block.
-- **Why it works this way:** six ruled rows, each with its own sign, following the README's Why.
-  Titles and text vary in length, so the rhythm is a list, not a grid of equals.
+- **Scale and tokens:** the same as the web app: 14 px interface text (20 px line), 15 px prose,
+  one 32 px Anybody page title, 16 px section headings, 14 px code, 32 px controls, 36 px table
+  rows, 1 px rules and 2 px control borders. Touch screens (`pointer: coarse`) keep 44 px controls
+  and rows. Nothing is below 14 px. The tokens are the web app's custom properties; `site/assets/style.css`
+  copies the components this page uses, so the page still works as a static site. When a token or
+  component changes in `internal/server/web/assets/base.css`, change it here too.
+- **Palette:** paper `#e4e2db`, ink `#141414` (14.2:1). Grey is only ever dither: no flat grey, no
+  transparency, no rounded corners, no blur. The one shadow is the hard offset shadow, and neither
+  this page nor the app uses it here.
+- **Typeface:** Anybody (width 50, weight 900) for the one page title; the wordmark keeps its own cut
+  (Anybody 860, width 150%) at 24 px. Everything people read (statements, body, lists, tables,
+  buttons, nav) is Atkinson Hyperlegible Next, and commands and files are Atkinson Hyperlegible
+  Mono, as in the web app. Fonts are self-hosted in `site/assets/fonts/` (no CDN).
+- **Shell:** `--sidebar-w` 224 px, sticky and full height on paper, with a 1 px rule on its right.
+  - Top: the `myself` wordmark, then a primary **Open the web app** button, as Settings is one
+    click from the app.
+  - The page's sections are the nav: Overview, Live demo, Across sessions, Why it works, Install,
+    Claude Code, Shared brain, Commands, How it stores, Obsidian, Molting, Non-goals. Each item is
+    32 px (44 px coarse): the 14 px glyph, an 8 px gap, then the label in 14 px weight 600. The
+    current section is inverted and carries `aria-current="page"`; its left edge draws a 3 px ink
+    bar. Hover draws the bar.
+  - Foot: GitHub, README, SPEC.md and Releases, then who this is: `v0.2.0` and a `release` stamp,
+    then the licence. Margins keep it at the bottom when the viewport is tall.
+  - Below 940 px the sidebar becomes a top bar: the wordmark and a Menu button (`aria-expanded`,
+    `aria-controls`). Menu opens the same items and foot as a panel under the bar. Escape closes it
+    and puts focus back on Menu; following a link closes it.
+- **Main:** `--s5` by `--s6` of padding, at most 1024 px of content, 16 px below 940 px. A skip link
+  goes to the main area.
+- **Hero:** the one page title (`myself`, 32 px), one 15 px statement, a meta line (`CLI · MCP · web
+  app · MIT`) and the actions (Install, Open the web app, GitHub). Beside it, the m at 180 px over
+  the ghost of its earlier shell; it paints in row by row, once. Without JS the m is a plain letter;
+  under `prefers-reduced-motion` it is already painted.
+- **Sections:** every section is a label, not a sentence: a 1 px rule, the 16 px weight 700 heading,
+  then one 15 px description. Subsections are 14 px weight 700, one step down. No section explains
+  itself in a paragraph before its content.
+- **Copy blocks replace terminal windows.** A block is a 1 px ink frame with a 32 px paper header:
+  the label on the left, Copy on the right. The body is mono 14 px, `white-space: pre`, scrolling
+  sideways when a line is long. No ink title bar, no offset shadow: the app's copy block is the one
+  component for anything the reader copies, and elevation means "answer this now", which nothing on
+  this page does.
+  - **Terminal** blocks hold commands and their output. Copy takes only the lines after `$`, never
+    output or comments. Output is set off by a 3 px ink bar, comments by a dotted underline.
+  - **File** blocks are labelled with the path (`~/.claude/settings.json`, `crontab`, `.myself/brain.jsonl`,
+    `MCP client config`) and copy everything. The label is the only difference: the reader can see
+    whether they type it or paste it into a file.
+- **Live example:** right after the hero, `demo.cast` plays in a copy block labelled `Terminal` with
+  Play/Pause and Replay (both buttons, so keyboard works). It starts when scrolled into view and
+  never loops. The block holds the finished session as plain HTML, which is what shows without JS
+  and under `prefers-reduced-motion` (no autoplay there; Play still works). The screen is a fixed
+  height and scrolls, like the terminal it was recorded in.
+- **Cross-session example:** the story is a ruled list, not a staggered poster: a 16 px day label and
+  one-line caption in the left column, the sentence and its copy block on the right. Monday the agent
+  saves facts, Thursday a fresh session starts from `myself prime`, later the user asks with
+  `describe`, `history` and `path`. All three show the same facts (storefront, bun, npm, alice), so
+  the value is visible: nothing is re-explained. Below 640 px the columns stack.
+- **Why it works this way:** a ruled list. Each row is a 14 px glyph, a 16 px weight 700 title in a
+  22ch column, then the 15 px text. Titles and text vary in length, so the rhythm is a list, not a
+  grid of equals.
+- **Doc sections:** Install, Use with Claude Code (including pi), Connect to a shared brain (server,
+  tokens, remote mode, MCP, web app with a screenshot), Commands (a real table that stacks per row
+  on phones), How it stores memory, Obsidian mirror, Molting and dreaming, Non-goals. Self-hosting
+  examples use `<your-server>`.
+- **Install:** after the story. The release notice (v0.2.0), the install script, the pinned release
+  and `go install`, then three numbered steps for Claude Code and one for pi. Every block has a Copy
+  button: 32 px (44 px coarse), a 3 px focus ring, "Copied" for 1.5 s, and when the Clipboard API is
+  missing or refuses it selects the text instead. Long lines scroll inside the block.
+- **Tables:** the Commands table is the app's `data-table`: 14 px header weight 700 on a 1 px rule,
+  36 px dotted rows, and below 640 px every row becomes a block with `label value` lines from
+  `data-label`. Code wraps; nothing is cut.
 - **Molting section:** the sign in three shells, sparse dither, half dither, solid, under the heading.
-- **Motion:** the player (once, when scrolled into view), and two moments, both e-ink: the hero painting in row by row, and one black flash on
-  load. Both are off under `prefers-reduced-motion`.
-- **No JS dependency for content:** all copy is in the HTML, the demo session included; JS draws bitmaps and plays the cast. Without it
-  the `<noscript>` fallback shows a plain m.
+- **Footer:** Read on, the README and SPEC.md, the repo links, the licence, and the back of the m:
+  the old shell inked and the new m a ghost, the bookend to the hero.
+- **Motion:** the player, once, when scrolled into view, and one e-ink moment on load: the black
+  flash and the m painting in row by row. All are off under `prefers-reduced-motion`.
+- **No JS dependency for content:** all copy is in the HTML, the demo session included. JS draws the
+  bitmaps, opens the menu, marks the section and plays the cast. Without it the hero shows a plain
+  `m` and the content is still complete; the mobile section menu needs JS, as the app's does.
 
 ## Accessibility
 
-- `<h1>` carries the plain text "myself"; every bitmap and the spine are `aria-hidden`.
-- Links are at least 44 px tall, focus ring is 3px ink.
-- Checked at 360, 390 and 1440 wide, no horizontal scroll; long commands scroll inside their window.
-- A skip link goes to the contents list. Section headings run h1, h2, h3 in order.
-- The player's state change is announced in a status region; the screen is focusable for keyboard scrolling.
+- The `<h1>` carries the plain text "myself"; every bitmap and glyph is `aria-hidden`.
+- Links and controls are 32 px with a mouse and 44 px when the pointer is coarse; the focus ring is
+  3 px ink. A skip link goes to the main area.
+- Checked at 360, 390, 1280 and 1440 wide, no horizontal scroll; long commands scroll inside their
+  copy block.
+- Section headings run h1, h2, h3 in order. The current section is marked in both copies of the nav.
+- The player's state change is announced in a status region; the screen is focusable for keyboard
+  scrolling.
+
+## Files
+
+| File | What it holds |
+| --- | --- |
+| `site/index.html` | the shell, the hero, and every section's copy |
+| `site/assets/style.css` | the app's tokens and components, plus this page's layout |
+| `site/assets/bitmap.js` | the m, its shells, the nav glyphs and the dither |
+| `site/assets/landing.js` | the flash, the menu, the current section and Copy |
+| `site/assets/player.js` | plays `demo.cast` in the live demo block |
+| `site/assets/app-graph.webp` | a screenshot of the redesigned Graph page |
 
 ## Not done yet
 
