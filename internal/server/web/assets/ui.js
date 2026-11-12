@@ -221,10 +221,12 @@ export function object(rec, names) {
   return names && names.has(n) ? link(entityHref(n), rec.object) : rec.object;
 }
 
+// table draws a real table. A screen that can be empty passes empty: a Node
+// shown as the one row when there are no rows.
 export function table({ caption, columns, rows, sort, onSort, empty, limit = 100 }) {
   let shown = Math.min(limit, rows.length);
-  const wrapper = h("div", { class: "table-wrap" });
-  const tableEl = h("table", { class: "table" });
+  const wrapper = h("div", { class: "data-table-wrap" });
+  const tableEl = h("table", { class: "data-table" });
   if (caption) tableEl.append(h("caption", { class: "sr" }, caption));
   const headRow = h("tr");
   for (const col of columns) {
@@ -235,7 +237,7 @@ export function table({ caption, columns, rows, sort, onSort, empty, limit = 100
         : "none");
       th.append(h("button", {
         type: "button",
-        class: "table__sort",
+        class: "data-table__sort",
         onclick: () => onSort && onSort(col.key),
       }, col.label));
     } else th.append(col.label);
@@ -243,8 +245,8 @@ export function table({ caption, columns, rows, sort, onSort, empty, limit = 100
   }
   const tbody = h("tbody");
   tableEl.append(h("thead", {}, headRow), tbody);
-  const foot = h("div", { class: "table-foot" });
-  const countLine = h("p", { class: "table__count" });
+  const foot = h("div", { class: "data-table-foot" });
+  const countLine = h("p", { class: "data-table__count" });
   const more = button("Show 100 more", { onClick: () => {
     shown = Math.min(shown + 100, rows.length);
     paint();
@@ -269,8 +271,8 @@ export function table({ caption, columns, rows, sort, onSort, empty, limit = 100
   function paint() {
     tbody.replaceChildren();
     if (!rows.length) {
-      tbody.append(h("tr", { class: "table-empty" },
-        h("td", { colspan: columns.length }, empty || "Nothing here.")));
+      tbody.append(h("tr", { class: "data-table-empty" },
+        h("td", { colspan: columns.length }, empty)));
     } else {
       tbody.append(...rows.slice(0, shown).map(bodyRow));
     }
@@ -299,12 +301,12 @@ export function factTable(facts, { columns, names, canForget, onForget, forgotte
   const keys = (columns || ["written", "subject", "relation", "object"]).map((key) =>
     typeof key === "string" ? FACT_COLUMNS[key] : key).filter(Boolean);
   const wrapper = h("div", { class: "fact-table-wrap" });
-  const tableEl = h("table", { class: "table fact-table" });
+  const tableEl = h("table", { class: "data-table fact-table" });
   tableEl.append(h("thead", {}, h("tr", {}, keys.map((col) =>
     h("th", {
       scope: "col",
       class: col.key === "actions" ? "fact-table__actions" : null,
-    }, col.label)))));
+    }, col.key === "actions" ? h("span", { class: "sr" }, col.label) : col.label)))));
   const tbody = h("tbody");
   tableEl.append(tbody);
   wrapper.append(tableEl);
@@ -470,9 +472,9 @@ export function copyBlock({ label, text, wrap }) {
 }
 
 export function secretBox({ name, scope, token, onDone }) {
-  return h("section", { class: "secret-box", role: "status", "aria-label": `Token for ${name}` },
+  return h("section", { class: "secret-panel", role: "status", "aria-label": `Token for ${name}` },
     copyBlock({ label: `Token for ${name} · ${scope}`, text: token }),
-    h("p", { class: "secret-box__note" }, "This is the only time it is shown."),
+    h("p", { class: "secret-panel__note" }, "This is the only time it is shown."),
     button("Done", { kind: "primary", onClick: onDone }));
 }
 
