@@ -1,25 +1,9 @@
-/* The Log screen: its rows and the new-record flash. */
+/* The Log: the filter bar and the state at its right. */
 
-.log { margin: 0; padding: 0; list-style: none; }
-.logrow {
-  display: grid; grid-template-columns: 11rem auto minmax(0, 1fr); align-items: baseline; gap: 2px 12px;
-  padding: 8px 0; background: var(--dots);
+.s-log .log-bar {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: var(--s3) var(--s4);
+  margin-bottom: var(--s4);
 }
-.logrow > .meta { grid-column: 1; }
-.logrow > .stamp { grid-column: 2; }
-.logrow__fact { grid-column: 3; overflow-wrap: anywhere; }
-.logrow__fact > a { font-weight: 700; }
-.logrow--forget del { text-decoration-thickness: 2px; }
-/* New records arrive the way an e-ink panel repaints: one inverted frame, then ink on paper. */
-.is-new { animation: refresh 0.5s steps(1, end) 1; }
-@keyframes refresh {
-  0% { background: var(--ink); color: var(--paper); }
-  50% { background: var(--sparse); color: var(--ink); }
-}
-@media (prefers-reduced-motion: reduce) { .is-new { animation: none; } }
-@media (max-width: 640px) {
-  .logrow { grid-template-columns: auto minmax(0, 1fr); }
-  .logrow > .meta { grid-column: 1; }
-  .logrow > .stamp { grid-column: 2; justify-self: start; }
-  .logrow__fact { grid-column: 1 / -1; }
-}
+.s-log .log-bar__state { margin: 0 0 0 auto; }
+.s-log .log-body { min-width: 0; }
