@@ -1,40 +1,116 @@
-/* The Graph screen: toolbar, canvas, panel and legend. */
+/* The Graph screen: layout for the toolbar, the canvas and the panel.
+   Everything visual comes from the shared components and the tokens. */
 
-/* ---------- graph ---------- */
+.s-graph { display: flex; flex-direction: column; }
 
-.g-tools { display: flex; flex-wrap: wrap; align-items: end; gap: 12px 20px; margin-bottom: 12px; }
-.g-find { min-width: 0; flex: 1 1 300px; max-width: 460px; }
-.g-find .row { flex-wrap: nowrap; }
-.g-find input { flex: 1; min-width: 0; }
-.g-tools > .field { width: 220px; }
-.g-zoom { gap: 6px; }
-.g-body { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 16px; }
-.g-stage {
-  position: relative; height: max(420px, calc(100dvh - 250px));
-  border: 3px solid var(--ink); overflow: hidden;
+/* ---------- toolbar ---------- */
+
+.s-graph .g-toolbar {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: var(--s2) var(--s4);
+  padding: var(--s3) var(--s5);
+  border-bottom: var(--rule);
 }
-.g-canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
-.g-canvas:focus-visible { outline: 3px solid var(--ink); outline-offset: -8px; }
-.g-tip {
-  position: absolute; max-width: 220px; padding: 4px 8px;
-  border: 2px solid var(--ink); background: var(--paper);
-  font-size: 0.9375rem; pointer-events: none; overflow-wrap: anywhere;
+.s-graph .g-find {
+  flex: 1 1 calc(var(--s7) * 4);
+  max-width: calc(var(--s7) * 8);
+  min-width: 0;
 }
-.g-panel { min-width: 0; }
-.g-panel__name { margin: 0 0 8px; font-size: 1.375rem; font-weight: 800; overflow-wrap: anywhere; }
-.g-panel p { margin: 0 0 10px; }
-.g-nb { margin: 0 0 14px; padding: 0; list-style: none; max-height: 40vh; overflow: auto; }
-.g-nb li { background: var(--dots); }
-.g-foot { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 24px; }
-.g-foot .count { margin: 10px 0 0; }
-.legend { margin: 10px 0 0; font-size: 0.9375rem; }
-.sw { display: inline-block; vertical-align: middle; margin-left: 6px; }
-.sw--node { width: 11px; height: 11px; background: var(--ink); }
-.sw--type { width: 11px; height: 11px; border: 3px solid var(--ink); }
-.sw--is { width: 22px; height: 2px; background: var(--ink); }
-.sw--rel { width: 22px; height: 2px; background: linear-gradient(90deg, var(--ink) 40%, transparent 0) 0 0 / 5px 2px repeat-x; }
-@media (max-width: 860px) {
-  .g-body { grid-template-columns: minmax(0, 1fr); }
-  .g-stage { height: max(320px, 62dvh); }
-  .g-tools > .field { width: auto; flex: 1 1 160px; }
+.s-graph .g-find .field { width: 100%; }
+.s-graph .g-zoom {
+  display: flex; align-items: center; gap: var(--s2);
+  margin-left: auto;
+}
+
+.s-graph .g-status { padding: var(--s2) var(--s5) var(--s3); }
+.s-graph .g-status__text { margin: 0; font-size: var(--fs-ui); line-height: 20px; }
+
+/* ---------- canvas and panel ---------- */
+
+.s-graph .g-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--panel-w);
+  grid-template-rows: minmax(0, 1fr);
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.s-graph .g-stage {
+  position: relative; overflow: hidden;
+  min-width: 0; min-height: 0;
+}
+.s-graph .g-canvas {
+  display: block; width: 100%; height: 100%;
+  touch-action: none; cursor: grab;
+}
+.s-graph .g-canvas:focus-visible { outline-offset: calc(var(--s2) * -1); }
+.s-graph .g-tip {
+  position: absolute; max-width: calc(var(--s7) * 5);
+  padding: var(--s1) var(--s2);
+  border: var(--control-border); background: var(--paper);
+  font-size: var(--fs-ui); line-height: 20px;
+  pointer-events: none; overflow-wrap: anywhere;
+}
+
+.s-graph .g-panel {
+  display: flex; flex-direction: column; gap: var(--s4);
+  min-width: 0; min-height: 0;
+  padding: var(--s4);
+  border-left: var(--rule);
+  overflow-y: auto;
+}
+.s-graph .g-figures {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s4);
+}
+.s-graph .g-panel__title {
+  margin: 0;
+  font-size: var(--fs-h2); font-weight: 700; line-height: 20px;
+}
+.s-graph .g-panel__head {
+  display: flex; flex-wrap: wrap; align-items: baseline;
+  justify-content: space-between; gap: var(--s2);
+}
+.s-graph .g-panel__name {
+  margin: 0; overflow-wrap: anywhere;
+  font-size: var(--fs-h2); font-weight: 700; line-height: 20px;
+}
+.s-graph .g-panel__meta { margin: 0; font-size: var(--fs-ui); line-height: 20px; }
+.s-graph .g-panel__actions {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: var(--s2);
+}
+
+.s-graph .g-latest,
+.s-graph .g-facts { display: flex; flex-direction: column; gap: var(--s2); }
+.s-graph .g-sel-head,
+.s-graph .g-sel-body { display: flex; flex-direction: column; gap: var(--s2); }
+.s-graph .g-sel-body { gap: var(--s4); }
+.s-graph .g-needs__groups { overflow-wrap: anywhere; }
+.s-graph .g-more { margin: 0; font-size: var(--fs-ui); line-height: 20px; }
+.s-graph .g-legend { margin-top: auto; }
+
+/* ---------- the empty brain ---------- */
+
+.s-graph .g-content { padding: var(--s5); }
+.s-graph .g-empty-actions {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: var(--s3);
+}
+
+@media (min-width: 1101px) {
+  .s-graph { height: 100dvh; }
+}
+
+@media (max-width: 1100px) {
+  .s-graph .g-body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+  }
+  .s-graph .g-stage { height: max(320px, 60dvh); }
+  .s-graph .g-panel {
+    min-height: auto; overflow: visible;
+    border-left: 0; border-top: var(--rule);
+    padding: var(--s4) var(--s5);
+  }
+  .s-graph .g-legend { margin-top: 0; }
 }

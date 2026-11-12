@@ -1,12 +1,29 @@
 // The graph: GET /api/v1/graph drawn on a canvas with a small force layout
 // (Barnes-Hut repulsion, springs on links, a pull to the centre). Two inks
 // only: what is out of focus is drawn as dither, never as grey.
-import { api, auth, graph as fetchGraph } from "../api.js";
-import { h, put, entityHref, link, state, normalizeName } from "../dom.js";
+import { api, auth, enc, graph as fetchGraph } from "../api.js";
+import { h, put, entityHref, link, normalizeName, num, count } from "../dom.js";
+import {
+  button, linkButton, field, segmented, typeStamps, factList, notice,
+  errorBox, figure, emptyState, legend,
+} from "../ui.js";
 
 const INK = "#141414";
 const PAPER = "#e4e2db";
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// The entity page's fact order: is, has, uses, does, prefers, related, then
+// oldest first.
+const REL_ORDER = ["is", "has", "uses", "does", "prefers", "related"];
+
+function entityOrder(a, b) {
+  const ra = REL_ORDER.indexOf(a.relation);
+  const rb = REL_ORDER.indexOf(b.relation);
+  const ka = ra < 0 ? REL_ORDER.length : ra;
+  const kb = rb < 0 ? REL_ORDER.length : rb;
+  if (ka !== kb) return ka - kb;
+  return (Date.parse(a.time) - Date.parse(b.time)) || a.uuid.localeCompare(b.uuid);
+}
 
 // ---------- layout ----------
 
@@ -134,14 +151,26 @@ class Layout {
 
 export async function graphPage(ctx) {
   const v = document.getElementById("view");
-  const loading = state("Loading the graph…");
-  put(v, h("h1", { class: "title sr" }, "Graph"), loading);
+  // The toolbar is this page's header. While the first read is pending it
+  // holds only the title; the content waits, busy.
+  put(v,
+    h("header", { class: "g-toolbar" }, h("h1", { class: "page-title" }, "Graph")),
+    h("div", { class: "g-content", "aria-busy": "true" }),
+  );
+
   const [g, types] = await Promise.all([fetchGraph(), api("ls")]);
-  loading.remove();
+  v.replaceChildren();
+
   if (!g.nodes.length) {
-    put(v, h("h1", { class: "title" }, "Graph"),
-      state("Nothing to draw yet. Entities appear once an agent remembers facts."),
-      auth.canWrite ? h("p", {}, link("/app/add", "Add the first facts")) : null);
+    // An empty brain has no canvas and no panel: one sentence, and the two
+    // ways to give it something to draw.
+    put(v,
+      h("header", { class: "g-toolbar" }, h("h1", { class: "page-title" }, "Graph")),
+      h("div", { class: "g-content" },
+        emptyState("Nothing remembered yet.", h("div", { class: "g-empty-actions" },
+          auth.canWrite ? linkButton("/app/add", "Add facts", { kind: "primary" }) : null,
+          link("/app/settings", "Connect an agent")))),
+    );
     return;
   }
 
@@ -152,6 +181,7 @@ export async function graphPage(ctx) {
     byName.set(n.name, node);
     return node;
   });
+  const names = new Set(byName.keys());
   const pairs = new Map();
   for (const e of g.edges) {
     const s = byName.get(e.from), t = byName.get(e.to);
@@ -175,51 +205,73 @@ export async function graphPage(ctx) {
   // The best-connected few keep their label at any zoom, for orientation.
   const landmarks = new Set(nodes.slice().sort((a, b) => b.records - a.records).slice(0, 12));
 
+  // ---------- the address ----------
+  // An unknown focus, type or recent is ignored and dropped from the address.
+  const wantType = ctx.query.get("type") || "";
+  const wantRecent = ctx.query.get("recent") || "";
+  const wantFocus = ctx.query.get("focus") || "";
+  const initialType = types.entities.includes(wantType) ? wantType : "";
+  const initialRecent = wantRecent === "24h" || wantRecent === "7d" ? wantRecent : "";
+  const initialFocus = byName.get(wantFocus) || null;
+  ctx.setQuery({
+    type: initialType,
+    recent: initialRecent,
+    focus: initialFocus ? initialFocus.name : null,
+  });
+
   // ---------- DOM ----------
-  const find = h("input", { id: "g-find", type: "search", list: "g-names", autocomplete: "off", spellcheck: "false" });
-  const findForm = h("form", { class: "g-find" },
-    h("label", { for: "g-find", class: "label" }, "Find"),
-    h("div", { class: "row" }, find, h("button", { type: "submit", class: "btn" }, "Focus")),
+  const find = h("input", {
+    id: "g-find", type: "search", list: "g-names",
+    autocomplete: "off", spellcheck: "false",
+  });
+  const findForm = h("form", { class: "g-find", role: "search" },
+    field({ label: "Find", control: find, inline: true }),
     h("datalist", { id: "g-names" }, nodes.map((n) => h("option", { value: n.name }))),
   );
   const typeSel = h("select", { id: "g-type" },
-    h("option", { value: "" }, "All entities"),
+    h("option", { value: "" }, "All types"),
     types.entities.map((t) => h("option", { value: t }, t)));
-  const recentSel = h("select", { id: "g-recent" },
-    h("option", { value: "" }, "All"),
-    h("option", { value: "24h" }, "24 h"),
-    h("option", { value: "7d" }, "7 d"));
-  const zoomIn = h("button", { type: "button", class: "btn btn--square", "aria-label": "Zoom in" }, "+");
-  const zoomOut = h("button", { type: "button", class: "btn btn--square", "aria-label": "Zoom out" }, "−");
-  const fitBtn = h("button", { type: "button", class: "btn" }, "Fit");
-  const msg = h("p", { class: "count", "aria-live": "polite" });
+  typeSel.value = initialType;
+  const recent = segmented({
+    label: "Recent",
+    options: [{ value: "", label: "All" }, { value: "24h", label: "24 h" }, { value: "7d", label: "7 d" }],
+    value: initialRecent,
+    onChange: (win) => {
+      ctx.setQuery({ recent: win });
+      applyRecent(win);
+    },
+  });
+  const zoomOut = button("−", { kind: "square", ariaLabel: "Zoom out", onClick: () => zoomAt(1 / 1.4) });
+  const zoomIn = button("+", { kind: "square", ariaLabel: "Zoom in", onClick: () => zoomAt(1.4) });
+  const fitBtn = button("Fit", { onClick: () => {
+    userMoved = false;
+    fit();
+    draw();
+  } });
+
+  let findMessage = "";
+  let filterMessage = "";
+  const statusText = h("p", { class: "g-status__text" });
+  const statusLine = h("div", { class: "g-status", "aria-live": "polite", hidden: true }, statusText);
 
   const canvas = h("canvas", {
     class: "g-canvas", tabindex: "0", role: "application",
-    "aria-label": `Graph of ${nodes.length} entities and ${links.length} links. Arrow keys pan, plus and minus zoom, 0 fits. Enter opens the selected entity, Escape clears it. Use Find to pick an entity; its links are listed next to the graph.`,
-    "aria-describedby": "g-legend",
+    "aria-label": `Graph of ${g.nodes.length} entities and ${g.edges.length} links. Arrow keys pan, plus and minus zoom, 0 fits. Enter opens the selected entity, Escape clears it. Pick an entity in the panel to select it.`,
   });
   const tip = h("div", { class: "g-tip", hidden: true, "aria-hidden": "true" });
   const stage = h("div", { class: "g-stage" }, canvas, tip);
-  const panel = h("aside", { class: "g-panel", "aria-label": "Selected entity" });
+  const panel = h("aside", { class: "g-panel", "aria-label": "Brain" });
 
-  put(v, 
-    h("div", { class: "g-tools" },
+  put(v,
+    h("header", { class: "g-toolbar" },
+      h("h1", { class: "page-title" }, "Graph"),
       findForm,
-      h("div", { class: "field" }, h("label", { for: "g-type", class: "label" }, "Type"), typeSel),
-      h("div", { class: "field" }, h("label", { for: "g-recent", class: "label" }, "Recent"), recentSel),
-      h("div", { class: "row g-zoom" }, zoomOut, zoomIn, fitBtn),
+      field({ label: "Type", control: typeSel, inline: true }),
+      recent,
+      h("div", { class: "g-zoom" }, zoomOut, zoomIn, fitBtn),
     ),
+    statusLine,
     h("div", { class: "g-body" }, stage, panel),
-    h("div", { class: "g-foot" },
-      h("p", { class: "count" }, `${nodes.length} entities, ${links.length} links.`),
-      h("p", { id: "g-legend", class: "legend" },
-        h("span", { class: "sw sw--node", "aria-hidden": "true" }), " entity ",
-        h("span", { class: "sw sw--type", "aria-hidden": "true" }), " a type (something is one) ",
-        h("span", { class: "sw sw--is", "aria-hidden": "true" }), " is ",
-        h("span", { class: "sw sw--rel", "aria-hidden": "true" }), " other link. Hover or tap to see neighbours; click to select, double-click to open."),
-      msg,
-    ),
   );
 
   // ---------- state ----------
@@ -232,18 +284,6 @@ export async function graphPage(ctx) {
   let userMoved = false;
   let raf = 0;
   const c2d = canvas.getContext("2d");
-
-  // setURL merges these keys into the address's query string and drops the
-  // empty ones. The path is whatever the route is now, never a fixed one.
-  function setURL(patch) {
-    const q = new URLSearchParams(location.search);
-    for (const [k, v] of Object.entries(patch)) {
-      if (v) q.set(k, v);
-      else q.delete(k);
-    }
-    const s = q.toString();
-    history.replaceState(null, "", location.pathname + (s ? "?" + s : ""));
-  }
 
   // 2x2 checkerboard: the dither for anything out of focus.
   const tile = document.createElement("canvas");
@@ -397,7 +437,261 @@ export async function graphPage(ctx) {
     if (!raf) raf = requestAnimationFrame(loop);
   };
 
-  // ---------- selection and panel ----------
+  // ---------- the panel ----------
+  const descCache = new Map();
+  let latestRecords = null;
+  let latestSeen = null;
+  let latestError = null;
+  let latestLoading = false;
+  let latestHost = null;
+  let latestTimer = 0;
+  let dreamGroups = null;
+  let dreamError = null;
+  let dreamLoading = false;
+  let needsHost = null;
+
+  function describe(name) {
+    let p = descCache.get(name);
+    if (!p) {
+      p = api("describe/" + enc(name));
+      descCache.set(name, p);
+      p.catch(() => descCache.delete(name));
+    }
+    return p;
+  }
+
+  function stopLatest() {
+    if (latestTimer) clearInterval(latestTimer);
+    latestTimer = 0;
+  }
+
+  function startLatest() {
+    stopLatest();
+    latestTimer = setInterval(() => {
+      if (!document.hidden) loadLatest();
+    }, 15000);
+  }
+
+  function loadLatest() {
+    if (latestLoading) return;
+    latestLoading = true;
+    api("log", { query: { n: 8 } }).then((res) => {
+      latestLoading = false;
+      latestError = null;
+      // The endpoint answers oldest last; the panel reads newest first.
+      latestRecords = res.records.slice().reverse();
+      if (!selected) paintLatest();
+    }).catch((err) => {
+      latestLoading = false;
+      if (err.status === 401) return;
+      latestError = err;
+      if (!selected) paintLatest();
+    });
+  }
+
+  function paintLatest() {
+    if (!latestHost || !latestHost.isConnected) return;
+    if (latestError) {
+      latestHost.replaceChildren(errorBox(latestError, { retry: () => {
+        latestError = null;
+        paintLatest();
+        loadLatest();
+      } }));
+      return;
+    }
+    if (!latestRecords) {
+      latestHost.replaceChildren();
+      return;
+    }
+    const byID = new Map(latestRecords.map((r) => [r.uuid, r]));
+    const items = latestRecords.map((r) => {
+      if (r.relation === "forget") {
+        const target = byID.get(r.subject);
+        return target
+          ? { time: r.time, subject: target.subject, relation: target.relation, object: target.object, forgotten: true }
+          // The forgotten fact is older than these 8 records: the Log shows
+          // its short uuid in mono; a fact list has no mono, so the first 8
+          // characters stand in for the fact.
+          : { time: r.time, subject: r.subject.slice(0, 8) + "…", relation: "forget", object: r.object || null, forgotten: true };
+      }
+      return { time: r.time, subject: r.subject, relation: r.relation, object: r.object };
+    });
+    const list = factList(items, { names, onSelect: selectByName });
+    const fresh = latestSeen
+      ? new Set(latestRecords.filter((r) => !latestSeen.has(r.uuid)).map((r) => r.uuid))
+      : new Set();
+    latestSeen = new Set(latestRecords.map((r) => r.uuid));
+    latestRecords.forEach((r, i) => {
+      if (fresh.has(r.uuid)) list.children[i]?.classList.add("flash");
+    });
+    latestHost.replaceChildren(list);
+  }
+
+  function loadDream() {
+    if (dreamLoading) return;
+    dreamLoading = true;
+    api("dream").then((res) => {
+      dreamLoading = false;
+      dreamError = null;
+      dreamGroups = res.near_duplicates || [];
+      if (!selected) paintNeeds();
+    }).catch((err) => {
+      dreamLoading = false;
+      if (err.status === 401) return;
+      dreamError = err;
+      if (!selected) paintNeeds();
+    });
+  }
+
+  function paintNeeds() {
+    if (!needsHost || !needsHost.isConnected) return;
+    if (dreamError) {
+      needsHost.replaceChildren(errorBox(dreamError, { retry: () => {
+        dreamError = null;
+        dreamGroups = null;
+        paintNeeds();
+        loadDream();
+      } }));
+      return;
+    }
+    if (!dreamGroups || !dreamGroups.length) {
+      needsHost.replaceChildren();
+      return;
+    }
+    const groups = dreamGroups.map((group) => {
+      const line = [];
+      group.forEach((name, i) => {
+        if (i) line.push(" ≈ ");
+        line.push(button(name, { kind: "quiet", onClick: () => selectByName(name) }));
+      });
+      return h("span", { class: "g-needs__group" }, line);
+    });
+    const text = h("span", { class: "g-needs__groups" }, groups.flatMap((g, i) => (i ? [", ", g] : [g])));
+    needsHost.replaceChildren(notice({
+      lead: count(dreamGroups.length, "near-duplicate name", "near-duplicate names"),
+      text,
+      action: linkButton("/app/dream", "Dream"),
+    }));
+  }
+
+  function selectByName(name) {
+    const n = byName.get(normalizeName(name));
+    if (n) select(n, { center: true });
+  }
+
+  function renderGlance() {
+    stopLatest();
+    const facts = g.nodes.reduce((sum, n) => sum + n.records, 0) - g.edges.length;
+    const figures = h("div", { class: "g-figures" },
+      figure({ label: "Entities", value: num(g.nodes.length), href: "/app/entities" }),
+      figure({ label: "Facts", value: num(facts), href: "/app/log" }),
+      figure({ label: "Types", value: num(types.entities.length), href: "/app/entities" }),
+      figure({ label: "Links", value: num(g.edges.length) }),
+    );
+    latestHost = h("div", { class: "g-latest__list" });
+    needsHost = h("div", { class: "g-needs" });
+    panel.setAttribute("aria-busy", "false");
+    panel.replaceChildren(
+      figures,
+      h("section", { class: "g-latest" },
+        h("div", { class: "g-panel__head" },
+          h("h2", { class: "g-panel__title" }, "Latest"),
+          link("/app/log", "Log")),
+        latestHost),
+      needsHost,
+      h("div", { class: "g-legend" }, legend([
+        ["entity", "Entity"],
+        ["type", "Type"],
+        ["is", "is link"],
+        ["link", "other link"],
+      ])),
+    );
+    paintLatest();
+    paintNeeds();
+    if (latestRecords === null) loadLatest();
+    if (dreamGroups === null) loadDream();
+    startLatest();
+  }
+
+  function renderSelection() {
+    stopLatest();
+    const n = selected;
+    const name = n.name;
+    const meta = h("p", { class: "g-panel__meta" },
+      h("strong", {}, "Links"), " ", num(n.nb.size));
+    const body = h("div", { class: "g-sel-body" });
+    panel.setAttribute("aria-busy", "true");
+    panel.replaceChildren(
+      h("div", { class: "g-sel-head" },
+        h("h2", { class: "g-panel__name" }, name),
+        typeStamps(n.types),
+        meta,
+        h("div", { class: "g-panel__actions" },
+          linkButton(entityHref(name), "Open", { kind: "primary" }),
+          auth.canWrite ? linkButton("/app/add?subject=" + enc(name), "Add a fact") : null,
+          button("Clear", { kind: "quiet", onClick: () => {
+            select(null);
+            canvas.focus();
+          } }),
+        ),
+      ),
+      body,
+    );
+
+    function show(desc) {
+      if (selected !== n) return;
+      panel.setAttribute("aria-busy", "false");
+      const e = desc.entities && desc.entities[0];
+      if (!e) return;
+      const out = (e.out || []).slice().sort(entityOrder);
+      const incoming = (e.in || []).slice().sort(entityOrder);
+      meta.replaceChildren(
+        h("strong", {}, "Facts"), " ", num(out.length),
+        " · ",
+        h("strong", {}, "Links"), " ", num(n.nb.size),
+      );
+      const sections = [];
+      if (out.length) {
+        sections.push(h("section", { class: "g-facts" },
+          h("h2", { class: "g-panel__title" }, "Facts"),
+          factList(out.slice(0, 12).map((r) => ({ relation: r.relation, object: r.object })),
+            { names, onSelect: selectByName }),
+          out.length > 12
+            ? h("p", { class: "g-more" }, link(entityHref(name), "All " + count(out.length, "fact", "facts")))
+            : null,
+        ));
+      }
+      if (incoming.length) {
+        sections.push(h("section", { class: "g-facts" },
+          h("h2", { class: "g-panel__title" }, "Linked from"),
+          factList(incoming.slice(0, 8).map((r) => ({ subject: r.subject, relation: r.relation })),
+            { names, onSelect: selectByName }),
+          incoming.length > 8
+            ? h("p", { class: "g-more" }, link(entityHref(name) + "?tab=linked", "All " + num(incoming.length)))
+            : null,
+        ));
+      }
+      body.replaceChildren(...sections);
+    }
+
+    function fail(err) {
+      if (selected !== n) return;
+      panel.setAttribute("aria-busy", "false");
+      body.replaceChildren(errorBox(err, { retry: () => {
+        descCache.delete(name);
+        renderSelection();
+      } }));
+    }
+
+    describe(name).then(show).catch(fail);
+  }
+
+  function renderPanel() {
+    if (selected) renderSelection();
+    else renderGlance();
+  }
+
+  // ---------- selection and the address ----------
   function centerOn(n) {
     userMoved = true;
     view.k = Math.max(view.k, 1.4);
@@ -409,79 +703,99 @@ export async function graphPage(ctx) {
     selected = n;
     pendingFocus = null;
     if (n && center) centerOn(n);
-    setURL({ focus: n ? n.name : "" });
+    ctx.setQuery({ focus: n ? n.name : null });
     renderPanel();
     draw();
   }
 
-  function renderPanel() {
-    if (!selected) {
-      panel.replaceChildren(h("p", { class: "help" }, "Pick an entity with Find, or tap one, to list its links here."));
+  function say() {
+    statusLine.replaceChildren(statusText);
+    statusText.hidden = false;
+    const parts = [findMessage, filterMessage].filter(Boolean);
+    statusText.textContent = parts.join(" ");
+    statusLine.hidden = parts.length === 0;
+  }
+
+  function statusError(err, retry) {
+    statusLine.hidden = false;
+    statusText.hidden = true;
+    statusLine.replaceChildren(statusText, errorBox(err, { retry }));
+  }
+
+  function pickFind() {
+    const text = find.value.trim();
+    if (!text) {
+      findMessage = "";
+      say();
       return;
     }
-    const n = selected;
-    const nb = [...n.nb].sort((a, b) => a.name.localeCompare(b.name));
-    put(panel.replaceChildren() || panel,
-      h("h2", { class: "g-panel__name" }, n.name),
-      n.types.length ? h("p", { class: "types" }, n.types.map((t) => h("span", { class: "stamp stamp--small" }, t))) : null,
-      h("p", { class: "meta" }, n.records === 1 ? "1 fact" : `${n.records} facts`),
-      h("p", {}, h("a", { href: entityHref(n.name), "data-link": true, class: "btn btn--ink" }, "Open entity page")),
-      nb.length ? h("h3", { class: "label" }, nb.length === 1 ? "1 neighbour" : `${nb.length} neighbours`) : h("p", { class: "help" }, "No links: its facts are all free text."),
-      nb.length ? h("ul", { class: "g-nb" }, nb.map((m) => h("li", {},
-        h("button", { type: "button", class: "linkish", onclick: () => select(m, { center: true }) }, m.name)))) : null,
-      h("button", { type: "button", class: "btn btn--small", onclick: () => {
-        select(null);
-        canvas.focus();
-      } }, "Clear selection"),
-    );
+    const q = text.toLowerCase();
+    const n = byName.get(normalizeName(text))
+      || nodes.find((x) => x.name.startsWith(q))
+      || nodes.find((x) => x.name.includes(q));
+    if (!n) {
+      findMessage = `No entity matches "${text}".`;
+      say();
+      return;
+    }
+    findMessage = "";
+    say();
+    find.value = n.name;
+    select(n, { center: true });
   }
-  renderPanel();
 
   findForm.addEventListener("submit", (e) => {
     e.preventDefault();
-    const q = find.value.trim().toLowerCase();
-    if (!q) return;
-    const n = byName.get(q) || nodes.find((x) => x.name.startsWith(q)) || nodes.find((x) => x.name.includes(q));
-    if (!n) {
-      msg.textContent = `No entity matches "${find.value.trim()}".`;
-      return;
-    }
-    msg.textContent = "";
-    find.value = n.name;
-    select(n, { center: true });
+    pickFind();
+  });
+  find.addEventListener("change", pickFind);
+  find.addEventListener("input", () => {
+    if (!findMessage) return;
+    findMessage = "";
+    say();
   });
 
-  // Recent names what was written in its window; Type alone keeps its message.
+  // Recent names what was written in its window; Type alone names the type.
   // With both on, the number is what they leave lit: the intersection.
-  function sayStatus() {
+  function sayFilter() {
     if (recentFilter) {
       const n = typeFilter ? [...recentFilter].filter((name) => typeFilter.has(name)).length : recentFilter.size;
       const win = recentWindow === "7d" ? "7 d" : "24 h";
-      msg.textContent = n
+      filterMessage = n
         ? `${n} ${n === 1 ? "entity" : "entities"} written in the last ${win}.`
         : `Nothing written in the last ${win}.`;
     } else if (typeFilter) {
-      msg.textContent = `${typeFilter.size} ${typeFilter.size === 1 ? "entity is" : "entities are"} ${typeName}; the rest are dithered.`;
+      filterMessage = `${typeFilter.size} ${typeFilter.size === 1 ? "entity is" : "entities are"} ${typeName}.`;
     } else {
-      msg.textContent = "";
+      filterMessage = "";
     }
+    say();
   }
 
   async function applyType(t) {
     if (!t) {
       typeFilter = null;
       typeName = "";
-      sayStatus();
+      sayFilter();
       draw();
       return;
     }
     try {
       typeFilter = new Set((await api("ls", { query: { type: t } })).entities);
       typeName = t;
-      sayStatus();
+      sayFilter();
       draw();
     } catch (err) {
-      msg.textContent = err.message;
+      if (err.status === 401) return;
+      typeFilter = null;
+      typeName = "";
+      filterMessage = "";
+      say();
+      statusError(err, () => {
+        filterMessage = "";
+        say();
+        applyType(t);
+      });
     }
   }
 
@@ -492,7 +806,7 @@ export async function graphPage(ctx) {
     if (!win) {
       recentFilter = null;
       recentWindow = "";
-      sayStatus();
+      sayFilter();
       draw();
       return;
     }
@@ -509,40 +823,37 @@ export async function graphPage(ctx) {
       }
       recentFilter = touched;
       recentWindow = win;
-      sayStatus();
+      sayFilter();
       draw();
     } catch (err) {
-      msg.textContent = err.message;
+      if (err.status === 401) return;
+      recentFilter = null;
+      recentWindow = "";
+      filterMessage = "";
+      say();
+      statusError(err, () => {
+        filterMessage = "";
+        say();
+        applyRecent(win);
+      });
     }
   }
 
   typeSel.addEventListener("change", () => {
-    setURL({ type: typeSel.value });
+    ctx.setQuery({ type: typeSel.value });
     applyType(typeSel.value);
   });
 
-  recentSel.addEventListener("change", () => {
-    setURL({ recent: recentSel.value });
-    applyRecent(recentSel.value);
-  });
-
-  const zoomAt = (f, px = W / 2, py = H / 2) => {
+  // ---------- zoom and pointer ----------
+  function zoomAt(f, px = W / 2, py = H / 2) {
     const k = Math.max(0.05, Math.min(8, view.k * f));
     view.x = px - ((px - view.x) * k) / view.k;
     view.y = py - ((py - view.y) * k) / view.k;
     view.k = k;
     userMoved = true;
     draw();
-  };
-  zoomIn.addEventListener("click", () => zoomAt(1.4));
-  zoomOut.addEventListener("click", () => zoomAt(1 / 1.4));
-  fitBtn.addEventListener("click", () => {
-    userMoved = false;
-    fit();
-    draw();
-  });
+  }
 
-  // ---------- pointer ----------
   const pointers = new Map();
   let drag = null; // { node } or { pan: true }
   let downAt = null;
@@ -694,23 +1005,15 @@ export async function graphPage(ctx) {
     e.preventDefault();
   });
 
-  // ---------- the address ----------
-  // An unknown focus, type or recent is ignored and dropped from the address.
-  const wantType = ctx.query.get("type") || "";
-  const wantRecent = ctx.query.get("recent") || "";
-  const wantFocus = ctx.query.get("focus") || "";
-  const initialType = types.entities.includes(wantType) ? wantType : "";
-  const initialRecent = wantRecent === "24h" || wantRecent === "7d" ? wantRecent : "";
-  const initialFocus = byName.get(wantFocus) || null;
-  typeSel.value = initialType;
-  recentSel.value = initialRecent;
-  setURL({ type: initialType, recent: initialRecent, focus: initialFocus ? initialFocus.name : "" });
+  // ---------- the opening state ----------
   applyType(initialType);
   applyRecent(initialRecent);
   if (initialFocus) {
     select(initialFocus);
     // Centring waits for the layout to settle, or happens now under reduced motion.
     pendingFocus = initialFocus;
+  } else {
+    renderGlance();
   }
 
   // ---------- run ----------
@@ -735,5 +1038,6 @@ export async function graphPage(ctx) {
   ctx.setCleanup(() => {
     cancelAnimationFrame(raf);
     ro.disconnect();
+    stopLatest();
   });
 }
