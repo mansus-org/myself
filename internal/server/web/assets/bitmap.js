@@ -50,3 +50,30 @@ export function mBitmap() {
   }
   return svg;
 }
+
+const GLYPHS = {
+  graph: ["##...##", "##...##", "..#.#..", "...#...", "..#.#..", "##...##", "##...##"],
+  entities: ["#.#####", ".......", "#.#####", ".......", "#.#####", ".......", "#.#####"],
+  search: [".###...", "#...#..", "#...#..", "#...#..", ".####..", ".....#.", "......#"],
+  log: ["#######", ".......", "#####..", ".......", "######.", ".......", "####..."],
+  dream: ["####...", "#..#...", "#..####", "####..#", "...#..#", "...#..#", "...####"],
+  prime: ["#######", "#.....#", "#.###.#", "#.....#", "#.###.#", "#.....#", "#######"],
+  settings: [".#.....", "#######", ".#.....", ".......", "....#..", "#######", "....#.."],
+};
+
+// glyph draws one 7x7 nav sign as crisp SVG, cell by cell like the m.
+export function glyph(name) {
+  const rows = GLYPHS[name];
+  if (!rows) return null;
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("class", "glyph");
+  svg.setAttribute("viewBox", "0 0 7 7");
+  svg.setAttribute("shape-rendering", "crispEdges");
+  svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("focusable", "false");
+  const p = document.createElementNS(NS, "path");
+  p.setAttribute("d", solid(rows));
+  p.setAttribute("fill", "currentColor");
+  svg.append(p);
+  return svg;
+}
