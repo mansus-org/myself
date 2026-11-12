@@ -127,6 +127,8 @@ const screens: Screen[] = [
   { name: "settings-server", path: "/app/settings?tab=server" },
   { name: "settings-read", path: "/app/settings", who: "read" },
   { name: "notfound", path: "/app/nope" },
+  { name: "kit", path: "/app/kit" },
+  { name: "kit-read", path: "/app/kit", who: "read" },
   // Old addresses: each must land on its new screen.
   { name: "old-graph", path: "/app/graph?focus=relay" },
   { name: "old-entity", path: "/app/e/relay" },
