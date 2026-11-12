@@ -1,29 +1,25 @@
 /* The Kit: layout for the component review page only. */
 
-.s-kit { padding: 24px 32px; }
-.s-kit .kit-group { margin: 0; padding: 24px 0; border-bottom: var(--rule-dotted); }
-.s-kit .kit-group__title { margin: 0 0 16px; font-size: var(--fs-h2); font-weight: 700; line-height: 20px; }
-.s-kit .kit-grid { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
-.s-kit .kit-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; }
-.s-kit .kit-stack { display: grid; gap: 12px; }
+.s-kit .kit-group { margin: 0; padding: var(--s5) 0; border-bottom: var(--rule-dotted); }
+.s-kit .kit-group__title { margin: 0 0 var(--s4); font-size: var(--fs-h2); font-weight: 700; line-height: 20px; }
+.s-kit .kit-grid { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3); }
+.s-kit .kit-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--s5); }
+.s-kit .kit-stack { display: grid; gap: var(--s3); }
 .s-kit .kit-value, .s-kit .kit-caption { margin: 0; font-size: var(--fs-ui); line-height: 20px; }
-.s-kit .kit-caption { margin: 16px 0 8px; font-weight: 700; }
-.s-kit .kit-figures { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; }
-.s-kit .kit-glyphs { display: flex; flex-wrap: wrap; gap: 16px 24px; }
-.s-kit .kit-glyph { display: inline-flex; align-items: center; gap: 8px; font-size: var(--fs-ui); line-height: 20px; }
+.s-kit .kit-caption { margin: var(--s4) 0 var(--s2); font-weight: 700; }
+.s-kit .kit-figures { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s5); }
+.s-kit .kit-glyphs { display: flex; flex-wrap: wrap; gap: var(--s4) var(--s5); }
+.s-kit .kit-glyph { display: inline-flex; align-items: center; gap: var(--s2); font-size: var(--fs-ui); line-height: 20px; }
 .s-kit .kit-formatters { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
 .s-kit .kit-formatters li {
   display: grid; grid-template-columns: minmax(120px, max-content) minmax(120px, max-content) minmax(0, 1fr);
-  gap: 16px; align-items: baseline; min-height: var(--row-h); padding: 4px 0;
+  gap: var(--s4); align-items: baseline; min-height: var(--row-h); padding: var(--s1) 0;
   border-bottom: var(--rule-dotted); font-size: var(--fs-ui); line-height: 20px;
 }
 .s-kit .kit-formatters__name { font-weight: 700; }
 .s-kit .kit-formatters__exact { overflow-wrap: anywhere; }
 .s-kit .kit-table { max-width: 100%; }
 
-@media (max-width: 940px) {
-  .s-kit { padding: 16px; }
-}
 @media (max-width: 640px) {
   .s-kit .kit-figures { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .s-kit .kit-formatters li { grid-template-columns: minmax(0, 1fr); gap: 0; }
