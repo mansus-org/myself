@@ -404,7 +404,10 @@ The home: what the brain holds, how it is connected and what changed.
     outside the type, followed transitively (`GET /ls?type=<type>`), is dithered.
   - **Recent:** a segmented control, `All`, `24 h`, `7 d`. Everything that no fact remembered in the
     window touches (as its subject, or as its object when that names an entity) is dithered. Type
-    and Recent combine.
+    and Recent combine: lit means inside both.
+  - The line under the toolbar also counts what a filter leaves lit: `7 entities are project.`
+    with Type alone; `5 entities written in the last 24 h.` with Recent, alone or with Type (then
+    the count is of entities inside both); `Nothing written in the last 24 h.` when nothing is.
   - at the right, zoom out, zoom in and Fit: two square buttons labelled "Zoom out" and "Zoom in",
     and Fit.
 - **Canvas.** Today's force layout (Barnes-Hut repulsion, springs, a pull to the centre), with these
@@ -416,11 +419,13 @@ The home: what the brain holds, how it is connected and what changed.
   - Entities are squares sized by their facts (5 + 1.6 × √facts px, at most 16); types are hollow;
     `is` links are solid and other links dotted. The selected entity gets a 2 px ring 4 px out.
     While something is selected or hovered, it and its neighbours stay ink and the rest is dithered.
-  - **Labels:** 14 px weight 600 Atkinson Next with a 4 px paper halo, right of the square. Every
-    entity gets a label when there are at most 40 or the view is zoomed in (k ≥ 2); otherwise the 12
-    with the most facts do, plus always the selected and hovered entity and their neighbours. Labels
-    are placed in order of facts, most first, and a label that would overlap one already placed is
-    left out, except the selected entity's.
+  - **Labels:** 14 px weight 600 Atkinson Next with a 4 px paper halo, right of the square. While an
+    entity is selected or hovered, only it and its neighbours get labels, so a dithered square never
+    carries ink that makes it look lit. Otherwise, with a Type or Recent filter on, the lit entities
+    get labels; with none, every entity does when there are at most 40 or the view is zoomed in
+    (k ≥ 2), and the 12 with the most facts do when there are more. Labels are placed in order of
+    facts, most first (the selected entity first of all), and a label that would overlap one already
+    placed is left out, except the selected entity's.
   - Opening with `?focus=` selects that entity and centres on it once the layout has settled.
   - **Keyboard:** arrows pan, + and − zoom, 0 fits (as today); Enter opens the selected entity and
     Escape clears it. The canvas's accessible name gives the number of entities and links and these
