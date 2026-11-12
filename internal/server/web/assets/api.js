@@ -72,6 +72,12 @@ export async function api(path, { method = "GET", query, body, token = auth.toke
 
 export const enc = encodeURIComponent;
 
+// signOut forgets the token and loads the app again, which shows the sign-in.
+export function signOut() {
+  auth.clear();
+  location.assign("/app/");
+}
+
 // The graph is shared by the pages that need entity names and types. It is
 // kept for 15 s (agents write all the time), and writes here drop it.
 let graphP = null;

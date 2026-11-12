@@ -1,45 +1,6 @@
-// Writing: the Add facts page and the forget dialog. Both need a write token.
-import { api, auth, dropGraph } from "./api.js";
-import { h, put, dialog, entityLink, state, errorText } from "./dom.js";
-
-// forgetRecord asks for a reason and forgets rec. It resolves true once
-// the forget record is written, false if the reader cancelled.
-export async function forgetRecord(rec) {
-  const result = await dialog("Forget this fact?", (close) => {
-    const reason = h("textarea", { id: "forget-reason", rows: 3, maxlength: 2000 });
-    const err = h("p", { class: "form-error", role: "alert", hidden: true });
-    const ok = h("button", { type: "submit", class: "btn btn--ink" }, "Forget");
-    const form = h("form", { class: "stack", method: "dialog" },
-      h("p", { class: "dialog__fact" }, h("strong", {}, rec.subject), " ", h("span", { class: "rel" }, rec.relation), " ", rec.object),
-      h("p", { class: "help" }, "Nothing is erased: a forget record is appended and this fact moves to the history, struck through."),
-      h("label", { for: "forget-reason", class: "label" }, "Reason (optional)"),
-      reason,
-      err,
-      h("div", { class: "row" },
-        ok,
-        h("button", { type: "button", class: "btn", onclick: () => close(false) }, "Cancel"),
-      ),
-    );
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      ok.disabled = true;
-      ok.textContent = "Forgetting…";
-      try {
-        await api("forget", { method: "POST", body: { uuid: rec.uuid, reason: reason.value.trim() } });
-        dropGraph();
-        close(true);
-      } catch (ex) {
-        err.textContent = errorText(ex);
-        err.hidden = false;
-        ok.disabled = false;
-        ok.textContent = "Forget";
-      }
-    });
-    queueMicrotask(() => reason.focus());
-    return form;
-  });
-  return result === true;
-}
+// Add facts: the one-fact and bulk forms and their result.
+import { api, auth, dropGraph } from "../api.js";
+import { h, put, entityLink, state, errorText } from "../dom.js";
 
 // parseBulk splits "subject relation object..." lines like `remember -`:
 // blank lines skipped, one matching pair of quotes stripped from the object.

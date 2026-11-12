@@ -1,0 +1,129 @@
+/* Settings: the connect steps, the token table and the server's addresses. */
+
+.s-settings .s-settings__connect,
+.s-settings .s-settings__server {
+  display: grid;
+  gap: var(--s5);
+  max-width: 760px;
+  min-width: 0;
+}
+
+.s-settings .s-settings__block {
+  display: grid;
+  gap: var(--s4);
+  min-width: 0;
+}
+
+.s-settings .s-settings__h2 {
+  margin: 0;
+  font-size: var(--fs-h2);
+  font-weight: 700;
+  line-height: 20px;
+}
+
+.s-settings .s-settings__create {
+  display: grid;
+  gap: var(--s4);
+  max-width: 560px;
+  min-width: 0;
+}
+
+.s-settings .s-settings__fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--s4);
+  min-width: 0;
+}
+
+.s-settings .s-settings__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s3);
+}
+
+.s-settings .s-settings__secret {
+  min-width: 0;
+  max-width: 560px;
+}
+
+.s-settings .s-settings__step-list,
+.s-settings .s-settings__mcp {
+  display: grid;
+  gap: var(--s5);
+  min-width: 0;
+}
+
+.s-settings .s-settings__step-list ol {
+  display: grid;
+  gap: var(--s5);
+  margin: 0;
+  padding-left: var(--s5);
+  min-width: 0;
+}
+
+.s-settings .s-settings__step-list li {
+  min-width: 0;
+  padding-left: var(--s1);
+}
+
+.s-settings .s-settings__step {
+  margin: 0 0 var(--s2);
+  font-size: var(--fs-ui);
+  font-weight: 700;
+  line-height: 20px;
+}
+
+.s-settings .s-settings__mcp {
+  gap: var(--s2);
+}
+
+.s-settings .s-settings__mcp-lead {
+  margin: 0;
+  max-width: 72ch;
+  font-size: var(--fs-body);
+  line-height: 1.5;
+}
+
+.s-settings .s-settings__tokens {
+  display: grid;
+  gap: var(--s5);
+  max-width: 1000px;
+  min-width: 0;
+}
+
+.s-settings .s-settings__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--s3);
+}
+
+.s-settings .s-settings__table {
+  min-width: 0;
+}
+
+.s-settings .s-settings__identity,
+.s-settings .s-settings__address {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2) var(--s3);
+  min-width: 0;
+}
+
+.s-settings .s-settings__address code {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .s-settings .s-settings__fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.s-settings .s-settings__secret:empty {
+  display: none;
+}

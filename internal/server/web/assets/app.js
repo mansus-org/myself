@@ -1,33 +1,88 @@
-// The myself web app: sign-in, chrome and a small history router over /app.
-import { api, auth, takeLoginCode, redeemLogin } from "./api.js";
-import { h, put, state, errorText } from "./dom.js";
-import { mBitmap } from "./bitmap.js";
-import { entitiesPage, entityPage, searchPage, logPage, primePage, dreamPage } from "./pages.js";
-import { addPage } from "./write.js";
-import { tokensPage } from "./tokens.js";
-import { graphPage } from "./graph.js";
+// The myself web app: sign-in, the shell and the router over /app.
+import { api, auth, takeLoginCode, redeemLogin, signOut } from "./api.js";
+import { h, put, link, errorText } from "./dom.js";
+import { pageHeader, errorBox, emptyState } from "./ui.js";
+import { glyph } from "./bitmap.js";
+import { entitiesPage } from "./screens/entities.js";
+import { entityPage } from "./screens/entity.js";
+import { searchPage } from "./screens/search.js";
+import { logPage } from "./screens/log.js";
+import { addPage } from "./screens/add.js";
+import { dreamPage } from "./screens/dream.js";
+import { primePage } from "./screens/prime.js";
+import { tokensPage } from "./screens/settings.js";
+import { graphPage } from "./screens/graph.js";
+import { kitPage } from "./screens/kit.js";
+import { renderSignIn } from "./screens/signin.js";
 
 const view = document.getElementById("view");
 const nav = document.getElementById("nav");
+const menuNav = document.getElementById("menu-nav");
+const menu = document.getElementById("menu");
 const menuBtn = document.querySelector(".menu-btn");
-const who = document.querySelector(".who");
+const addSlot = document.getElementById("add-slot");
+const menuAdd = document.getElementById("menu-add");
+const sidebarFoot = document.getElementById("sidebar-foot");
+const menuFoot = document.getElementById("menu-foot");
 
-// Pages in nav order. show decides whether the token may see the page.
-const PAGES = [
-  { path: "/app/", label: "Entities", render: entitiesPage },
-  { path: "/app/graph", label: "Graph", render: graphPage, wide: true },
-  { path: "/app/search", label: "Search", render: searchPage },
-  { path: "/app/log", label: "Log", render: logPage },
-  { path: "/app/add", label: "Add facts", render: addPage, show: () => auth.canWrite },
-  { path: "/app/dream", label: "Dream", render: dreamPage },
-  { path: "/app/prime", label: "Prime", render: primePage },
-  { path: "/app/tokens", label: "Tokens", render: tokensPage, show: () => auth.isAdmin },
+const NAV_MAIN = [
+  { path: "/app/", id: "graph", label: "Graph", glyph: "graph" },
+  { path: "/app/entities", id: "entities", label: "Entities", glyph: "entities" },
+  { path: "/app/search", id: "search", label: "Search", glyph: "search" },
+  { path: "/app/log", id: "log", label: "Log", glyph: "log" },
+  { path: "/app/dream", id: "dream", label: "Dream", glyph: "dream" },
+  { path: "/app/prime", id: "prime", label: "Prime", glyph: "prime" },
 ];
+const SETTINGS = { path: "/app/settings", id: "settings", label: "Settings", glyph: "settings" };
+
+const ROUTES = {
+  "/app/": { id: "graph", title: "Graph", render: graphPage },
+  "/app/entities": { id: "entities", title: "Entities", render: entitiesPage },
+  "/app/search": { id: "search", title: "Search", render: searchPage },
+  "/app/log": { id: "log", title: "Log", render: logPage },
+  "/app/dream": { id: "dream", title: "Dream", render: dreamPage },
+  "/app/prime": { id: "prime", title: "Prime", render: primePage },
+  "/app/add": { id: "add", title: "Add facts", render: addPage },
+  "/app/settings": { id: "settings", title: "Settings", render: tokensPage },
+  "/app/kit": { id: "kit", title: "Kit", render: kitPage },
+};
 
 let cleanup = null;
 
+function cleanPath(pathname) {
+  if (pathname === "/app" || pathname === "/app/") return "/app/";
+  return pathname.replace(/\/+$/, "");
+}
+
+function applyRedirect() {
+  const path = cleanPath(location.pathname);
+  const search = location.search;
+  if (location.pathname === "/app") {
+    history.replaceState(null, "", "/app/" + search);
+    return true;
+  }
+  if (path === "/app/graph") {
+    history.replaceState(null, "", "/app/" + search);
+    return true;
+  }
+  if (path === "/app/tokens") {
+    const q = new URLSearchParams(search);
+    q.set("tab", "tokens");
+    const s = q.toString();
+    history.replaceState(null, "", "/app/settings" + (s ? "?" + s : ""));
+    return true;
+  }
+  const oldEntity = path.match(/^\/app\/e\/(.+)$/);
+  if (oldEntity) {
+    history.replaceState(null, "", "/app/entities/" + oldEntity[1] + search);
+    return true;
+  }
+  return false;
+}
+
 function route(pathname) {
-  const m = pathname.match(/^\/app\/e\/(.+)$/);
+  const path = cleanPath(pathname);
+  const m = path.match(/^\/app\/entities\/(.+)$/);
   if (m) {
     let name;
     try {
@@ -35,18 +90,33 @@ function route(pathname) {
     } catch {
       name = m[1];
     }
-    return { render: (ctx) => entityPage(ctx, name), wide: false, title: name };
+    return { id: "entity", title: name, render: (ctx) => entityPage(ctx, name) };
   }
-  const p = pathname === "/app" ? "/app/" : pathname.replace(/\/+$/, "") || "/app/";
-  const page = PAGES.find((pg) => pg.path === p || pg.path === p + "/");
-  if (!page || (page.show && !page.show())) return null;
-  return { ...page, title: page.label };
+  return ROUTES[path] || null;
 }
 
 export function navigate(url, { replace = false } = {}) {
   if (replace) history.replaceState(null, "", url);
   else history.pushState(null, "", url);
   render();
+}
+
+function context() {
+  const ctx = {
+    query: new URLSearchParams(location.search),
+    navigate,
+    setCleanup: (fn) => { cleanup = fn; },
+    setQuery(params) {
+      for (const [key, value] of Object.entries(params || {})) {
+        if (value == null || value === "") ctx.query.delete(key);
+        else ctx.query.set(key, String(value));
+      }
+      const q = ctx.query.toString();
+      history.replaceState(null, "", location.pathname + (q ? "?" + q : ""));
+      ctx.query = new URLSearchParams(q);
+    },
+  };
+  return ctx;
 }
 
 async function render() {
@@ -56,65 +126,101 @@ async function render() {
   }
   closeMenu();
   if (!auth.identity) return;
+  applyRedirect();
   const r = route(location.pathname);
   markNav();
-  document.body.classList.toggle("is-wide", !!(r && r.wide));
+  view.className = "";
   view.replaceChildren();
   if (!r) {
+    view.classList.add("s-notfound");
     document.title = "Not found · myself";
-    put(view, h("h1", { class: "title" }, "Not here"), state("This page doesn't exist, or your token can't open it."));
+    view.replaceChildren(
+      pageHeader({ title: "Not here" }),
+      emptyState("This page doesn't exist, or your token can't open it.", link("/app/", "Graph")),
+    );
     return;
   }
+  view.classList.add("s-" + r.id);
   document.title = r.title + " · myself";
-  const ctx = { query: new URLSearchParams(location.search), navigate, setCleanup: (fn) => (cleanup = fn) };
   try {
-    await r.render(ctx);
+    await r.render(context());
   } catch (err) {
     if (err.status === 401) return;
-    view.replaceChildren(h("h1", { class: "title" }, r.title), state(errorText(err), "error"));
+    view.replaceChildren(pageHeader({ title: r.title }), errorBox(err, { retry: render }));
   }
+}
+
+function navItem(item) {
+  return h("li", {},
+    h("a", {
+      class: "nav__item",
+      href: item.path,
+      "data-link": true,
+      "data-nav": item.path,
+    }, glyph(item.glyph), h("span", { class: "nav__label" }, item.label)));
+}
+
+function addButton() {
+  return h("a", {
+    class: "btn btn--primary sidebar__add-link",
+    href: "/app/add",
+    "data-link": true,
+    "data-nav": "/app/add",
+  }, "Add facts");
+}
+
+function foot() {
+  const id = auth.identity;
+  return [
+    h("ul", { class: "nav__list nav__list--foot" }, navItem(SETTINGS)),
+    h("div", { class: "who" },
+      h("span", { class: "who__name" }, id.name),
+      h("span", { class: "stamp who__scope" }, id.admin ? "admin" : id.scope)),
+    h("button", { type: "button", class: "btn btn--quiet signout", onclick: signOut }, "Sign out"),
+  ];
 }
 
 function buildChrome() {
-  const id = auth.identity;
-  nav.replaceChildren(
-    h("ul", { class: "nav__list" },
-      PAGES.filter((p) => !p.show || p.show()).map((p) =>
-        h("li", {}, h("a", { href: p.path, "data-link": true, class: "nav__link" }, p.label)))),
-  );
-  put(who.querySelector(".who__name").replaceChildren() || who.querySelector(".who__name"),
-    h("span", { class: "who__label" }, "Signed in as "),
-    h("strong", {}, id.name),
-    " ",
-    id.admin ? null : h("span", { class: "stamp stamp--small", title: "Token scope" }, id.scope),
-  );
-  nav.hidden = false;
-  who.hidden = false;
+  const main = h("ul", { class: "nav__list" }, NAV_MAIN.map(navItem));
+  nav.replaceChildren(main);
+  menuNav.replaceChildren(h("ul", { class: "nav__list" }, NAV_MAIN.map(navItem)));
+  const canWrite = auth.canWrite;
+  addSlot.replaceChildren(canWrite ? addButton() : "");
+  menuAdd.replaceChildren(canWrite ? addButton() : "");
+  sidebarFoot.replaceChildren(...foot());
+  menuFoot.replaceChildren(...foot());
   menuBtn.hidden = false;
+  document.body.classList.remove("signed-out");
+  markNav();
 }
 
 function markNav() {
-  const p = location.pathname.replace(/\/+$/, "") || "/app";
-  for (const a of nav.querySelectorAll("a")) {
-    const ap = a.getAttribute("href").replace(/\/+$/, "");
-    const on = ap === p || (ap === "/app" && p.startsWith("/app/e/"));
-    if (on) a.setAttribute("aria-current", "page");
+  const path = cleanPath(location.pathname);
+  let active = null;
+  if (path === "/app/") active = "/app/";
+  else if (path === "/app/entities" || path.startsWith("/app/entities/")) active = "/app/entities";
+  else if (path === "/app/add") active = "/app/add";
+  else if (ROUTES[path] && path !== "/app/kit") active = path;
+  for (const a of document.querySelectorAll("a[data-nav]")) {
+    if (a.getAttribute("data-nav") === active) a.setAttribute("aria-current", "page");
     else a.removeAttribute("aria-current");
   }
 }
 
 function closeMenu() {
   menuBtn.setAttribute("aria-expanded", "false");
+  menu.hidden = true;
   document.body.classList.remove("menu-open");
 }
 
 menuBtn.addEventListener("click", () => {
   const open = menuBtn.getAttribute("aria-expanded") !== "true";
   menuBtn.setAttribute("aria-expanded", String(open));
+  menu.hidden = !open;
   document.body.classList.toggle("menu-open", open);
 });
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && document.body.classList.contains("menu-open")) {
+  if (e.key === "Escape" && !menu.hidden) {
     closeMenu();
     menuBtn.focus();
   }
@@ -125,8 +231,8 @@ document.addEventListener("click", (e) => {
   const a = e.target.closest("a[data-link]");
   if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
   e.preventDefault();
+  closeMenu();
   if (a.getAttribute("href") === location.pathname + location.search) {
-    closeMenu();
     return;
   }
   navigate(a.getAttribute("href"));
@@ -134,11 +240,6 @@ document.addEventListener("click", (e) => {
   window.scrollTo(0, 0);
 });
 window.addEventListener("popstate", render);
-
-document.querySelector(".signout").addEventListener("click", () => {
-  auth.clear();
-  signIn();
-});
 
 auth.onUnauthorized = () => {
   auth.clear();
@@ -150,80 +251,28 @@ function signedOutChrome() {
     cleanup();
     cleanup = null;
   }
-  nav.hidden = true;
-  who.hidden = true;
   menuBtn.hidden = true;
   closeMenu();
-  document.body.classList.remove("is-wide");
+  document.body.classList.add("signed-out");
 }
 
 function signIn(message) {
   signedOutChrome();
+  view.className = "s-signin";
   document.title = "Sign in · myself";
-  const input = h("input", {
-    id: "token", name: "token", type: "password", required: true, autocomplete: "off",
-    spellcheck: "false", autocapitalize: "off", "aria-describedby": "token-help",
+  renderSignIn(view, message, () => {
+    buildChrome();
+    render();
   });
-  const remember = h("input", { id: "remember", type: "checkbox" });
-  const err = h("p", { class: "form-error", role: "alert", hidden: !message }, message || "");
-  const submit = h("button", { type: "submit", class: "btn btn--ink" }, "Sign in");
-  const form = h("form", { class: "signin__form", novalidate: true },
-    h("label", { for: "token", class: "label" }, "Token"),
-    input,
-    h("p", { id: "token-help", class: "help" },
-      "The admin token, or an agent token that starts with mys_. Ask whoever runs this server for one."),
-    h("label", { class: "check" }, remember,
-      h("span", {}, "Remember on this device"),
-    ),
-    h("p", { class: "help" }, "Unchecked, the token is forgotten when you close this tab. Checked, it stays in this browser until you sign out."),
-    err,
-    submit,
-  );
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const token = input.value.trim();
-    if (!token) {
-      err.textContent = "Paste a token first.";
-      err.hidden = false;
-      input.focus();
-      return;
-    }
-    submit.disabled = true;
-    submit.textContent = "Checking…";
-    try {
-      const id = await api("whoami", { token });
-      auth.save(token, remember.checked);
-      auth.identity = id;
-      buildChrome();
-      render();
-    } catch (ex) {
-      err.textContent = ex.status === 401 ? "That token was refused: it is invalid or was revoked." : errorText(ex);
-      err.hidden = false;
-      submit.disabled = false;
-      submit.textContent = "Sign in";
-      input.focus();
-    }
-  });
-  view.replaceChildren(
-    h("section", { class: "signin" },
-      h("div", { class: "signin__m" }, mBitmap()),
-      h("div", { class: "signin__body" },
-        h("h1", { class: "title signin__title" }, "myself"),
-        h("p", { class: "statement" }, "Browse, search and fix what your agents remember."),
-        form,
-      ),
-    ),
-  );
-  input.focus();
 }
 
 async function boot() {
-  // A link from `myself graph --web`: sign in with its one-time code, land on the graph.
+  // A link from `myself graph --web`: sign in with its one-time code, land on the app.
   const code = takeLoginCode();
   if (code) {
     try {
       auth.save(await redeemLogin(code), false);
-      history.replaceState(null, "", "/app/graph");
+      history.replaceState(null, "", "/app/");
     } catch (err) {
       return signIn(err.status === 401
         ? "That login link was already used or has expired. Run the command again for a new one, or paste a token."
@@ -236,9 +285,10 @@ async function boot() {
   } catch (err) {
     if (err.status === 401) return;
     signedOutChrome();
+    view.className = "s-signin";
     const retry = h("button", { type: "button", class: "btn" }, "Try again");
     retry.addEventListener("click", boot);
-    view.replaceChildren(h("h1", { class: "title" }, "myself"), state(errorText(err), "error"), retry);
+    put(view, h("h1", { class: "page-title" }, "myself"), errorBox(err, { retry: boot }));
     return;
   }
   buildChrome();

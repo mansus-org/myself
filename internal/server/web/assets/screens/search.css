@@ -1,0 +1,5 @@
+/* Search: the search bar. */
+
+.searchbar { max-width: 640px; margin-bottom: 8px; }
+.searchbar .row { flex-wrap: nowrap; }
+.searchbar input { flex: 1; }

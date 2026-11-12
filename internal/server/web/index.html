@@ -7,23 +7,46 @@
 <title>myself</title>
 <link rel="icon" href="data:,">
 <link rel="preload" href="/app/assets/fonts/atkinson-next.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app/assets/app.css">
+<link rel="stylesheet" href="/app/assets/base.css">
+<link rel="stylesheet" href="/app/assets/shell.css">
+<link rel="stylesheet" href="/app/assets/screens/entities.css">
+<link rel="stylesheet" href="/app/assets/screens/entity.css">
+<link rel="stylesheet" href="/app/assets/screens/search.css">
+<link rel="stylesheet" href="/app/assets/screens/log.css">
+<link rel="stylesheet" href="/app/assets/screens/prime.css">
+<link rel="stylesheet" href="/app/assets/screens/dream.css">
+<link rel="stylesheet" href="/app/assets/screens/add.css">
+<link rel="stylesheet" href="/app/assets/screens/settings.css">
+<link rel="stylesheet" href="/app/assets/screens/signin.css">
+<link rel="stylesheet" href="/app/assets/screens/graph.css">
+<link rel="stylesheet" href="/app/assets/screens/kit.css">
 <script type="module" src="/app/assets/app.js"></script>
 </head>
 <body>
 <a class="skip" href="#view">Skip to content</a>
-<header class="chrome">
-  <a class="mark" href="/app/" data-link>myself</a>
-  <button class="btn menu-btn" type="button" aria-expanded="false" aria-controls="nav" hidden>Menu</button>
-  <nav id="nav" class="nav" aria-label="Pages" hidden></nav>
-  <div class="who" hidden>
-    <span class="who__name"></span>
-    <button class="btn btn--quiet signout" type="button">Sign out</button>
+<div class="shell">
+  <aside class="sidebar" aria-label="myself">
+    <a class="wordmark" href="/app/" data-link>myself</a>
+    <div id="add-slot" class="sidebar__add"></div>
+    <nav id="nav" class="nav" aria-label="Pages"></nav>
+    <div id="sidebar-foot" class="sidebar__foot"></div>
+  </aside>
+  <div class="page">
+    <header class="topbar">
+      <a class="wordmark" href="/app/" data-link>myself</a>
+      <button class="btn menu-btn" type="button" aria-expanded="false" aria-controls="menu" hidden>Menu</button>
+    </header>
+    <div id="menu" class="menu" hidden>
+      <div id="menu-add" class="menu__add"></div>
+      <nav id="menu-nav" class="nav" aria-label="Pages"></nav>
+      <div id="menu-foot" class="menu__foot"></div>
+    </div>
+    <main id="view" tabindex="-1">
+      <p class="state">Loading the app…</p>
+      <noscript><p class="state">The myself web app needs JavaScript. The CLI and the REST API at /api/v1 work without it.</p></noscript>
+    </main>
+    <p id="announce" class="sr" role="status"></p>
   </div>
-</header>
-<main id="view" tabindex="-1">
-  <p class="state">Loading the app…</p>
-  <noscript><p class="state">The myself web app needs JavaScript. The CLI and the REST API at /api/v1 work without it.</p></noscript>
-</main>
+</div>
 </body>
 </html>

@@ -1,12 +1,12 @@
-// Plays demo.cast (asciinema v2) inside a terminal window. The window already holds the
+// Plays demo.cast (asciinema v2) inside a copy block. The block already holds the
 // finished session as plain HTML, so without JS, or under prefers-reduced-motion, that is
 // what people read. The cast only uses colour codes and \r\n, so this is a text player,
 // not a terminal emulator: escape sequences are dropped and lines are drawn as the other
-// windows draw them (prompt, command, output block).
+// copy blocks draw them (prompt, command, output block).
 (() => {
   const root = document.querySelector("[data-cast]");
   if (!root) return;
-  const screen = root.querySelector(".win__body");
+  const screen = root.querySelector(".copy-block__body");
   const code = screen.querySelector("code");
   const toggle = root.querySelector("[data-cast-toggle]");
   const replay = root.querySelector("[data-cast-replay]");

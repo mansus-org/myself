@@ -28,7 +28,7 @@ export function link(href, ...children) {
 }
 
 export function entityHref(name) {
-  return "/app/e/" + encodeURIComponent(name);
+  return "/app/entities/" + encodeURIComponent(name);
 }
 
 export function entityLink(name) {
@@ -43,12 +43,57 @@ export function normalizeName(s) {
   return s === "i" || s === "me" || s === "myself" ? "self" : s;
 }
 
-const dateFmt = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
+const exactFmt = new Intl.DateTimeFormat(undefined, {
+  day: "numeric", month: "short", year: "numeric",
+  hour: "2-digit", minute: "2-digit", second: "2-digit",
+});
+const sameYearFmt = new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short" });
+const otherYearFmt = new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric" });
+const numberFmt = new Intl.NumberFormat();
 
-// time renders an RFC 3339 time as a <time> in the reader's locale.
+const SECOND = 1000;
+const MINUTE = 60 * SECOND;
+const HOUR = 60 * MINUTE;
+const DAY = 24 * HOUR;
+
+function asDate(t) {
+  return t instanceof Date ? t : new Date(t);
+}
+
+// relTime is the app's short relative time: just now, 45 s, 3 min, 2 h,
+// 4 d, then a date beyond a week. now may be a Date or milliseconds.
+export function relTime(t, now = Date.now()) {
+  const d = asDate(t);
+  if (isNaN(d)) return String(t);
+  const base = asDate(now);
+  if (isNaN(base)) return String(t);
+  const ms = base.getTime() - d.getTime();
+  if (ms < 10 * SECOND) return "just now";
+  if (ms < MINUTE) return Math.floor(ms / SECOND) + " s ago";
+  if (ms < HOUR) return Math.floor(ms / MINUTE) + " min ago";
+  if (ms < DAY) return Math.floor(ms / HOUR) + " h ago";
+  if (ms < 7 * DAY) return Math.floor(ms / DAY) + " d ago";
+  return (d.getFullYear() === base.getFullYear() ? sameYearFmt : otherYearFmt).format(d);
+}
+
+// exactTime is the locale's day, short month, year, hour, minute and second.
+export function exactTime(t) {
+  const d = asDate(t);
+  return isNaN(d) ? String(t) : exactFmt.format(d);
+}
+
+// time renders an RFC 3339 time as a relative <time>, with the exact time in title.
 export function time(t) {
-  const d = new Date(t);
-  return h("time", { datetime: t, title: t }, isNaN(d) ? t : dateFmt.format(d));
+  const d = asDate(t);
+  return h("time", { datetime: t, title: exactTime(t) }, isNaN(d) ? String(t) : relTime(d));
+}
+
+export function num(n) {
+  return Number.isFinite(Number(n)) ? numberFmt.format(Number(n)) : String(n);
+}
+
+export function count(n, one, many) {
+  return num(n) + " " + (Number(n) === 1 ? one : many);
 }
 
 // state is a one-line message for loading, empty and error views.

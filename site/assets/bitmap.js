@@ -30,8 +30,15 @@ window.Bitmap = (() => {
     M,
   ];
 
-  // Signs on a 7x7 grid, one per idea.
+  // Signs on a 7x7 grid, one per idea. The nav signs are the web app's; the
+  // rest are the landing's own.
   const GLYPHS = {
+    graph: ["##...##", "##...##", "..#.#..", "...#...", "..#.#..", "##...##", "##...##"],
+    entities: ["#.#####", ".......", "#.#####", ".......", "#.#####", ".......", "#.#####"],
+    log: ["#######", ".......", "#####..", ".......", "######.", ".......", "####..."],
+    terminal: ["#######", "#.....#", "#.#...#", "#..#..#", "#.#...#", "#.....#", "#######"],
+    download: ["...#...", "...#...", "...#...", ".#.#.#.", "..#.#..", "...#...", "#######"],
+    cross: [".#####.", "#.....#", "#...#.#", "#..#..#", "#.#...#", "#.....#", ".#####."],
     agent: ["..###..", ".#####.", "..###..", "...#...", "..###..", ".#...#.", "#.....#"],
     cli: ["#......", ".#.....", "..#....", ".#.....", "#......", ".......", ".#####."],
     triple: ["##.....", "##.....", "..#....", "...#...", "....#..", ".....##", ".....##"],
@@ -118,7 +125,10 @@ window.Bitmap = (() => {
     const i = +h.dataset.shell;
     draw(h, SHELLS[i], null, { sub: 0.5, tone: i === 0 ? "ghost" : i === 1 ? "half" : "" });
   });
-  document.querySelectorAll("[data-glyph]").forEach((h) => draw(h, GLYPHS[h.dataset.glyph], null, { sub: 0.5 }));
+  document.querySelectorAll("[data-glyph]").forEach((h) => {
+    draw(h, GLYPHS[h.dataset.glyph], null, { sub: 0.5 });
+    h.querySelector("svg")?.setAttribute("class", "glyph");
+  });
 
   return { reduceMotion };
 })();

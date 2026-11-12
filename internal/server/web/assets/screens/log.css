@@ -1,0 +1,9 @@
+/* The Log: the filter bar and the state at its right. */
+
+.s-log .log-bar {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: var(--s3) var(--s4);
+  margin-bottom: var(--s4);
+}
+.s-log .log-bar__state { margin: 0 0 0 auto; }
+.s-log .log-body { min-width: 0; }
