@@ -38,7 +38,7 @@ export async function entitiesPage(ctx) {
     if (type) p.set("type", type);
     if (filter.value) p.set("q", filter.value);
     const s = p.toString();
-    history.replaceState(null, "", "/app/" + (s ? "?" + s : ""));
+    history.replaceState(null, "", "/app/entities" + (s ? "?" + s : ""));
   };
 
   function draw() {
