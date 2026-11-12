@@ -87,7 +87,8 @@ func TestUI(t *testing.T) {
 	}
 
 	// Every module reachable from app.js by a static relative import is served.
-	importPath := regexp.MustCompile(`(?m)^\s*import\b[^;\n]*\bfrom\s+"([^"]+)"`)
+	// importPath accepts import braces over several lines; dynamic import() is not followed.
+	importPath := regexp.MustCompile(`(?m)^\s*import\b[^;]*\bfrom\s+"([^"]+)"`)
 	seen := map[string]bool{}
 	queue := []string{"/app/assets/app.js"}
 	for len(queue) > 0 {
@@ -111,6 +112,9 @@ func TestUI(t *testing.T) {
 			}
 			queue = append(queue, path.Clean(path.Join(path.Dir(mod), rel)))
 		}
+	}
+	if !seen["/app/assets/screens/graph.js"] || !seen["/app/assets/ui.js"] {
+		t.Fatal("the import walk did not follow imports: want app.js -> screens/graph.js and screens -> ui.js")
 	}
 
 	// Every stylesheet the index links is served as CSS.
