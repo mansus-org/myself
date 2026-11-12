@@ -82,21 +82,35 @@ export function kitPage(ctx) {
   });
 
   const factNames = new Set(["storefront", "bun", "relay", "project", "billing-service", "web-ui"]);
+  const missingUUID = "0193f7d2-6a11-7c3e-9b3f-2a5c8e9d1b44";
   let liveFacts = [
     { uuid: "fact-1", subject: "storefront", relation: "uses", object: "bun", time: at(now - 3 * MIN) },
     { uuid: "fact-2", subject: "relay", relation: "is", object: "project", time: at(now - 2 * HOUR) },
     { uuid: "fact-3", subject: "storefront", relation: "has", object: "a checkout that needs offline support", time: at(now - 4 * DAY) },
     { uuid: "fact-4", subject: "storefront", relation: "does", object: "weekly releases on Thursdays", time: at(now - 30 * MIN) },
+    { uuid: missingUUID, subject: "", relation: "", object: "", time: at(now - 9 * DAY) },
   ];
-  const forgottenBy = new Map([["fact-4", {
-    uuid: "forget-1", subject: "fact-4", relation: "forget", object: "moved off go",
-    time: at(now - 2 * DAY),
-  }]]);
+  const forgottenBy = new Map([
+    ["fact-4", {
+      uuid: "forget-1", subject: "fact-4", relation: "forget", object: "moved off go",
+      time: at(now - 2 * DAY),
+    }],
+    [missingUUID, {
+      uuid: "forget-2", subject: missingUUID, relation: "forget", object: "",
+      time: at(now - 8 * DAY),
+    }],
+  ]);
   const facts = factTable(liveFacts, {
     columns: ["subject", "relation", "object", "written", "actions"],
     names: factNames,
     canForget: true,
     forgottenBy,
+    cell: (key, rec) => {
+      if (rec.uuid !== missingUUID) return null;
+      if (key === "subject" || key === "relation") return "";
+      if (key === "object") return h("code", { title: rec.uuid }, rec.uuid.slice(0, 8));
+      return null;
+    },
     onForget: (rec) => {
       announce(`Forgot: ${rec.subject} ${rec.relation} ${rec.object}`);
       liveFacts = liveFacts.filter((r) => r.uuid !== rec.uuid);

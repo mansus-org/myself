@@ -297,7 +297,11 @@ const FACT_COLUMNS = {
   actions: { key: "actions", label: "Actions" },
 };
 
-export function factTable(facts, { columns, names, canForget, onForget, forgottenBy }) {
+// factTable draws API fact records. cell(key, rec) may replace any cell's
+// content: anything except null or undefined is used as-is, with the same
+// forgotten-row strike and the "Forgotten …" line still in the object cell.
+// update(facts) rebuilds rows whose signature changed and reuses the rest.
+export function factTable(facts, { columns, names, canForget, onForget, forgottenBy, cell }) {
   const keys = (columns || ["written", "subject", "relation", "object"]).map((key) =>
     typeof key === "string" ? FACT_COLUMNS[key] : key).filter(Boolean);
   const wrapper = h("div", { class: "fact-table-wrap" });
@@ -314,6 +318,10 @@ export function factTable(facts, { columns, names, canForget, onForget, forgotte
   const rows = new Map();
 
   function content(col, rec, forget) {
+    if (cell) {
+      const custom = cell(col.key, rec);
+      if (custom !== null && custom !== undefined) return custom;
+    }
     switch (col.key) {
       case "written": return time(rec.time);
       case "subject": return entityLink(rec.subject);
