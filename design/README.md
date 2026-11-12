@@ -527,10 +527,10 @@ The home: what the brain holds, how it is connected and what changed.
   (50, 200, 1000; `?n=`, default 200); and at the right the state, `Live · updated 12:04:31` or
   `Paused`.
 - **Table:** Written, Subject, Relation, Object; newest first. A forget's row shows the fact it
-  forgot as the fact table draws a forgotten fact: struck through, with the `forgotten` stamp. Its
-  Written is when it was forgotten, so its second line holds only the reason (`moved off go`, or
-  `no reason`). A forget whose fact is older than the rows read shows that fact's uuid in mono in
-  place of the fact (the first 8 characters, all of it in `title`).
+  forgot as the fact table draws any forgotten fact: struck through, with the `forgotten` stamp and
+  the line `Forgotten 3 min ago · moved off go`; its Written is when it was forgotten. A forget
+  whose fact is older than the rows read shows that fact's uuid in mono in place of the fact (the
+  first 8 characters, all of it in `title`).
 - **Refresh:** the same read every 10 s while the tab is visible and not paused. New rows flash once
   and `#announce` says `3 new facts`.
 - **Empty:** "Nothing written yet." With a filter: "No forgotten facts in the last 200."
