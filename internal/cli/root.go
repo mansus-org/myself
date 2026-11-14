@@ -98,6 +98,14 @@ func resolveMode(cmd *cobra.Command, cfg *Config, file, rawURL, token string) er
 			return StoreErr(err)
 		}
 		cfg.File = f
+		if !fileSet {
+			// No explicit path, so the environment may pick another backend.
+			st, err := backendFromEnv()
+			if err != nil {
+				return err
+			}
+			cfg.Store = st
+		}
 		return nil
 	}
 	if fileSet {

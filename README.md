@@ -250,6 +250,43 @@ myself sync            # commits, pulls (rebase), pushes
 
 or a systemd timer whose service runs `myself sync --export %h/vault/myself` with `OnCalendar=*:0/15`. A Claude Code `Stop` hook that runs `myself sync` works too. `myself` must be on the PATH of the timer or hook, since git calls it for merges.
 
+### Neo4j backend (optional)
+
+The brain can live in Neo4j instead of the file, with the same commands and the same answers. It stores the log — one `(:Record)` node per record, retraction records included — so `--at`, `history` and `forget` behave exactly as they do on the file. Nothing is duplicated: pick one backend, and the file you had stays where you left it.
+
+```sh
+export MYSELF_NEO4J_URL=http://neo4j.neo4j.svc.cluster.local:7474
+export MYSELF_NEO4J_PASSWORD=…            # env only: a flag would show in ps
+myself remember relay uses bun            # now writes to Neo4j
+myself describe relay --at 2026-10-30     # unchanged, still time travel
+```
+
+| variable | meaning |
+|---|---|
+| `MYSELF_NEO4J_URL` | http(s) base URL of the server; setting it selects the backend. A `bolt://` URI is refused — this speaks the HTTP transaction endpoint, so no driver and no second port |
+| `MYSELF_NEO4J_USER` | default `neo4j` |
+| `MYSELF_NEO4J_PASSWORD` | required when the backend is selected; a missing password is an error, never a silent fall back to the file |
+| `MYSELF_NEO4J_DATABASE` | default `neo4j` |
+| `MYSELF_NEO4J_TIMEOUT` | seconds or a Go duration, default 10s |
+
+An explicit `--file` always wins, so a stray variable cannot quietly point a command at another brain. `serve` creates the schema it needs (`Record.uuid` unique) at startup, so a bad database fails there rather than on the first write.
+
+To move an existing brain across, copy the log once with `POST /api/v1/import` (admin), which unions by uuid and is therefore safe to repeat:
+
+```sh
+# a throwaway server pointed at the backend, on a port of your own
+export MYSELF_NEO4J_URL=… MYSELF_NEO4J_PASSWORD=…
+export MYSELF_ADMIN_TOKEN_SHA256=$(printf %s "$ADMIN_TOKEN" | sha256sum | cut -d' ' -f1)
+myself serve --addr 127.0.0.1:8081 &
+
+# the log out of wherever it lives now, and in again, uuids preserved
+curl -H "Authorization: Bearer $MYSELF_TOKEN" "$MYSELF_URL/api/v1/export.jsonl" > brain.jsonl
+curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" \
+     --data-binary @brain.jsonl http://127.0.0.1:8081/api/v1/import
+```
+
+`import` is admin-only and server-side on purpose: it is the one operation that can rewrite history, and it keeps every uuid so `history` and `--at` still line up afterwards.
+
 ## Obsidian mirror
 
 `myself export --obsidian ./vault` writes one note per entity, live state only, overwriting files of the same name. Objects that match an entity become `[[wikilinks]]` and incoming links are listed under `Linked from`:

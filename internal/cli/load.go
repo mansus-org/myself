@@ -45,6 +45,9 @@ type fileStore struct {
 }
 
 func storeFor(cmd *cobra.Command, cfg *Config) brain.Store {
+	if cfg.Store != nil {
+		return cfg.Store
+	}
 	return fileStore{cfg.File, cmd.ErrOrStderr()}
 }
 

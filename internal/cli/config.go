@@ -1,18 +1,25 @@
 package cli
 
 import (
+	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/mansus-org/myself/internal/brain"
 	"github.com/mansus-org/myself/internal/client"
+	"github.com/mansus-org/myself/internal/neo4j"
 	"github.com/mansus-org/myself/internal/store"
 )
 
 // Config is the resolved global configuration handed to every command.
 type Config struct {
 	File string
-	JSON bool
+	// Store is the backend the environment selected (Neo4j), or nil for the file
+	// at File. An explicit --file always wins, so a stray variable in the shell
+	// cannot silently point the CLI at another brain.
+	Store brain.Store
+	JSON  bool
 	// URL is the server base URL; non-empty means remote mode (SPEC section 10).
 	URL     string
 	Token   string
@@ -34,6 +41,20 @@ const (
 
 // Remote reports whether commands run against a server.
 func (c *Config) Remote() bool { return c.URL != "" }
+
+// backendFromEnv builds the store the environment selects, or nil for the file.
+// A misconfigured backend is an error and never a silent fall back to the file:
+// writing a belief into the wrong brain is the one failure this must not hide.
+func backendFromEnv() (brain.Store, error) {
+	cfg, ok, err := neo4j.FromEnv(os.Getenv)
+	if err != nil {
+		return nil, StoreErr(err)
+	}
+	if !ok {
+		return nil, nil
+	}
+	return neo4j.New(cfg, os.Stderr), nil
+}
 
 // resolveFile applies the precedence --file > MYSELF_FILE > default.
 func resolveFile(flagValue string, flagSet bool) (string, error) {
