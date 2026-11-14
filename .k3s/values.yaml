@@ -23,9 +23,25 @@ env:
   # sha256 (hex) of the admin token, not the token itself.
   MYSELF_ADMIN_TOKEN_SHA256: d35608020b3f8ebe48d0f8cd38a75320a84585f06c5c1dfb639588e95b3a68f8
 
+# The brain lives in the cluster's Neo4j (PR #49). Both keys come from one sealed
+# secret so the switch is atomic: with no secret neither variable is set and the
+# server stays on /data/brain.jsonl, which is kept in place as the rollback. A wrong
+# URL or password fails serve at startup on purpose instead of losing a write later.
+  MYSELF_NEO4J_URL:
+    secretKeyRef: { name: myself-secrets, key: MYSELF_NEO4J_URL }
+  MYSELF_NEO4J_PASSWORD:
+    secretKeyRef: { name: myself-secrets, key: MYSELF_NEO4J_PASSWORD }
+
 healthCheck:
   path: /healthz
 
 resources:
   requests: { cpu: 10m, memory: 16Mi }
   limits: { memory: 128Mi }
+
+# Sealed with kubeseal against the cluster controller, namespace-scoped to myself.
+sealedSecrets:
+  - name: myself-secrets
+    encryptedData:
+      MYSELF_NEO4J_URL: AgAgddCHEQvJZI4Gat1oMXUNnrHh8ER6G6qBS7oI00w1fsUl01A/uqKUc8kiJZlV0QBFqUBUNmhTVRfn1ibeUfrOszi0V5D1FRwcR1jfY3nq00xgaeD0buejOj4eWi0/g4ZVBbwxko1vb7NFdK7hI0CKwT3zDJ6WDMh8j3o6vUhRPFnkptewvt646WYALodwTC3q7kwDq7m9eGyzXzwPoDJbXC8PRhNhYncLqi4IpSpy5zkR9B9hw9/UmCE3ifHGEuhUet1KB67oObjlRE+16zUu3TYFpa5wL+VeJX7m1V+Zn82Ay4P3FWxrwC6y0vTpN1lJKblAzuj3vs+0LvTkXaf+sGsy0mbI9Cl2Ijy12mR+49IvXARgIFZXgM3xlJdsJptGzEyD6Fgs3u1okEKHhwLn+axBNYgDlYv0hFLnD3RgiDe9LNj4J1i/nWBSj5vbVBzSEbETYI6cwQuvE79tms+5X6iIUcUTzSIwEGNZFXfaCQ+YmF1ye2IMyIPgiKpcB0womTuX8VLpxKyqk9ZjnuExNh7+V+wlX2Ao0w4CJMre2TdcorKesbcUMxSKo8FfyXdtFdscTS76kM9V4kzlJefGyH3gXMLBXAA8WjH9dFLX8TwMpoXjH+uQLAj70H5SFKx0wyNUImL/PYekYSlGetA0iiuEHxcUfcJgcChZIa/idS23maBG57a0pfGz6X8Kh6KmaFrCexH5ACOKvhgOXU6g22RndaRTj6bnrNEggYbsqsHz5RDN3INRNA==
+      MYSELF_NEO4J_PASSWORD: AgAcHHfUFpZMsHeeUKoTZzXKXRN+P0D679TPjY8XcvtcsHHVdPd96oo5mEtCgzV3L8pyhCa5FfmcL2VgVYfrOXFI18oJWK28iEBMtJ0oK/WB/5I6wdedCBNyQylzEAzWWYPS/QnsyJPUi15z5VHqfsXvRzUvJ8/bnN6VPFBlQWS7ZSzj/Cc+v8/5DBaB0piuuRWbrxC15KxWxbSjpDhp/XAXSOeGV93mvNxVLnWJhMnXUWayvmGX2fWHJOnZXvS95W1nDPK/cNIyTyk15rEzIJcOOcmSxxT1c6wly/goBhSE6wEo8E6Ge/tiWm6RHnkwxqKhOczwWS0f21wTsyVjvvsV+V0zRRHQ14EO06Zuq+nXcRQoyBODRejGxCszqwruhqHvaJewgUr71NLF2Eq2EkT4x52tdnydN/94Da2O3wmsdh3MJyejcZuk2JTKM1MuqyEXeY6d7LRlZ9wrMPC0iv/NCtkAYsjh/1KYg6Ugx479GoO36+q7ksGSfimLdQ+L2eFq1u6bGRAl7uM9R9UC0938SeIcxWuTJo7dvOBx5FxM1jhVNcqPaX7XohaN68hzWAiRkOxzV7jBlbmVMb3y7DlPQmJ1jGW2L61vtV70/8Hj5j6AcjQuHf/AMf8Wb8WOmKuuX0Hll0SgIlAL5ESj6+RNxalgVTYEtjROIL/Ff4jYDomOrqWODB0wM2aN4CdVgl2I0pk2XcrF8nArvd0X0P9luCFIozpCbse/NNMuBPqJ8AT8hMStBad2OPOVujLWWss=
