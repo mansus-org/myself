@@ -12,11 +12,14 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/mansus-org/myself/internal/brain"
 )
 
 // Config configures a Server.
 type Config struct {
 	File      string           // the brain file; tokens.json goes next to it
+	Store     brain.Store      // optional backend (e.g. Neo4j); nil reads cfg.File
 	Site      fs.FS            // served at /; nil serves nothing there
 	AdminHash string           // lowercase hex sha256 of the admin token; empty disables the API
 	LocalKey  string           // local login key, see LocalInfo; empty turns it off
@@ -30,6 +33,7 @@ type Config struct {
 type Server struct {
 	mux       *http.ServeMux
 	cache     *cache
+	backend   brain.Store // non-nil when a backend other than the file serves the brain
 	tokens    *Tokens
 	logins    *logins
 	adminHash string
@@ -61,6 +65,7 @@ func New(cfg Config) (*Server, error) {
 	s := &Server{
 		mux:       http.NewServeMux(),
 		cache:     &cache{path: cfg.File},
+		backend:   cfg.Store,
 		tokens:    tokens,
 		logins:    newLogins(),
 		adminHash: cfg.AdminHash,
@@ -99,8 +104,9 @@ func New(cfg Config) (*Server, error) {
 // request is logged; wrap h with Auth to require a token.
 func (s *Server) Handle(pattern string, h http.Handler) { s.mux.Handle(pattern, h) }
 
-// Store returns a brain.Store for one request, backed by the shared cache.
-func (s *Server) Store() *RequestStore { return &RequestStore{c: s.cache} }
+// Store returns a brain.Store for one request, backed by the shared cache when
+// the file serves the brain, or by the injected backend when there is one.
+func (s *Server) Store() *RequestStore { return &RequestStore{c: s.cache, d: s.backend} }
 
 // LockWrites serializes writers within this process, so a remember
 // --replace or forget computes its forgets from the state it appends to.

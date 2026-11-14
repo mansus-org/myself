@@ -22,7 +22,7 @@ func TestServeWarnsAboutClientSettings(t *testing.T) {
 	t.Setenv(EnvURL, "")
 	file := filepath.Join(t.TempDir(), "b.jsonl")
 	tokenWarn := "warning: --token / MYSELF_TOKEN is the client token for --url; serve checks the admin token against MYSELF_ADMIN_TOKEN_SHA256 (the sha256 of the token)\n"
-	urlWarn := "warning: --url / MYSELF_URL is ignored; serve always uses the local store\n"
+	urlWarn := "warning: --url / MYSELF_URL is ignored; serve always serves this machine's store (the file, or the backend MYSELF_NEO4J_URL selects)\n"
 	bad := "error: MYSELF_ADMIN_TOKEN_SHA256 must be 64 hex characters (the sha256 of the admin token)\n"
 	for _, tc := range []struct {
 		name string

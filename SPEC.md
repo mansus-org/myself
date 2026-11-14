@@ -68,6 +68,22 @@ git add brain.jsonl
 
   `myself sync` automates this: it sets `.gitattributes` to `brain.jsonl merge=myself` and `git config merge.myself.driver "myself merge-driver %O %A %B"`, and the driver does the union, dedupe and uuid sort (lines that are not records are kept, last).
 
+### Backends
+
+The log above is the contract; where it is kept is a separate choice. Two backends exist, and both satisfy sections 1 to 7 identically — every command, `--at`, `history` and the exit codes are computed by the same code over the same records, so a backend cannot change what a command answers.
+
+| backend | selected by | records live in |
+|---------|-------------|-----------------|
+| file (default) | nothing | `brain.jsonl`, append-only, `flock` on `<file>.lock` |
+| Neo4j | `MYSELF_NEO4J_URL` non-empty | one `(:Record)` node per record, five properties, nothing else |
+
+- **The Neo4j backend stores the log, not a derived graph.** Retraction records are stored too, and liveness, `--at` and `history` stay computed from the records exactly as for the file. A derived projection (entities, typed edges, vectors) is a separate concern and never the source of truth.
+- **Precedence:** an explicit `--file` wins over the backend, so a stray variable in a shell cannot point the CLI at another brain. `MYSELF_FILE` does not override a selected backend.
+- **Configuration:** `MYSELF_NEO4J_URL` (http(s) base, not a Bolt URI), `MYSELF_NEO4J_USER` (default `neo4j`), `MYSELF_NEO4J_PASSWORD` (required, env only — a flag would show in `ps`), `MYSELF_NEO4J_DATABASE` (default `neo4j`), `MYSELF_NEO4J_TIMEOUT` (seconds or a Go duration, default 10s). A URL without a password is an error, never a silent fall back to the file: writing a belief into the wrong brain is the one failure this must not hide.
+- **Transport:** the HTTP transaction endpoint (`POST /db/{database}/tx/commit`) with Basic auth, so no driver dependency and no second port. Every statement is parameterized; no value is ever spliced into query text.
+- **`Append` is one transaction and `MERGE`s on `uuid`**, so a batch is all-or-nothing and a retried write or an `import` is idempotent — the guarantee the append-only file gives by construction.
+- **`serve` ensures the backend's schema at startup** (`Record.uuid` unique, `Record.subject` indexed) so an unreachable or misconfigured database fails at startup instead of quietly on the first write.
+
 ## 5. CLI grammar
 
 Positional arguments, no `< >` (the shell eats them as redirections). Everything after the relation is the object, joined with single spaces, so quotes are optional. Flags may appear anywhere.

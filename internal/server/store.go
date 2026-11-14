@@ -64,16 +64,24 @@ func (c *cache) invalidate() {
 	c.mu.Unlock()
 }
 
-// RequestStore is the brain.Store of one request. Loads share the server's
-// cached snapshot; warnings (corrupt lines, the "is" sentence warning) are
-// collected for the response. Take one per request with Server.Store.
+// RequestStore is the brain.Store of one request. With the file it shares the
+// server's cached snapshot; with an injected backend (Neo4j) it delegates and
+// keeps no cache, because the database is the cache and a stale copy of it would
+// answer with a fact someone has already forgotten. Warnings (corrupt lines, the
+// "is" sentence warning) are collected for the response either way. Take one per
+// request with Server.Store.
 type RequestStore struct {
-	c        *cache
+	c        *cache      // file-backed; nil when a backend serves the brain
+	d        brain.Store // backend; nil for the file
 	warnings []string
 }
 
-// Load returns the cached snapshot, reloading it if the file changed.
+// Load returns the cached snapshot, reloading it if the file changed, or the
+// backend's own snapshot.
 func (r *RequestStore) Load() (*brain.Snapshot, error) {
+	if r.d != nil {
+		return r.d.Load()
+	}
 	snap, w, err := r.c.load()
 	if err != nil {
 		return nil, err
@@ -82,8 +90,12 @@ func (r *RequestStore) Load() (*brain.Snapshot, error) {
 	return snap, nil
 }
 
-// Append writes through store.Append (flock) and drops the cache.
+// Append writes through store.Append (flock) and drops the cache, or through the
+// backend. Either way the next request sees the write.
 func (r *RequestStore) Append(recs ...model.Record) error {
+	if r.d != nil {
+		return r.d.Append(recs...)
+	}
 	defer r.c.invalidate()
 	return store.Append(r.c.path, recs...)
 }

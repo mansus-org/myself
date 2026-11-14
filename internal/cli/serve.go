@@ -31,7 +31,7 @@ func warnClientSettings(cmd *cobra.Command) {
 		Warnf(stderr, "--token / %s is the client token for --url; serve checks the admin token against %s (the sha256 of the token)", EnvToken, EnvAdminHash)
 	}
 	if cmd.Flags().Changed("url") || strings.TrimSpace(os.Getenv(EnvURL)) != "" {
-		Warnf(stderr, "--url / %s is ignored; serve always uses the local store", EnvURL)
+		Warnf(stderr, "--url / %s is ignored; serve always serves this machine's store (the file, or the backend %s selects)", EnvURL, "MYSELF_NEO4J_URL")
 	}
 }
 
@@ -68,7 +68,22 @@ func newServeCmd(cfg *Config) *cobra.Command {
 			if err != nil {
 				return StoreErr(err)
 			}
-			srv, err := server.New(server.Config{File: cfg.File, Site: siteFS, Skill: myself.Skill, AdminHash: hash, LocalKey: key, Log: stderr, Version: Version})
+			// The backend, if the environment selects one, replaces the file. The
+			// schema is ensured here rather than at first write so a misconfigured or
+			// unreachable database fails at startup, when it is obvious, instead of
+			// quietly on the first remember hours later.
+			backend, err := backendFromEnv()
+			if err != nil {
+				return err
+			}
+			if backend != nil {
+				if schema, ok := backend.(interface{ EnsureSchema() error }); ok {
+					if err := schema.EnsureSchema(); err != nil {
+						return StoreErr(err)
+					}
+				}
+			}
+			srv, err := server.New(server.Config{File: cfg.File, Store: backend, Site: siteFS, Skill: myself.Skill, AdminHash: hash, LocalKey: key, Log: stderr, Version: Version})
 			if err != nil {
 				return StoreErr(err)
 			}
@@ -84,7 +99,11 @@ func newServeCmd(cfg *Config) *cobra.Command {
 			} else {
 				defer unrecord()
 			}
-			fmt.Fprintf(stderr, "serving %s on %s\n", cfg.File, ln.Addr())
+			serving := cfg.File
+			if backend != nil {
+				serving = fmt.Sprint(backend)
+			}
+			fmt.Fprintf(stderr, "serving %s on %s\n", serving, ln.Addr())
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
 			return runServer(ctx, srv, ln)
