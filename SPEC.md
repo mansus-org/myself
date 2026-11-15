@@ -83,6 +83,7 @@ The log above is the contract; where it is kept is a separate choice. Two backen
 - **Transport:** the HTTP transaction endpoint (`POST /db/{database}/tx/commit`) with Basic auth, so no driver dependency and no second port. Every statement is parameterized; no value is ever spliced into query text.
 - **`Append` is one transaction and `MERGE`s on `uuid`**, so a batch is all-or-nothing and a retried write or an `import` is idempotent — the guarantee the append-only file gives by construction.
 - **`serve` ensures the backend's schema at startup** (`Record.uuid` unique, `Record.subject` indexed) so an unreachable or misconfigured database fails at startup instead of quietly on the first write.
+- **A vector projection is what `recall` reads, and never the source of truth.** With an embedding endpoint configured (`MYSELF_EMBED_URL` and `MYSELF_EMBED_MODEL`, optionally `MYSELF_EMBED_API_KEY`, `MYSELF_EMBED_DIMENSIONS`, `MYSELF_EMBED_TIMEOUT`), the Neo4j backend stores one embedding per live fact on the record node (`embedding`, `embeddingModel`) and keeps a Neo4j vector index over it (`myself_embedding`, cosine). `myself index` builds the projection from the log, `remember` keeps it current, and a fact whose embedding fails is written anyway with a warning: a missing vector costs `recall` a hit, never a fact. The endpoint is OpenAI-compatible by URL, so the model is configuration, not code. The file backend has no projection, and `recall` and `index` there answer with what to set rather than a worse answer.
 
 ## 5. CLI grammar
 
@@ -97,6 +98,8 @@ myself describe <entity> [--depth N] [--at TIME]
 myself ls [<type>] [--at TIME]
 myself relations
 myself search <text> [--at TIME] [-n N]
+myself recall <text> [--at TIME] [-n N] [--min SCORE]
+myself index [--rebuild]
 myself path <a> <b> [--max-depth N]
 myself log [--since TIME] [-n N]
 myself history <subject> [<relation>]
@@ -118,6 +121,8 @@ Global flags: `--file PATH`, `--json`, `--url URL`, `--token TOKEN` (remote mode
 - `ls <type>`: every entity that reaches `<type>` through a chain of live `is` records (transitive subtypes). `ls` with no argument lists every entity that is the object of a live `is` record. **Decision:** the original text said "either direction"; only the subtype direction is listed, since the supertypes of an entity are already visible with `describe`, and mixing both directions makes `ls software` ambiguous.
 - `path <a> <b>`: shortest chain of live records connecting `a` to `b`, edges walked in either direction; `--max-depth` defaults to 6.
 - `search <text>`: case-insensitive substring match on subject, relation or object of live records. `-n N` keeps only the first N matches.
+- `recall <text>`: the live facts closest in meaning to `text`, best first, at most `-n N` of them (default 10), none scoring below `--min SCORE` (default 0, which keeps whatever the index returns). It reads the question with an embedding model and searches the vector projection, so it finds the fact that says the same thing in other words. `--at` asks what was live then: the candidates are filtered against the brain as of that time. It needs the Neo4j backend and an embedding endpoint; without either it is a usage error naming what to set, and it never falls back to `search` — "nothing is similar" and "nothing is configured" are different answers. The score is the database's cosine similarity, higher is closer, and what counts as close depends on the model, so the reply names the model that answered.
+- `index [--rebuild]`: write the vector projection — one embedding per live fact and the index over them. Facts that already carry a vector from this model are left alone, so it is cheap to run again; `--rebuild` re-embeds every live fact, which is what a new model needs (if the new model's vectors have a different length, drop the old index first). Forgotten facts are never embedded: `recall` never returns them. Embedding and writing are batched, and the command is what fills the gaps after an endpoint was unreachable.
 - `log`: every record, forgets included, in uuid order. `--since` filters by time, `-n N` keeps the last N.
 - `history <subject> [<relation>]`: every record, forgotten or not, for that subject (and relation), plus the `forget` records pointing at them, in uuid order.
 - `prime`: a compact summary of the brain to paste into an agent context, cut at line boundaries to fit `--budget` characters (default 2000, never exceeded). It has two parts, with no blank line between them. Part A is full blocks: `self` first (if it exists), then the entities directly linked to it (one hop, breadth-first order), and no others, each rendered as `describe` at depth 0 except that incoming `is` records are folded into one line `  <- is: a, b, c` (subjects sorted, comma-separated). Part A uses at most `budget*3/5` characters when Part B has at least one entry, else the whole budget; it stops at the first line that does not fit. Part B is an index, one line per entity: the line `Also in the brain, not loaded (run `myself describe <name>` before working on any of these, or before saying you don't know about one):`, then `  <name> (<types>; <N> facts)`. It covers every remaining entity that has at least one live outgoing record (pure type nodes such as `project`, which only have records pointing at them, are left out), plus any Part A entity cut before its first line was printed. `<types>` lists the entities that its live outgoing `is` records point at, each once, sorted, comma-separated; they are entity names, normalized as everywhere else, so `relay is Project` and `relay is My Tool` give `my-tool, project`; an entity with no type gets no parentheses beyond the count. `<N>` is what `myself describe <name>` would return: live records with the entity as subject plus live records linked to it as object; the singular is `1 fact`. Lines are ordered by `<N>` descending, then name, so the topics with the most facts are listed first and the ones with the least are trimmed first. When the lines do not all fit, the last ones are dropped and replaced by `  … and <K> more (myself ls <type>, myself search <text>)`, with room always reserved for it; if not even the header and one line fit, the index is left out. `truncated` is true if anything was cut.
@@ -143,6 +148,8 @@ Global flags: `--file PATH`, `--json`, `--url URL`, `--token TOKEN` (remote mode
 | `ls` | `{"type":"software","entities":["project","relay"]}` (`type` is null without an argument) |
 | `relations` | `{"relations":["is","are","has","uses","does","prefers","related"]}` |
 | `search` | `{"matches":[record,...]}` |
+| `recall` | `{"matches":[{"uuid","subject","relation","object","time","score":0.87},...],"model":"<model>","at":null}` (best first; `at` is the `--at` string or null); plain text is one line per match: `<score, two decimals> <record line>` |
+| `index` | `{"embedded":12,"skipped":3,"model":"<model>"}`; plain text is one line saying the same |
 | `path` | `{"from":"relay","to":"software","path":[record,...]}` |
 | `log` | `{"records":[record,...]}` |
 | `history` | `{"records":[record,...]}` |
@@ -154,9 +161,9 @@ Global flags: `--file PATH`, `--json`, `--url URL`, `--token TOKEN` (remote mode
 
 - **Exit codes:**
   - `0` ok (including searches and listings with no results).
-  - `1` usage error: bad flags or arguments, unknown or reserved relation, empty object, bad `--at`.
+  - `1` usage error: bad flags or arguments, unknown or reserved relation, empty object, bad `--at`, `recall` or `index` on a brain that keeps no vectors or with no embedding endpoint.
   - `2` not found: `describe` or `history` on an unknown entity or subject, `ls <type>` on an unknown type, `forget` that matches nothing, `path` with no chain.
-  - `3` store error: file unreadable or unwritable, lock timeout (5 s).
+  - `3` store error: file unreadable or unwritable, lock timeout (5 s), an embedding endpoint that could not be reached or refused, a backend that cannot be talked to.
 - **Decision:** the original listed "corrupt line" under exit 3 and also said readers warn without failing. Resolved in favor of not failing: a corrupt line is skipped with a stderr warning and the exit code is unaffected.
 
 ## 7. Concurrency and robustness
@@ -303,6 +310,8 @@ Query parameters map to the CLI flags. A parameter that is present but empty cou
 | `GET /api/v1/ls?type=T&at=TIME` | read | `ls [<type>]` | as `ls --json` |
 | `GET /api/v1/relations` | read | `relations` | as `relations --json` |
 | `GET /api/v1/search?q=TEXT&at=TIME&n=N` | read | `search` | as `search --json` |
+| `GET /api/v1/recall?q=TEXT&at=TIME&n=N&min=F` | read | `recall` | as `recall --json` |
+| `POST /api/v1/index` | write | `index` | request `{"rebuild":false}`; reply as `index --json` |
 | `GET /api/v1/path?from=A&to=B&max_depth=N` | read | `path` | as `path --json` |
 | `GET /api/v1/log?since=TIME&n=N` | read | `log` | as `log --json` |
 | `GET /api/v1/history/{subject}?relation=R` | read | `history` | as `history --json` |
@@ -323,6 +332,7 @@ Details:
 - **remember** is all or nothing, like `remember -`: every fact is validated before anything is written. With one fact the error is the CLI's (`unknown relation "built-with". use one of: ...`); with several it is prefixed `fact N: ` (1-based). An empty `facts` list is `remember needs at least one fact`. Objects are JSON strings, so no quote stripping. `replace` works as `--replace`. The reply has the sentence warning in `warnings` when it applies.
 - **forget** takes either `uuid`, or `subject` and `relation` (optionally narrowed by `object`, compared normalized); both forms at once is a 400. None of them is `forget needs <uuid>, or <subject> <relation> [<object...>]`. A non-uuid `uuid` is `"x" is not a uuid`.
 - **search** with a missing or empty `q` is `search needs <text>`. **path** without `from` or `to` is `path needs <a> and <b>`. **describe** with an empty entity is `describe needs exactly one <entity>`.
+- **recall** with a missing or empty `q` is `recall needs <text>`; `min` is a float between -1 and 1. A brain that keeps no vectors, or a server with no embedding endpoint, is a 400 with the same message the CLI gives, never an empty `matches`: an empty list would read as "nothing here is close to this". **index** is a write because it calls the endpoint for every fact that needs a vector; the endpoint is configured on the server, not by the caller.
 - **graph** is for drawing the graph:
 
   ```json
@@ -349,6 +359,7 @@ Details:
   | `ls` | read | `type`, `at` | `ls` |
   | `relations` | read | none | `relations` |
   | `search` | read | `q`, `at`, `n` | `search` |
+  | `recall` | read | `q`, `n`, `min`, `at` | `recall` |
   | `path` | read | `from`, `to`, `max_depth` | `path` |
   | `log` | read | `since`, `n` | `log` |
   | `history` | read | `subject`, `relation` | `history` |

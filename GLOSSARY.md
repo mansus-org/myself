@@ -92,6 +92,10 @@ _Avoid_: Feed, activity, timeline, events
 The brain read as it was at a past time (`--at`).
 _Avoid_: Snapshot, version, point in time
 
+**Recall**:
+Finding facts by meaning rather than by the exact word: the live facts nearest the question, best first.
+_Avoid_: Semantic search, embed-search, ask
+
 **Graph**:
 Entities drawn as squares and links as lines; the web app's home.
 
@@ -108,6 +112,14 @@ The housekeeping report: near-duplicate names (`myself dream`).
 **Near-duplicate**:
 Names that are equal once dashes and a trailing `s` are removed: `relay` and `relays`.
 _Avoid_: Duplicate (they may be different things), alias
+
+**Vector projection**:
+The embedding of every live fact, and the index over them. Derived from the log and rebuilt by `myself index`; a missing vector costs recall a hit, never a fact.
+_Avoid_: Embedding store, index (it is part of it), cache
+
+**Embedding endpoint**:
+The OpenAI-compatible service that turns text into vectors, named by the environment. Without it recall is unavailable and everything else works as before.
+_Avoid_: Model (the endpoint has one, and the word is taken), AI
 
 ## Access
 

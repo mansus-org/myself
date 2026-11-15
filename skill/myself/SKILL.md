@@ -30,6 +30,7 @@ myself describe <entity> [--depth N] [--at TIME]   # facts out of and into an en
 myself ls [<type>] [--at TIME]          # entities that are (transitively) <type>; no arg: all types
 myself relations                        # the closed relation list
 myself search <text> [--at TIME] [-n N]  # substring match over live facts; -n keeps the first N
+myself recall <text> [-n N] [--min SCORE]  # facts closest in MEANING, best first (needs a Neo4j brain + an embedding endpoint; it errors if there is none)
 myself path <a> <b> [--max-depth N]     # shortest chain of facts linking two entities
 myself log [--since TIME] [-n N]        # every record in order, forgets included
 myself history <subject> [<relation>]   # all records ever for a subject, forgotten ones too
@@ -45,6 +46,7 @@ Global flags: `--json`, `--file PATH`. TIME is RFC 3339 or `YYYY-MM-DD`. Exit 0 
 
 - Known name: `myself describe relay`; add `--depth 1` to see its neighbours.
 - Unknown or partial name: `myself search consenso` (or a word from the topic).
+- Nothing for the word you used? `myself recall "how do we ship relay"` — it matches meaning, not spelling, so it finds `relay deploys nightly`. Read the score before believing a weak match, and treat its error (no vectors here) as "use `search`", not as "the brain is empty".
 - "How are X and Y related?": `myself path x y`.
 - "What changed lately?": `myself log --since 2026-10-24` or `myself log -n 20`.
 - "What projects/people do I know?": `myself ls` for the types, then `myself ls project`.
