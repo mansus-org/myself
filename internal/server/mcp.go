@@ -73,10 +73,11 @@ type searchInput struct {
 }
 
 type recallInput struct {
-	Q   string   `json:"q" jsonschema:"what you are looking for, in your own words; it is matched by meaning, not by the exact word"`
-	N   *int     `json:"n,omitempty" jsonschema:"keep only the N closest matches (default 10)"`
-	Min *float64 `json:"min,omitempty" jsonschema:"drop a match scoring below this (-1 to 1; 0 keeps everything the index returns)"`
-	At  string   `json:"at,omitempty" jsonschema:"as of this time (RFC 3339 or YYYY-MM-DD)"`
+	Q     string   `json:"q" jsonschema:"what you are looking for, in your own words; it is matched by meaning, not by the exact word"`
+	N     *int     `json:"n,omitempty" jsonschema:"keep only the N closest matches (default 10)"`
+	Min   *float64 `json:"min,omitempty" jsonschema:"drop a match scoring below this (-1 to 1; 0 keeps everything the index returns)"`
+	Graph *int     `json:"graph,omitempty" jsonschema:"also bring the facts within this many graph hops of each match, which is how you learn what an entity a match names is (default 1; 0 brings the matches alone)"`
+	At    string   `json:"at,omitempty" jsonschema:"as of this time (RFC 3339 or YYYY-MM-DD)"`
 }
 
 type pathInput struct {
@@ -202,13 +203,13 @@ func (s *Server) mcpServer(id Identity, cache *mcp.SchemaCache) *mcp.Server {
 		})
 
 	addTool(s, srv, id, add("recall", "Recall facts by meaning",
-		"Find the live facts closest in meaning to the text, best first, each with a similarity score. Use it when search finds nothing for the word you used: the brain may say the same thing differently (\"how do we ship relay\" finds \"relay deploys nightly\"). Low scores mean a stretch, so read them before treating a match as an answer. Needs a brain that keeps vectors; an error means this brain has none, and search still works.",
+		"Find the live facts closest in meaning to the text, best first, each with a similarity score and, indented under it, the facts around it in the graph: what the entities a match names are, and the other facts about the same subject. Use it when search finds nothing for the word you used: the brain may say the same thing differently (\"how do we ship relay\" finds \"relay deploys nightly\"). Low scores mean a stretch, so read them before treating a match as an answer. Needs a brain that keeps vectors; an error means this brain has none, and search still works.",
 		readOnly), false,
 		func(st *RequestStore, in recallInput) (mcpOut, error) {
 			if in.Q == "" {
 				return mcpOut{}, brain.Usagef("recall needs <text>")
 			}
-			res, err := brain.Recall(s.recallStoreFor(st), s.embedder, in.Q, opt(in.At), in.N, in.Min)
+			res, err := brain.Recall(s.recallStoreFor(st), s.embedder, in.Q, opt(in.At), in.N, in.Min, in.Graph)
 			return linesOut(res), err
 		})
 

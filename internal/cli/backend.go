@@ -20,7 +20,7 @@ type backend interface {
 	Ls(typ, at *string) (brain.LsResult, error)
 	Relations() (brain.RelationsResult, error)
 	Search(text string, at *string, n *int) (brain.SearchResult, error)
-	Recall(text string, at *string, n *int, min *float64) (brain.RecallResult, error)
+	Recall(text string, at *string, n *int, min *float64, hops *int) (brain.RecallResult, error)
 	Index(rebuild bool) (brain.IndexResult, error)
 	Path(a, b string, maxDepth int) (brain.PathResult, error)
 	Log(since *string, n *int) (brain.RecordsResult, error)
@@ -64,12 +64,12 @@ func (b localBackend) Relations() (brain.RelationsResult, error)  { return brain
 func (b localBackend) Search(text string, at *string, n *int) (brain.SearchResult, error) {
 	return brain.Search(b.st, text, at, n)
 }
-func (b localBackend) Recall(text string, at *string, n *int, min *float64) (brain.RecallResult, error) {
+func (b localBackend) Recall(text string, at *string, n *int, min *float64, hops *int) (brain.RecallResult, error) {
 	em, err := embedderFromEnv()
 	if err != nil {
 		return brain.RecallResult{}, StoreErr(err)
 	}
-	return brain.Recall(b.st, em, text, at, n, min)
+	return brain.Recall(b.st, em, text, at, n, min, hops)
 }
 func (b localBackend) Index(rebuild bool) (brain.IndexResult, error) {
 	em, err := embedderFromEnv()

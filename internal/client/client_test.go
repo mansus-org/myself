@@ -92,7 +92,7 @@ func TestRecallAndIndexOnTheWire(t *testing.T) {
 		switch r.URL.Path {
 		case "/api/v1/recall":
 			query = r.URL.RawQuery
-			w.Write([]byte(`{"matches":[{"uuid":"01a1","subject":"relay","relation":"uses","object":"bun","time":"2026-01-01T00:00:00Z","score":0.81}],"model":"m","at":"2026-01-01T00:00:00Z"}`))
+			w.Write([]byte(`{"matches":[{"uuid":"01a1","subject":"relay","relation":"uses","object":"bun","time":"2026-01-01T00:00:00Z","score":0.81,"context":[{"uuid":"01a2","subject":"bun","relation":"is","object":"runtime","time":"2026-01-01T00:00:00Z","hop":1,"through":"01a1"}]}],"model":"m","at":"2026-01-01T00:00:00Z","graph":1}`))
 		case "/api/v1/index":
 			raw, _ := io.ReadAll(r.Body)
 			body = string(raw)
@@ -103,21 +103,24 @@ func TestRecallAndIndexOnTheWire(t *testing.T) {
 	}))
 	defer ts.Close()
 	c := &Client{URL: ts.URL}
-	at, n, min := "2026-01-01T00:00:00Z", 3, 0.5
-	res, err := c.Recall("what does relay run on", &at, &n, &min)
+	at, n, min, graph := "2026-01-01T00:00:00Z", 3, 0.5, 2
+	res, err := c.Recall("what does relay run on", &at, &n, &min, &graph)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"q=what+does+relay+run+on", "at=" + url.QueryEscape(at), "n=3", "min=0.5"} {
+	for _, want := range []string{"q=what+does+relay+run+on", "at=" + url.QueryEscape(at), "n=3", "min=0.5", "graph=2"} {
 		if !strings.Contains(query, want) {
 			t.Errorf("recall query %q misses %q", query, want)
 		}
 	}
-	if len(res.Matches) != 1 || res.Matches[0].Score != 0.81 || res.Model != "m" {
+	if len(res.Matches) != 1 || res.Matches[0].Score != 0.81 || res.Model != "m" || res.Graph != 1 {
 		t.Fatalf("recall result: %+v", res)
 	}
 	if res.Matches[0].Object != "bun" {
 		t.Fatalf("a match is still a record: %+v", res.Matches[0])
+	}
+	if c := res.Matches[0].Context; len(c) != 1 || c[0].Hop != 1 || c[0].Through != "01a1" || c[0].Object != "runtime" {
+		t.Fatalf("the context has to survive the wire: %+v", res.Matches[0].Context)
 	}
 	out, err := c.Index(true)
 	if err != nil || out.Embedded != 3 || out.Skipped != 1 {

@@ -137,8 +137,9 @@ func (c *Client) Search(text string, at *string, n *int) (brain.SearchResult, er
 	return out, err
 }
 
-// Recall asks for the live facts closest in meaning to text.
-func (c *Client) Recall(text string, at *string, n *int, min *float64) (brain.RecallResult, error) {
+// Recall asks for the live facts closest in meaning to text, each with the facts
+// within hops graph hops of it.
+func (c *Client) Recall(text string, at *string, n *int, min *float64, hops *int) (brain.RecallResult, error) {
 	q := url.Values{}
 	q.Set("q", text)
 	setOpt(q, "at", at)
@@ -147,6 +148,9 @@ func (c *Client) Recall(text string, at *string, n *int, min *float64) (brain.Re
 	}
 	if min != nil {
 		q.Set("min", strconv.FormatFloat(*min, 'g', -1, 64))
+	}
+	if hops != nil {
+		q.Set("graph", strconv.Itoa(*hops))
 	}
 	var out brain.RecallResult
 	err := c.get("/api/v1/recall", q, &out)

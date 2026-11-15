@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 
 	"github.com/mansus-org/myself/internal/embed"
+	"github.com/mansus-org/myself/internal/graph"
 	"github.com/mansus-org/myself/internal/model"
 )
 
@@ -45,6 +47,17 @@ type VectorStore interface {
 // DefaultRecallN is how many facts recall returns when -n is not given.
 const DefaultRecallN = 10
 
+// DefaultRecallGraph is how many graph hops of context recall brings around each
+// match when --graph is not given. One hop is the useful default: it reaches the
+// type of every entity the match names ("bun is runtime") and the other facts
+// about the same subject, which is usually what makes a match mean something.
+const DefaultRecallGraph = 1
+
+// recallContextPerMatch caps how many context facts one match brings. A match on
+// a busy entity would otherwise reach half the brain through it, and an agent
+// that asked for ten facts did not ask for a dump.
+const recallContextPerMatch = 6
+
 // recallCandidates is how many neighbours recall asks the index for before it
 // drops the forgotten ones and cuts to -n. The index knows every fact it was
 // ever given, so a brain with many forgets needs a wider net than the answer.
@@ -53,24 +66,49 @@ const recallCandidates = 40
 // indexBatch is how many facts are embedded and written per step of `index`.
 const indexBatch = 64
 
+// RecallFact is a fact recall brought because it sits next to a match in the
+// graph, not because it was close in meaning. Hop counts the entity hops from the
+// match it came through, and Through is that match's uuid.
+//
+// The common one is a type fact: a match that says "relay uses bun" is worth
+// little until "bun is runtime" comes with it. These are the antecedents of a
+// match — the facts that say what the things it names are — and they are marked
+// as reached, never dressed up as found.
+type RecallFact struct {
+	model.Record
+	Hop     int    `json:"hop"`
+	Through string `json:"through"`
+}
+
+// RecallMatch is one fact the index found, and the facts around it in the graph.
+type RecallMatch struct {
+	ScoredRecord
+	Context []RecallFact `json:"context,omitempty"`
+}
+
 // RecallResult is `recall --json`.
 type RecallResult struct {
-	Matches []ScoredRecord `json:"matches"`
+	Matches []RecallMatch `json:"matches"`
 	// Model names the embedding model that answered. Two models disagree about
 	// what two sentences mean, so an agent reading an answer has to know which
 	// one gave it.
 	Model string  `json:"model"`
 	At    *string `json:"at"`
+	// Graph is how many hops of context recall walked, 0 when it was asked not to.
+	// It is echoed because context is not similarity, and a reader has to be able
+	// to tell the two apart.
+	Graph int `json:"graph"`
 }
 
 // Recall returns the live facts closest in meaning to text, best first, at most
 // n of them (DefaultRecallN when nil) and none scoring below min (0 when nil).
-// at is the --at value, nil for now.
+// at is the --at value, nil for now. hops is how many graph hops of context to
+// bring around each match (DefaultRecallGraph when nil, 0 for none).
 //
 // st must also be a VectorStore and em must be set; a caller that has neither
 // says so in its own words (the CLI names the variables, the server does not
 // need to), so these two checks are a safety net, not the message a user reads.
-func Recall(st Store, em embed.Embedder, text string, at *string, n *int, min *float64) (RecallResult, error) {
+func Recall(st Store, em embed.Embedder, text string, at *string, n *int, min *float64, hops *int) (RecallResult, error) {
 	vs, err := vectorPart(st, em)
 	if err != nil {
 		return RecallResult{}, err
@@ -81,6 +119,9 @@ func Recall(st Store, em embed.Embedder, text string, at *string, n *int, min *f
 	if min != nil && (*min < -1 || *min > 1) {
 		return RecallResult{}, Usagef("--min wants a score between -1 and 1")
 	}
+	if hops != nil && *hops < 0 {
+		return RecallResult{}, Usagef("--graph must not be negative")
+	}
 	limit := DefaultRecallN
 	if n != nil {
 		limit = *n
@@ -89,9 +130,14 @@ func Recall(st Store, em embed.Embedder, text string, at *string, n *int, min *f
 	if min != nil {
 		floor = *min
 	}
+	wantHops := DefaultRecallGraph
+	if hops != nil {
+		wantHops = *hops
+	}
 	// The snapshot is read for the same reason on the file and in the database:
 	// a vector says what a fact meant when it was written, not whether it is
-	// still live, and not what was live in April.
+	// still live, and not what was live in April. It is also the graph the
+	// context is walked in, so the same --at answers both.
 	snap, err := view(st, at)
 	if err != nil {
 		return RecallResult{}, err
@@ -112,17 +158,121 @@ func Recall(st Store, em embed.Embedder, text string, at *string, n *int, min *f
 	if err != nil {
 		return RecallResult{}, storeErr(err)
 	}
-	res := RecallResult{Model: em.Model(), At: at, Matches: []ScoredRecord{}}
+	var found []ScoredRecord
 	for _, h := range hits {
-		if len(res.Matches) >= limit {
+		if len(found) >= limit {
 			break
 		}
 		if !live[h.UUID] || h.Score < floor {
 			continue
 		}
-		res.Matches = append(res.Matches, h)
+		found = append(found, h)
+	}
+	res := RecallResult{Model: em.Model(), At: at, Matches: []RecallMatch{}, Graph: wantHops}
+	// The graph is only built when it will be walked: on a big brain that is a
+	// whole pass over the log, and --graph 0 asked for none of it.
+	var byMatch map[string][]RecallFact
+	if wantHops > 0 && len(found) > 0 {
+		byMatch = recallContext(snap.Graph(), found, wantHops)
+	}
+	for _, m := range found {
+		res.Matches = append(res.Matches, RecallMatch{ScoredRecord: m, Context: byMatch[m.UUID]})
 	}
 	return res, nil
+}
+
+// recallContext walks the graph around each match and returns the facts that say
+// what the things it names are, keyed by the match they came from.
+//
+// The walk is a breadth-first one hop at a time from the entities a match names,
+// and a fact is given once: to the best-scoring match that reaches it. Within a
+// hop, type facts come first, because "what is a bun" is the question a match
+// like "relay uses bun" leaves open; then the other facts about the same
+// subject; then whatever else the hop reached, oldest first. Nothing here reads
+// the model again: this is the log's own structure, which is why it costs nothing
+// and cannot be wrong about meaning.
+func recallContext(g *graph.Graph, matches []ScoredRecord, hops int) map[string][]RecallFact {
+	if hops < 1 || len(matches) == 0 {
+		return nil
+	}
+	given := make(map[string]bool, len(matches))
+	for _, m := range matches {
+		given[m.UUID] = true
+	}
+	out := make(map[string][]RecallFact, len(matches))
+	for _, m := range matches {
+		var facts []RecallFact
+		seen := map[string]bool{m.UUID: true}
+		visited := map[string]bool{}
+		frontier := recallEntities(g, m.Record, visited)
+		for hop := 1; hop <= hops && len(facts) < recallContextPerMatch && len(frontier) > 0; hop++ {
+			var next []string
+			var reached []model.Record
+			for _, name := range frontier {
+				for _, rec := range g.Touching(name) {
+					if seen[rec.UUID] || given[rec.UUID] {
+						continue
+					}
+					seen[rec.UUID] = true
+					reached = append(reached, rec)
+					next = append(next, recallEntities(g, rec, visited)...)
+				}
+			}
+			sort.SliceStable(reached, func(i, j int) bool {
+				a, b := recallContextRank(m.Record, reached[i]), recallContextRank(m.Record, reached[j])
+				if a != b {
+					return a < b
+				}
+				return reached[i].UUID < reached[j].UUID
+			})
+			for _, rec := range reached {
+				if len(facts) >= recallContextPerMatch {
+					break
+				}
+				given[rec.UUID] = true
+				facts = append(facts, RecallFact{Record: rec, Hop: hop, Through: m.UUID})
+			}
+			frontier = next
+		}
+		if len(facts) > 0 {
+			out[m.UUID] = facts
+		}
+	}
+	return out
+}
+
+// recallEntities names the entities of a fact that the graph knows — its subject,
+// and its object when the object is an entity and not a sentence — adding the new
+// ones to visited so a walk does not cross the same entity twice. The result is
+// sorted, so a walk does not depend on map order.
+func recallEntities(g *graph.Graph, rec model.Record, visited map[string]bool) []string {
+	var names []string
+	for _, name := range []string{rec.Subject, rec.Object} {
+		if name == "" || !g.Has(name) {
+			continue
+		}
+		key := model.NormalizeName(name)
+		if visited[key] {
+			continue
+		}
+		visited[key] = true
+		names = append(names, key)
+	}
+	sort.Strings(names)
+	return names
+}
+
+// recallContextRank orders the facts one hop reaches: what a thing is, then more
+// about the thing the match was about, then the rest.
+func recallContextRank(seed, rec model.Record) int {
+	switch {
+	case rec.Relation == "is":
+		return 0
+	case rec.Subject == seed.Subject:
+		return 1
+	default:
+		return 2
+	}
 }
 
 // IndexResult is `index --json`.
@@ -258,11 +408,15 @@ func vectorPart(st Store, em embed.Embedder) (VectorStore, error) {
 	return vs, nil
 }
 
-// Lines is one score and log line per match, best first.
+// Lines is one score and log line per match, best first, with the facts it
+// reached in the graph indented under it.
 func (r RecallResult) Lines() []string {
-	lines := make([]string, len(r.Matches))
-	for i, m := range r.Matches {
-		lines[i] = fmt.Sprintf("%.2f %s", m.Score, RecordLine(m.Record))
+	var lines []string
+	for _, m := range r.Matches {
+		lines = append(lines, fmt.Sprintf("%.2f %s", m.Score, RecordLine(m.Record)))
+		for _, c := range m.Context {
+			lines = append(lines, "  "+RecordLine(c.Record))
+		}
 	}
 	return lines
 }

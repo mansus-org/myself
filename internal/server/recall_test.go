@@ -229,6 +229,77 @@ func TestRecallEndpoint(t *testing.T) {
 			t.Fatalf("min did not reach the brain: %s", body)
 		}
 	}
+
+	// The graph around a match comes back with it, and graph=0 leaves it out:
+	// the same command must not answer differently because it came over HTTP.
+	type ctxFact struct {
+		UUID string `json:"uuid"`
+		Hop  int    `json:"hop"`
+	}
+	var withGraph struct {
+		Matches []struct {
+			UUID    string    `json:"uuid"`
+			Context []ctxFact `json:"context"`
+		} `json:"matches"`
+		Graph int `json:"graph"`
+	}
+	code, body = doAuth(t, ts, "GET", "/api/v1/recall?q=relay+uses+bun&n=1", adminToken)
+	if code != 200 {
+		t.Fatalf("recall with the graph: %d %s", code, body)
+	}
+	if err := json.Unmarshal([]byte(body), &withGraph); err != nil {
+		t.Fatal(err)
+	}
+	if withGraph.Graph != brain.DefaultRecallGraph || len(withGraph.Matches) != 1 || len(withGraph.Matches[0].Context) == 0 {
+		t.Fatalf("the match should have come with what it is about: %s", body)
+	}
+	for _, c := range withGraph.Matches[0].Context {
+		if c.Hop != 1 || c.UUID == withGraph.Matches[0].UUID {
+			t.Fatalf("context is reached, not matched: %s", body)
+		}
+	}
+	code, body = doAuth(t, ts, "GET", "/api/v1/recall?q=relay+uses+bun&n=1&graph=0", adminToken)
+	if code != 200 {
+		t.Fatalf("recall graph=0: %d %s", code, body)
+	}
+	var alone struct {
+		Matches []struct {
+			Context []ctxFact `json:"context"`
+		} `json:"matches"`
+		Graph int `json:"graph"`
+	}
+	if err := json.Unmarshal([]byte(body), &alone); err != nil {
+		t.Fatal(err)
+	}
+	if alone.Graph != 0 || len(alone.Matches[0].Context) != 0 {
+		t.Fatalf("graph=0 asked for the matches alone: %s", body)
+	}
+}
+
+// The MCP tool is the same command with the same choices, so it carries the graph
+// the same way: an agent gets what a match is about without a second call.
+func TestRecallToolCarriesTheGraph(t *testing.T) {
+	vs := newVecStore("relay uses bun", "relay is project", "bun is runtime")
+	ts := vecEnv(t, vs, wordEmbedder{})
+	if _, err := brain.Index(vs, wordEmbedder{}, false); err != nil {
+		t.Fatal(err)
+	}
+	e := &env{t: t, ts: ts}
+	cs := e.session(adminToken)
+	text, v, isErr := call(t, cs, "recall", map[string]any{"q": "relay uses bun", "n": 1})
+	if isErr {
+		t.Fatalf("recall: %q", text)
+	}
+	if !strings.Contains(text, "bun is runtime") {
+		t.Fatalf("the graph should say what bun is: %q", text)
+	}
+	if v["graph"] == nil {
+		t.Fatalf("the answer must say how wide the graph went: %v", v)
+	}
+	text, _, isErr = call(t, cs, "recall", map[string]any{"q": "relay uses bun", "n": 1, "graph": 0})
+	if isErr || strings.Contains(text, "bun is runtime") {
+		t.Fatalf("graph 0 asked for the matches alone: %q", text)
+	}
 }
 
 func TestRecallEndpointRefusesABadRequest(t *testing.T) {
@@ -242,6 +313,7 @@ func TestRecallEndpointRefusesABadRequest(t *testing.T) {
 		{"/api/v1/recall?q=x&n=zero", "n"},
 		{"/api/v1/recall?q=x&min=heavy", "min"},
 		{"/api/v1/recall?q=x&min=9", "--min"},
+		{"/api/v1/recall?q=x&graph=many", "graph"},
 	} {
 		code, body := doAuth(t, ts, "GET", c.path, adminToken)
 		if code != http.StatusBadRequest || !strings.Contains(body, c.want) {

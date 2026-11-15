@@ -16,11 +16,13 @@ import (
 func newRecallCmd(cfg *Config) *cobra.Command {
 	var n int
 	var min float64
+	var graph int
 	cmd := &cobra.Command{
-		Use:   "recall <text...> [-n N] [--min SCORE]",
+		Use:   "recall <text...> [-n N] [--min SCORE] [--graph N]",
 		Short: "Find the live facts closest in meaning to text",
 		Long: "Recall answers by meaning instead of by substring: it reads the question with an\n" +
-			"embedding model and returns the live facts nearest to it, best first.\n" +
+			"embedding model and returns the live facts nearest to it, best first, each with the\n" +
+			"facts around it in the graph indented below it — what the things it names are.\n" +
 			"It needs the Neo4j backend and an embedding endpoint (see myself index), and\n" +
 			"says so when either is missing — it never falls back to a worse answer.",
 		Args: func(cmd *cobra.Command, args []string) error {
@@ -40,7 +42,11 @@ func newRecallCmd(cfg *Config) *cobra.Command {
 		if cmd.Flags().Changed("min") {
 			minP = &min
 		}
-		res, err := backendFor(cmd, cfg).Recall(joinObject(args), at.value(), nP, minP)
+		var graphP *int
+		if cmd.Flags().Changed("graph") {
+			graphP = &graph
+		}
+		res, err := backendFor(cmd, cfg).Recall(joinObject(args), at.value(), nP, minP, graphP)
 		if err != nil {
 			return err
 		}
@@ -48,6 +54,7 @@ func newRecallCmd(cfg *Config) *cobra.Command {
 	}
 	cmd.Flags().IntVarP(&n, "n", "n", brain.DefaultRecallN, "keep only the N closest matches")
 	cmd.Flags().Float64Var(&min, "min", 0, "drop a match scoring below this (-1 to 1)")
+	cmd.Flags().IntVar(&graph, "graph", brain.DefaultRecallGraph, "bring the facts within this many graph hops of each match (0 for none)")
 	return cmd
 }
 

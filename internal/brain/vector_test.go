@@ -162,7 +162,7 @@ func TestRecallAnswersWithTheClosestLiveFacts(t *testing.T) {
 		"relay deploys nightly",
 	)
 	indexEverything(t, s)
-	res, err := Recall(s, fakeEmbedder{}, "bun", nil, nil, nil)
+	res, err := Recall(s, fakeEmbedder{}, "bun", nil, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,7 +194,7 @@ func TestRecallNeverReturnsAForgottenFact(t *testing.T) {
 	if err := s.Append(model.NewForget(forgotten, "changed my mind", forgetTime)); err != nil {
 		t.Fatal(err)
 	}
-	res, err := Recall(s, fakeEmbedder{}, "bun", nil, nil, nil)
+	res, err := Recall(s, fakeEmbedder{}, "bun", nil, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -208,14 +208,14 @@ func TestRecallNeverReturnsAForgottenFact(t *testing.T) {
 func TestRecallCutsToNAndToTheFloor(t *testing.T) {
 	s := newVecStore("relay is project", "relay uses bun", "relay deploys nightly", "self is agent")
 	indexEverything(t, s)
-	res, err := Recall(s, fakeEmbedder{}, "relay", nil, ptr(2), nil)
+	res, err := Recall(s, fakeEmbedder{}, "relay", nil, ptr(2), nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(res.Matches) != 2 {
 		t.Fatalf("-n 2 gave %d: %+v", len(res.Matches), res.Matches)
 	}
-	res, err = Recall(s, fakeEmbedder{}, "relay", nil, nil, ptr(0.9))
+	res, err = Recall(s, fakeEmbedder{}, "relay", nil, nil, ptr(0.9), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -231,7 +231,7 @@ func TestRecallAsOfADateDropsLaterFacts(t *testing.T) {
 	indexEverything(t, s)
 	// The bun fact is the second one, dated 2026-01-02: as of January 1st only
 	// the project fact was live, even though the bun fact is the closer answer.
-	res, err := Recall(s, fakeEmbedder{}, "bun relay", ptr("2026-01-01T00:00:00Z"), nil, nil)
+	res, err := Recall(s, fakeEmbedder{}, "bun relay", ptr("2026-01-01T00:00:00Z"), nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -246,16 +246,166 @@ func TestRecallAsOfADateDropsLaterFacts(t *testing.T) {
 	}
 }
 
+func TestRecallBringsWhatTheEntitiesOfAMatchAre(t *testing.T) {
+	s := newVecStore(
+		"relay is project",
+		"relay uses bun",
+		"bun is runtime",
+		"runtime is thing",
+		"self is agent",
+		"relay has 'the backend is go'",
+	)
+	indexEverything(t, s)
+	res, err := Recall(s, fakeEmbedder{}, "relay uses bun", nil, ptr(1), nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Matches) != 1 || res.Matches[0].Record.Relation != "uses" {
+		t.Fatalf("the exact fact should answer: %+v", res.Matches)
+	}
+	seed := res.Matches[0].UUID
+	want := []string{"relay is project", "bun is runtime", "relay has 'the backend is go'"}
+	got := contextOf(res, seed)
+	if strings.Join(got, " | ") != strings.Join(want, " | ") {
+		t.Fatalf("the match names relay and bun, so the brain should say what both are, got %v", got)
+	}
+	for _, c := range res.Matches[0].Context {
+		if c.Hop != 1 || c.Through != seed {
+			t.Fatalf("every one of these is one hop from the match: %+v", res.Matches[0].Context)
+		}
+	}
+	if res.Graph != DefaultRecallGraph {
+		t.Fatalf("the answer must say how wide the graph went: %d", res.Graph)
+	}
+	for _, c := range contextOf(res, seed) {
+		if strings.HasPrefix(c, "self ") {
+			t.Fatalf("an unrelated entity is not context: %v", c)
+		}
+	}
+}
+
+func TestRecallGraphZeroBringsTheMatchesAlone(t *testing.T) {
+	s := newVecStore("relay is project", "relay uses bun", "bun is runtime")
+	indexEverything(t, s)
+	res, err := Recall(s, fakeEmbedder{}, "relay uses bun", nil, ptr(1), nil, ptr(0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Graph != 0 {
+		t.Fatalf("--graph 0 must be echoed back: %+v", res)
+	}
+	for _, m := range res.Matches {
+		if len(m.Context) > 0 {
+			t.Fatalf("--graph 0 asked for the matches alone: %+v", m.Context)
+		}
+	}
+}
+
+func TestRecallGraphHopsReachFurtherButOnlyAsFarAsAsked(t *testing.T) {
+	s := newVecStore("relay is project", "relay uses bun", "bun is runtime", "runtime is thing")
+	indexEverything(t, s)
+	for _, hops := range []int{1, 2} {
+		res, err := Recall(s, fakeEmbedder{}, "relay uses bun", nil, ptr(1), nil, ptr(hops))
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := contextOf(res, res.Matches[0].UUID)
+		_, deep := findLine(got, "runtime is thing")
+		if hops == 1 && deep {
+			t.Fatalf("thing is two hops from the match, and one was asked for: %v", got)
+		}
+		if hops == 2 && !deep {
+			t.Fatalf("two hops were asked for, so thing should be there: %v", got)
+		}
+		for _, m := range res.Matches {
+			for _, c := range m.Context {
+				if c.Hop > hops {
+					t.Fatalf("a hop beyond %d: %+v", hops, m.Context)
+				}
+			}
+		}
+	}
+}
+
+func TestRecallContextIsCappedPerMatch(t *testing.T) {
+	triples := []string{"relay is project", "relay uses bun"}
+	for i := 0; i < 10; i++ {
+		triples = append(triples, fmt.Sprintf("relay has detail%d", i))
+	}
+	s := newVecStore(triples...)
+	indexEverything(t, s)
+	res, err := Recall(s, fakeEmbedder{}, "relay uses bun", nil, ptr(1), nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Matches[0].Context) != recallContextPerMatch {
+		t.Fatalf("a busy entity reaches half the brain; the cap is %d, got %+v",
+			recallContextPerMatch, res.Matches[0].Context)
+	}
+}
+
+func TestRecallGivesAFactOnceEvenWhenTwoMatchesReachIt(t *testing.T) {
+	s := newVecStore("relay is project", "relay uses bun", "relay deploys nightly")
+	indexEverything(t, s)
+	res, err := Recall(s, fakeEmbedder{}, "relay", nil, ptr(2), nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Matches) != 2 {
+		t.Fatalf("two matches were asked for: %+v", res.Matches)
+	}
+	seen := map[string]int{}
+	for _, m := range res.Matches {
+		for _, c := range m.Context {
+			seen[c.Object]++
+		}
+	}
+	for object, n := range seen {
+		if n > 1 {
+			t.Fatalf("%s was given %d times: an answer is not a repeat", object, n)
+		}
+	}
+	if _, ok := findLine(contextOf(res, res.Matches[1].UUID), "relay is project"); ok {
+		t.Fatal("a match is never also context")
+	}
+}
+
+// contextOf names the context facts of one match as `subject relation object`.
+func contextOf(res RecallResult, through string) []string {
+	var out []string
+	for _, m := range res.Matches {
+		if m.UUID != through {
+			continue
+		}
+		for _, c := range m.Context {
+			out = append(out, c.Subject+" "+c.Relation+" "+c.Object)
+		}
+	}
+	return out
+}
+
+func findLine(lines []string, want string) (int, bool) {
+	for i, l := range lines {
+		if l == want {
+			return i, true
+		}
+	}
+	return 0, false
+}
+
 func TestRecallRefusesABadCountOrFloor(t *testing.T) {
 	s := newVecStore("relay is project")
 	indexEverything(t, s)
-	if _, err := Recall(s, fakeEmbedder{}, "relay", nil, ptr(0), nil); !isUsage(err) {
+	if _, err := Recall(s, fakeEmbedder{}, "relay", nil, ptr(0), nil, nil); !isUsage(err) {
 		t.Fatalf("-n 0: %v", err)
 	}
-	if _, err := Recall(s, fakeEmbedder{}, "relay", nil, nil, ptr(2.0)); !isUsage(err) {
+	if _, err := Recall(s, fakeEmbedder{}, "relay", nil, nil, ptr(2.0), nil); !isUsage(err) {
 		t.Fatalf("--min 2: %v", err)
 	}
-	if _, err := Recall(s, fakeEmbedder{}, "relay", ptr("not a time"), nil, nil); !isUsage(err) {
+	if _, err := Recall(s, fakeEmbedder{}, "relay", nil, nil, nil, ptr(-1)); !isUsage(err) {
+		t.Fatalf("--graph -1: %v", err)
+	}
+	if _, err := Recall(s, fakeEmbedder{}, "relay", ptr("not a time"), nil, nil, nil); !isUsage(err) {
 		t.Fatalf("--at: %v", err)
 	}
 }
@@ -269,13 +419,13 @@ func (s plainStore) Warn(string)                  {}
 
 func TestRecallAndIndexSayWhatIsMissing(t *testing.T) {
 	s := newVecStore("relay is project")
-	if _, err := Recall(plainStore{}, fakeEmbedder{}, "relay", nil, nil, nil); !isUsage(err) {
+	if _, err := Recall(plainStore{}, fakeEmbedder{}, "relay", nil, nil, nil, nil); !isUsage(err) {
 		t.Fatalf("a brain with no vectors: %v", err)
 	}
 	if _, err := Index(plainStore{}, fakeEmbedder{}, false); !isUsage(err) {
 		t.Fatalf("a brain with no vectors: %v", err)
 	}
-	if _, err := Recall(s, nil, "relay", nil, nil, nil); !isUsage(err) {
+	if _, err := Recall(s, nil, "relay", nil, nil, nil, nil); !isUsage(err) {
 		t.Fatalf("no embedding endpoint: %v", err)
 	}
 	if err := EnsureVectors(context.Background(), s, nil); err == nil {
@@ -387,13 +537,17 @@ func TestEnsureVectorsSizesTheIndexFromTheModel(t *testing.T) {
 	}
 }
 
-func TestRecallLinesCarryTheScoreFirst(t *testing.T) {
-	res := RecallResult{Matches: []ScoredRecord{{
-		Record: model.Record{UUID: "01a1", Subject: "relay", Relation: "uses", Object: "bun", Time: "2026-01-01T00:00:00Z"},
-		Score:  0.867,
+func TestRecallLinesCarryTheScoreFirstAndTheContextIndented(t *testing.T) {
+	rec := func(uuid, relation, object string) model.Record {
+		return model.Record{UUID: uuid, Subject: "relay", Relation: relation, Object: object, Time: "2026-01-01T00:00:00Z"}
+	}
+	res := RecallResult{Matches: []RecallMatch{{
+		ScoredRecord: ScoredRecord{Record: rec("01a1", "uses", "bun"), Score: 0.867},
+		Context:      []RecallFact{{Record: rec("01a2", "is", "project"), Hop: 1, Through: "01a1"}},
 	}}}
 	got := strings.Join(res.Lines(), "\n")
-	want := "0.87 01a1 2026-01-01T00:00:00Z relay uses bun"
+	want := "0.87 01a1 2026-01-01T00:00:00Z relay uses bun\n" +
+		"  01a2 2026-01-01T00:00:00Z relay is project"
 	if got != want {
 		t.Fatalf("got %q, want %q", got, want)
 	}

@@ -266,7 +266,12 @@ func (s *Server) recall(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, err)
 		return
 	}
-	res, err := brain.Recall(s.recallStoreFor(st), s.embedder, text, optString(q, "at"), n, min)
+	hops, err := optInt(q, "graph")
+	if err != nil {
+		WriteError(w, err)
+		return
+	}
+	res, err := brain.Recall(s.recallStoreFor(st), s.embedder, text, optString(q, "at"), n, min, hops)
 	reply(w, st, res, err)
 }
 

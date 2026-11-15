@@ -16,14 +16,14 @@ import (
 // operator has to set; this is the guard that they still name the ones this
 // program actually reads, which brain cannot import without a cycle.
 func TestRecallErrorsNameTheVariables(t *testing.T) {
-	if _, err := brain.Recall(recallNoVectorStore{}, nil, "x", nil, nil, nil); err == nil ||
+	if _, err := brain.Recall(recallNoVectorStore{}, nil, "x", nil, nil, nil, nil); err == nil ||
 		!strings.Contains(err.Error(), neo4j.EnvURL) {
 		t.Errorf("the missing backend must name %s: %v", neo4j.EnvURL, err)
 	}
 	for _, what := range []string{"recall", "index"} {
 		var err error
 		if what == "recall" {
-			_, err = brain.Recall(recallVectorStore{}, nil, "x", nil, nil, nil)
+			_, err = brain.Recall(recallVectorStore{}, nil, "x", nil, nil, nil, nil)
 		} else {
 			_, err = brain.Index(recallVectorStore{}, nil, false)
 		}
