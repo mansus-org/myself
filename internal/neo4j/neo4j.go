@@ -16,6 +16,7 @@ package neo4j
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -26,6 +27,7 @@ import (
 	"time"
 
 	"github.com/mansus-org/myself/internal/brain"
+	"github.com/mansus-org/myself/internal/embed"
 	"github.com/mansus-org/myself/internal/model"
 )
 
@@ -93,11 +95,20 @@ func FromEnv(getenv func(string) string) (cfg Config, ok bool, err error) {
 }
 
 // Store is a brain.Store over one Neo4j database. It is safe for concurrent
-// use; the HTTP client and the settings are read-only after New.
+// use; the HTTP client and the settings are read-only after New, and so is the
+// embedder, which is set once at startup and only read afterwards.
 type Store struct {
 	cfg    Config
 	client *http.Client
 	warn   io.Writer
+
+	// indexWait bounds how long EnsureVectorIndex waits for a new index to come
+	// up. It is at least the request timeout, because populating an index of a
+	// whole brain is not instant work.
+	indexWait time.Duration
+
+	// embedder is nil while the vector projection is off. See vector.go.
+	embedder embed.Embedder
 }
 
 // New returns a Store for cfg. warn receives brain.Store warnings; nil
@@ -110,7 +121,12 @@ func New(cfg Config, warn io.Writer) *Store {
 	if timeout <= 0 {
 		timeout = DefaultTimeout
 	}
-	return &Store{cfg: cfg, client: &http.Client{Timeout: timeout}, warn: warn}
+	return &Store{
+		cfg:       cfg,
+		client:    &http.Client{Timeout: timeout},
+		warn:      warn,
+		indexWait: max(timeout, indexWaitFloor),
+	}
 }
 
 // String names the backend for logs and for `serve`'s startup line. It never
@@ -130,7 +146,7 @@ var schema = []string{
 // and the subject index. Call it once at startup; it changes nothing when the
 // schema is already there.
 func (s *Store) EnsureSchema() error {
-	return s.commit(toStatements(schema, nil))
+	return s.commit(context.Background(), toStatements(schema, nil))
 }
 
 // loadStatement reads the whole log in uuid order. brain requires uuid-sorted
@@ -141,7 +157,7 @@ const loadStatement = "MATCH (r:Record) RETURN r.uuid AS uuid, r.subject AS subj
 
 // Load returns every record, forgets included, as a Snapshot.
 func (s *Store) Load() (*brain.Snapshot, error) {
-	rows, err := s.rows(loadStatement, nil)
+	rows, err := s.rows(context.Background(), loadStatement, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -169,6 +185,7 @@ func (s *Store) Append(recs ...model.Record) error {
 	if len(recs) == 0 {
 		return nil
 	}
+	ctx := context.Background()
 	rows := make([]map[string]any, 0, len(recs))
 	for _, r := range recs {
 		rows = append(rows, map[string]any{
@@ -176,10 +193,25 @@ func (s *Store) Append(recs ...model.Record) error {
 			"object": r.Object, "time": r.Time,
 		})
 	}
-	return s.commit([]statement{{
-		Statement:  appendStatement,
-		Parameters: map[string]any{"rows": rows},
-	}})
+	s.embedRows(ctx, recs, rows)
+	if err := s.commit(ctx, appendStatements(rows)); err != nil {
+		if isDimensionError(err) && s.embedder != nil {
+			// The index refused the vector's size, which is what changing model
+			// looks like. The fact is the promise, the projection is not, so the
+			// fact goes in on its own and the projection waits for a rebuild.
+			s.Warn(fmt.Sprintf("the vector index refused these embeddings (%v): wrote the facts without them; point %s at the model you want and run myself index --rebuild", err, embed.EnvModel))
+			s.appendWithoutVectors(rows)
+			return s.commit(ctx, appendStatements(rows))
+		}
+		return err
+	}
+	return nil
+}
+
+// appendStatements is the one statement of one batch, so a retry writes exactly
+// what the first attempt tried to.
+func appendStatements(rows []map[string]any) []statement {
+	return []statement{{Statement: appendStatement, Parameters: map[string]any{"rows": rows}}}
 }
 
 // Warn reports a warning the way the file store does. The Neo4j backend has no
@@ -220,14 +252,24 @@ func toStatements(cypher []string, params map[string]any) []statement {
 	return out
 }
 
+// neo4jError is one error the database reported. It keeps the code separate so
+// a caller can tell "no such index" from "no such database" without matching on
+// message text.
+type neo4jError struct {
+	Code    string
+	Message string
+}
+
+func (e *neo4jError) Error() string { return e.Code + ": " + e.Message }
+
 // commit posts one /db/{database}/tx/commit request, which is one transaction:
 // every statement in it succeeds or none does.
-func (s *Store) commit(stmts []statement) error {
+func (s *Store) commit(ctx context.Context, stmts []statement) error {
 	body, err := json.Marshal(commitBody{Statements: stmts})
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequest(http.MethodPost, s.endpoint(), bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.endpoint(), bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
@@ -247,7 +289,7 @@ func (s *Store) commit(stmts []statement) error {
 		return fmt.Errorf("%s: unreadable reply (HTTP %d): %v", s, res.StatusCode, jerr)
 	}
 	if len(reply.Errors) > 0 {
-		return fmt.Errorf("%s: %s: %s", s, reply.Errors[0].Code, reply.Errors[0].Message)
+		return fmt.Errorf("%s: %w", s, &neo4jError{Code: reply.Errors[0].Code, Message: reply.Errors[0].Message})
 	}
 	// A 401 arrives with no JSON body, and a 5xx may arrive as HTML, so the
 	// status is checked after the decoded errors rather than before them.
@@ -258,12 +300,12 @@ func (s *Store) commit(stmts []statement) error {
 }
 
 // rows runs one read statement and returns each row as a map keyed by column.
-func (s *Store) rows(cypher string, params map[string]any) ([]map[string]any, error) {
+func (s *Store) rows(ctx context.Context, cypher string, params map[string]any) ([]map[string]any, error) {
 	body, err := json.Marshal(commitBody{Statements: []statement{{Statement: cypher, Parameters: params}}})
 	if err != nil {
 		return nil, err
 	}
-	req, err := http.NewRequest(http.MethodPost, s.endpoint(), bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.endpoint(), bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
@@ -283,7 +325,7 @@ func (s *Store) rows(cypher string, params map[string]any) ([]map[string]any, er
 		return nil, fmt.Errorf("%s: unreadable reply (HTTP %d): %v", s, res.StatusCode, jerr)
 	}
 	if len(reply.Errors) > 0 {
-		return nil, fmt.Errorf("%s: %s: %s", s, reply.Errors[0].Code, reply.Errors[0].Message)
+		return nil, fmt.Errorf("%s: %w", s, &neo4jError{Code: reply.Errors[0].Code, Message: reply.Errors[0].Message})
 	}
 	if res.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("%s: HTTP %d: %s", s, res.StatusCode, firstLine(string(raw)))
@@ -331,6 +373,23 @@ func str(v any) string {
 		return ""
 	}
 	return fmt.Sprint(v)
+}
+
+// num reads a row value as a float, whatever shape the JSON had.
+func num(v any) float64 {
+	switch n := v.(type) {
+	case float64:
+		return n
+	case int:
+		return float64(n)
+	case int64:
+		return float64(n)
+	case json.Number:
+		f, _ := n.Float64()
+		return f
+	default:
+		return 0
+	}
 }
 
 func firstLine(s string) string {

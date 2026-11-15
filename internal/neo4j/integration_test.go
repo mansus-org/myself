@@ -1,11 +1,14 @@
 package neo4j
 
 import (
+	"context"
 	"io"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/mansus-org/myself/internal/brain"
 	"github.com/mansus-org/myself/internal/model"
 )
 
@@ -34,7 +37,7 @@ func TestAgainstRealNeo4j(t *testing.T) {
 		{UUID: uuid("2"), Subject: marker, Relation: "has", Object: "a sentence, not an entity", Time: "2026-01-02T00:00:00Z"},
 	}
 	cleanup := func() {
-		if err := st.commit([]statement{{
+		if err := st.commit(context.Background(), []statement{{
 			Statement:  "MATCH (r:Record) WHERE r.uuid IN $uuids DELETE r",
 			Parameters: map[string]any{"uuids": []string{uuid("1"), uuid("2")}},
 		}}); err != nil {
@@ -79,4 +82,119 @@ func sortedByUUID(recs []model.Record) bool {
 		}
 	}
 	return true
+}
+
+// itVocab is the whole vocabulary of the integration test's embedder: a vector
+// counts the words of the fact, so "nearest" means something a test can assert
+// without a model. The point of the test is the database's side — that the index
+// is created, populated and searched with the Cypher this package sends — not the
+// model's.
+var itVocab = []string{"relay", "bun", "go", "project", "deploys", "nightly", "garden", "place"}
+
+type itEmbedder struct{}
+
+func (itEmbedder) Embed(ctx context.Context, texts ...string) ([][]float32, error) {
+	out := make([][]float32, 0, len(texts))
+	for _, t := range texts {
+		v := make([]float32, len(itVocab))
+		for i, w := range itVocab {
+			v[i] = float32(strings.Count(strings.ToLower(t), w))
+		}
+		out = append(out, v)
+	}
+	return out, nil
+}
+
+func (itEmbedder) Model() string   { return "myself-integration-test" }
+func (itEmbedder) Dimensions() int { return len(itVocab) }
+
+// TestAgainstRealNeo4jVectors is the proof that the vector projection works on a
+// real database: the index statement, the search procedure, the state check and
+// the batched writes are the parts a fake cannot vouch for. It is skipped, like
+// TestAgainstRealNeo4j, unless the backend is configured.
+func TestAgainstRealNeo4jVectors(t *testing.T) {
+	cfg, ok, err := FromEnv(os.Getenv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Skipf("%s and %s not set; skipping the real-database test", EnvURL, EnvPassword)
+	}
+	st := New(cfg, os.Stderr)
+	if err := st.EnsureSchema(); err != nil {
+		t.Fatal(err)
+	}
+	st.UseEmbedder(itEmbedder{})
+	if err := st.EnsureVectorIndex(context.Background(), itEmbedder{}.Dimensions()); err != nil {
+		t.Fatal(err)
+	}
+
+	marker := time.Now().UTC().Format("myself-vt-20060102150405")
+	uuid := func(n string) string { return "00000000-0000-4000-8000-" + n + marker }
+	recs := []model.Record{
+		{UUID: uuid("1"), Subject: marker, Relation: "uses", Object: "bun", Time: "2026-01-01T00:00:00Z"},
+		{UUID: uuid("2"), Subject: marker, Relation: "is", Object: "project", Time: "2026-01-02T00:00:00Z"},
+		{UUID: uuid("3"), Subject: marker, Relation: "deploys", Object: "nightly", Time: "2026-01-03T00:00:00Z"},
+	}
+	t.Cleanup(func() {
+		if err := st.commit(context.Background(), []statement{{
+			Statement:  "MATCH (r:Record) WHERE r.uuid IN $uuids DELETE r",
+			Parameters: map[string]any{"uuids": []string{uuid("1"), uuid("2"), uuid("3")}},
+		}}); err != nil {
+			t.Errorf("cleanup: %v", err)
+		}
+	})
+
+	if err := st.Append(recs...); err != nil {
+		t.Fatal(err)
+	}
+	// Every live fact got its vector on the way in, so there is nothing left to do.
+	need, err := st.MissingEmbeddings(context.Background(), itEmbedder{}.Model())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range recs {
+		if need[r.UUID] {
+			t.Fatalf("%s was written without a vector", r.UUID)
+		}
+	}
+	// A model change is the one thing that makes every vector stale.
+	need, err = st.MissingEmbeddings(context.Background(), "another-model")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range recs {
+		if !need[r.UUID] {
+			t.Fatalf("%s: a vector from another model is not this model's", r.UUID)
+		}
+	}
+
+	// The search must find the bun fact for a bun question. The index covers the
+	// whole database, so the assertion is about the hits carrying this test's
+	// marker — nothing else in the brain can have it — and the best of those.
+	q, err := itEmbedder{}.Embed(context.Background(), "bun")
+	if err != nil {
+		t.Fatal(err)
+	}
+	hits, err := st.SearchVectors(context.Background(), q[0], 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mine := map[string]bool{uuid("1"): true, uuid("2"): true, uuid("3"): true}
+	var first brain.ScoredRecord
+	found := false
+	for _, h := range hits {
+		if mine[h.UUID] && !found {
+			first, found = h, true
+		}
+	}
+	if !found {
+		t.Fatalf("none of this test's facts came back: %d hits, none of them ours", len(hits))
+	}
+	if first.UUID != uuid("1") {
+		t.Fatalf("the bun fact should answer a bun question first, got %+v", first)
+	}
+	if first.Score <= 0 {
+		t.Fatalf("no score: %+v", first)
+	}
 }

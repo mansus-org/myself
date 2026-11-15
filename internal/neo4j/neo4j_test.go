@@ -1,6 +1,7 @@
 package neo4j
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -20,11 +21,12 @@ type fake struct {
 	replies  []string
 	auth     [2]string
 	path     string
+	warn     *bytes.Buffer // what the store warned about
 }
 
 func newFake(t *testing.T) (*fake, *Store) {
 	t.Helper()
-	f := &fake{t: t}
+	f := &fake{t: t, warn: new(bytes.Buffer)}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -50,7 +52,7 @@ func newFake(t *testing.T) (*fake, *Store) {
 		io.WriteString(w, reply)
 	}))
 	t.Cleanup(srv.Close)
-	st := New(Config{Base: srv.URL, User: "neo4j", Password: "secret", Database: "neo4j"}, io.Discard)
+	st := New(Config{Base: srv.URL, User: "neo4j", Password: "secret", Database: "neo4j"}, f.warn)
 	return f, st
 }
 
