@@ -98,7 +98,7 @@ myself describe <entity> [--depth N] [--at TIME]
 myself ls [<type>] [--at TIME]
 myself relations
 myself search <text> [--at TIME] [-n N]
-myself recall <text> [--at TIME] [-n N] [--min SCORE]
+myself recall <text> [--at TIME] [-n N] [--min SCORE] [--graph N]
 myself index [--rebuild]
 myself path <a> <b> [--max-depth N]
 myself log [--since TIME] [-n N]
@@ -122,6 +122,7 @@ Global flags: `--file PATH`, `--json`, `--url URL`, `--token TOKEN` (remote mode
 - `path <a> <b>`: shortest chain of live records connecting `a` to `b`, edges walked in either direction; `--max-depth` defaults to 6.
 - `search <text>`: case-insensitive substring match on subject, relation or object of live records. `-n N` keeps only the first N matches.
 - `recall <text>`: the live facts closest in meaning to `text`, best first, at most `-n N` of them (default 10), none scoring below `--min SCORE` (default 0, which keeps whatever the index returns). It reads the question with an embedding model and searches the vector projection, so it finds the fact that says the same thing in other words. `--at` asks what was live then: the candidates are filtered against the brain as of that time. It needs the Neo4j backend and an embedding endpoint; without either it is a usage error naming what to set, and it never falls back to `search` — "nothing is similar" and "nothing is configured" are different answers. The score is the database's cosine similarity, higher is closer, and what counts as close depends on the model, so the reply names the model that answered.
+- `recall` also brings the facts **around** each match, because a match that names a thing is worth little until the brain says what that thing is: `--graph N` (default 1) walks N hops of the log's own graph from the entities a match names and returns what it reaches as that match's `context`, each with the `hop` it was reached at and the `through` match it came from. One hop reaches the type of every entity the match names ("bun is runtime" beside "relay uses bun") and the other facts about the same subject. It is the log's structure, not the model's guess: nothing is embedded for it, it costs no call to the endpoint, and it cannot be wrong about meaning. Within a hop, type facts come first, then the other facts about the same subject, then the rest, oldest first; a fact is given once, to the best-scoring match that reaches it, and at most 6 come per match, so a match on a busy entity is not a dump. `--graph 0` returns the matches alone. The walk uses the same `--at` snapshot as the matches, so context never comes from a time the question did not ask about.
 - `index [--rebuild]`: write the vector projection — one embedding per live fact and the index over them. Facts that already carry a vector from this model are left alone, so it is cheap to run again; `--rebuild` re-embeds every live fact, which is what a new model needs (if the new model's vectors have a different length, drop the old index first). Forgotten facts are never embedded: `recall` never returns them. Embedding and writing are batched, and the command is what fills the gaps after an endpoint was unreachable.
 - `log`: every record, forgets included, in uuid order. `--since` filters by time, `-n N` keeps the last N.
 - `history <subject> [<relation>]`: every record, forgotten or not, for that subject (and relation), plus the `forget` records pointing at them, in uuid order.
@@ -148,7 +149,7 @@ Global flags: `--file PATH`, `--json`, `--url URL`, `--token TOKEN` (remote mode
 | `ls` | `{"type":"software","entities":["project","relay"]}` (`type` is null without an argument) |
 | `relations` | `{"relations":["is","are","has","uses","does","prefers","related"]}` |
 | `search` | `{"matches":[record,...]}` |
-| `recall` | `{"matches":[{"uuid","subject","relation","object","time","score":0.87},...],"model":"<model>","at":null}` (best first; `at` is the `--at` string or null); plain text is one line per match: `<score, two decimals> <record line>` |
+| `recall` | `{"matches":[{"uuid","subject","relation","object","time","score":0.87,"context":[{"uuid","subject","relation","object","time","hop":1,"through":"<match uuid>"}]}],"model":"<model>","at":null,"graph":1}` (best first; `at` is the `--at` string or null; `context` is omitted when a match reached nothing or `--graph 0` was asked); plain text is one line per match — `<score, two decimals> <record line>` — with each context fact indented two spaces under the match it came from |
 | `index` | `{"embedded":12,"skipped":3,"model":"<model>"}`; plain text is one line saying the same |
 | `path` | `{"from":"relay","to":"software","path":[record,...]}` |
 | `log` | `{"records":[record,...]}` |
@@ -310,7 +311,7 @@ Query parameters map to the CLI flags. A parameter that is present but empty cou
 | `GET /api/v1/ls?type=T&at=TIME` | read | `ls [<type>]` | as `ls --json` |
 | `GET /api/v1/relations` | read | `relations` | as `relations --json` |
 | `GET /api/v1/search?q=TEXT&at=TIME&n=N` | read | `search` | as `search --json` |
-| `GET /api/v1/recall?q=TEXT&at=TIME&n=N&min=F` | read | `recall` | as `recall --json` |
+| `GET /api/v1/recall?q=TEXT&at=TIME&n=N&min=F&graph=N` | read | `recall` | as `recall --json` |
 | `POST /api/v1/index` | write | `index` | request `{"rebuild":false}`; reply as `index --json` |
 | `GET /api/v1/path?from=A&to=B&max_depth=N` | read | `path` | as `path --json` |
 | `GET /api/v1/log?since=TIME&n=N` | read | `log` | as `log --json` |
@@ -332,7 +333,7 @@ Details:
 - **remember** is all or nothing, like `remember -`: every fact is validated before anything is written. With one fact the error is the CLI's (`unknown relation "built-with". use one of: ...`); with several it is prefixed `fact N: ` (1-based). An empty `facts` list is `remember needs at least one fact`. Objects are JSON strings, so no quote stripping. `replace` works as `--replace`. The reply has the sentence warning in `warnings` when it applies.
 - **forget** takes either `uuid`, or `subject` and `relation` (optionally narrowed by `object`, compared normalized); both forms at once is a 400. None of them is `forget needs <uuid>, or <subject> <relation> [<object...>]`. A non-uuid `uuid` is `"x" is not a uuid`.
 - **search** with a missing or empty `q` is `search needs <text>`. **path** without `from` or `to` is `path needs <a> and <b>`. **describe** with an empty entity is `describe needs exactly one <entity>`.
-- **recall** with a missing or empty `q` is `recall needs <text>`; `min` is a float between -1 and 1. A brain that keeps no vectors, or a server with no embedding endpoint, is a 400 with the same message the CLI gives, never an empty `matches`: an empty list would read as "nothing here is close to this". **index** is a write because it calls the endpoint for every fact that needs a vector; the endpoint is configured on the server, not by the caller.
+- **recall** with a missing or empty `q` is `recall needs <text>`; `min` is a float between -1 and 1 and `graph` a non-negative integer. A brain that keeps no vectors, or a server with no embedding endpoint, is a 400 with the same message the CLI gives, never an empty `matches`: an empty list would read as "nothing here is close to this". **index** is a write because it calls the endpoint for every fact that needs a vector; the endpoint is configured on the server, not by the caller.
 - **graph** is for drawing the graph:
 
   ```json
@@ -359,7 +360,7 @@ Details:
   | `ls` | read | `type`, `at` | `ls` |
   | `relations` | read | none | `relations` |
   | `search` | read | `q`, `at`, `n` | `search` |
-  | `recall` | read | `q`, `n`, `min`, `at` | `recall` |
+  | `recall` | read | `q`, `n`, `min`, `graph`, `at` | `recall` |
   | `path` | read | `from`, `to`, `max_depth` | `path` |
   | `log` | read | `since`, `n` | `log` |
   | `history` | read | `subject`, `relation` | `history` |

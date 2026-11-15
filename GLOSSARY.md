@@ -93,8 +93,12 @@ The brain read as it was at a past time (`--at`).
 _Avoid_: Snapshot, version, point in time
 
 **Recall**:
-Finding facts by meaning rather than by the exact word: the live facts nearest the question, best first.
+Finding facts by meaning rather than by the exact word: the live facts nearest the question, best first, each with the facts around it in the graph.
 _Avoid_: Semantic search, embed-search, ask
+
+**Graph context**:
+The facts `recall` brings around a match: what the entities it names are, reached by walking the log's own links. Reached, not matched — it carries a `hop` and a `through`, never a score.
+_Avoid_: GraphRAG, expansion, related facts
 
 **Graph**:
 Entities drawn as squares and links as lines; the web app's home.

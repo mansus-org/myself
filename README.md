@@ -206,7 +206,7 @@ Arguments are positional and everything after the relation is the object, so quo
 | `ls [<type>] [--at TIME]` | entities of a type, following `is` transitively |
 | `relations` | list the allowed relations |
 | `search <text> [--at TIME] [-n N]` | case-insensitive substring match; `-n` keeps the first N |
-| `recall <text> [--at TIME] [-n N] [--min SCORE]` | the live facts closest in meaning, best first (Neo4j backend + an embedding endpoint) |
+| `recall <text> [--at TIME] [-n N] [--min SCORE] [--graph N]` | the live facts closest in meaning, best first, each with the facts around it in the graph (Neo4j backend + an embedding endpoint) |
 | `index [--rebuild]` | build the vectors `recall` reads from the log (same requirements) |
 | `path <a> <b> [--max-depth N]` | shortest chain of facts linking two entities |
 | `log [--since TIME] [-n N]` | every record, forgets included |
@@ -302,7 +302,11 @@ export MYSELF_EMBED_API_KEY=…                 # env only, like the Neo4j passw
 myself index                                   # one embedding per live fact, once
 myself recall "how do we ship relay" --min 0.3
 0.71 01a19418-… 2026-10-31T22:33:16Z relay deploys nightly
+  01a19418-… 2026-10-31T22:31:02Z relay is project
+  01a19418-… 2026-10-31T22:33:40Z k3s is cluster
 ```
+
+Each match comes with the facts **around** it, indented: one hop of the graph from the entities the match names, which is where the brain says what those things are. That part is the log's own structure, not the model's guess — it costs no call to the endpoint and cannot be wrong about meaning. `--graph 0` leaves it out, `--graph 2` reaches further (at most 6 facts per match, type facts first).
 
 | variable | meaning |
 |---|---|
@@ -318,6 +322,7 @@ What it costs, and what it can't do:
 - **`recall` never falls back to `search`.** "Nothing is similar" and "nothing is configured" are different answers, so a brain without vectors says which variable to set instead of returning an empty list.
 - **One model at a time.** Every vector in the brain has to come from the same model: `index` re-embeds the facts whose model differs, and `--rebuild` re-embeds everything. If the new model's vectors have a different length, drop the old index (`DROP INDEX myself_embedding IF EXISTS`) first.
 - **The score is the database's cosine similarity**, higher is closer, and what counts as close depends on the model — which is why `recall --json` names the model that answered. `-n` defaults to 10; `--min` drops weak matches.
+- **The graph context is capped, on purpose.** A match on a busy entity reaches half the brain, so one hop is the default and six facts per match is the most any match brings. Ask for what you need with `describe` or `path` when the context is not enough; `--graph 0` when you only wanted the matches.
 - **The file backend keeps no vectors.** It stays what it always was: no network, one answer per input.
 
 ## Obsidian mirror
