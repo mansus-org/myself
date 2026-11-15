@@ -2,8 +2,10 @@ package client
 
 import (
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -79,6 +81,50 @@ func TestWarningsAndErrors(t *testing.T) {
 	_, err := (&Client{URL: ts.URL, Token: "wrong"}).Dream()
 	if brain.Code(err) != brain.ExitStore || err.Error() != "invalid or revoked token" || strings.Contains(err.Error(), "wrong") {
 		t.Fatalf("%v", err)
+	}
+}
+
+// Recall and index are the two calls whose arguments are not just a path, so
+// their query string and body are checked on the wire.
+func TestRecallAndIndexOnTheWire(t *testing.T) {
+	var query, body string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/recall":
+			query = r.URL.RawQuery
+			w.Write([]byte(`{"matches":[{"uuid":"01a1","subject":"relay","relation":"uses","object":"bun","time":"2026-01-01T00:00:00Z","score":0.81}],"model":"m","at":"2026-01-01T00:00:00Z"}`))
+		case "/api/v1/index":
+			raw, _ := io.ReadAll(r.Body)
+			body = string(raw)
+			w.Write([]byte(`{"embedded":3,"skipped":1,"model":"m"}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer ts.Close()
+	c := &Client{URL: ts.URL}
+	at, n, min := "2026-01-01T00:00:00Z", 3, 0.5
+	res, err := c.Recall("what does relay run on", &at, &n, &min)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"q=what+does+relay+run+on", "at=" + url.QueryEscape(at), "n=3", "min=0.5"} {
+		if !strings.Contains(query, want) {
+			t.Errorf("recall query %q misses %q", query, want)
+		}
+	}
+	if len(res.Matches) != 1 || res.Matches[0].Score != 0.81 || res.Model != "m" {
+		t.Fatalf("recall result: %+v", res)
+	}
+	if res.Matches[0].Object != "bun" {
+		t.Fatalf("a match is still a record: %+v", res.Matches[0])
+	}
+	out, err := c.Index(true)
+	if err != nil || out.Embedded != 3 || out.Skipped != 1 {
+		t.Fatalf("index: %+v %v", out, err)
+	}
+	if body != `{"rebuild":true}` {
+		t.Fatalf("index body: %q", body)
 	}
 }
 

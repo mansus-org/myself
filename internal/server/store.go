@@ -103,6 +103,24 @@ func (r *RequestStore) Append(recs ...model.Record) error {
 // Warn collects a warning.
 func (r *RequestStore) Warn(msg string) { r.warnings = append(r.warnings, msg) }
 
+// recallStore is one request's store with the backend's vector methods added, for
+// the two commands that need a store and a projection at once. When the backend
+// keeps no vectors the plain request store goes through instead, so brain answers
+// "this brain keeps no vectors": the honest answer, where an empty match list
+// would read as "nothing here is close to this".
+type recallStore struct {
+	*RequestStore
+	brain.VectorStore
+}
+
+// recallStoreFor returns the store recall and index run against.
+func (s *Server) recallStoreFor(st *RequestStore) brain.Store {
+	if vs, ok := s.backend.(brain.VectorStore); ok {
+		return recallStore{RequestStore: st, VectorStore: vs}
+	}
+	return st
+}
+
 // Warnings returns the warnings collected so far, deduplicated in order.
 func (r *RequestStore) Warnings() []string {
 	seen := map[string]bool{}

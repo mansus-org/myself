@@ -1,0 +1,38 @@
+$ myself remember relay is project
+--- stdout
+remembered <uuid-1>
+--- stderr
+--- exit
+0
+$ myself recall "what does relay run on"
+--- stdout
+--- stderr
+error: recall and index need a brain that keeps vectors: only the Neo4j backend does (set MYSELF_NEO4J_URL, then run myself index)
+--- exit
+1
+$ myself recall relay --json
+--- stdout
+--- stderr
+error: recall and index need a brain that keeps vectors: only the Neo4j backend does (set MYSELF_NEO4J_URL, then run myself index)
+--- exit
+1
+$ myself recall
+--- stdout
+--- stderr
+error: recall needs <text>
+--- exit
+1
+$ myself index
+--- stdout
+--- stderr
+error: recall and index need a brain that keeps vectors: only the Neo4j backend does (set MYSELF_NEO4J_URL, then run myself index)
+--- exit
+1
+$ myself index --rebuild --json
+--- stdout
+--- stderr
+error: recall and index need a brain that keeps vectors: only the Neo4j backend does (set MYSELF_NEO4J_URL, then run myself index)
+--- exit
+1
+--- file
+{"uuid":"<uuid-1>","subject":"relay","relation":"is","object":"project","time":"<time>"}

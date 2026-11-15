@@ -16,9 +16,16 @@ import (
 	"time"
 
 	"github.com/mansus-org/myself"
+	"github.com/mansus-org/myself/internal/brain"
 	"github.com/mansus-org/myself/internal/server"
 	"github.com/spf13/cobra"
 )
+
+// vectorSetupTimeout bounds the startup check that the vector index is up. It is
+// a whole request's worth of time, because the probe has to reach the model and a
+// new index has to start populating; a slower endpoint delays the warning, not the
+// brain, which serves everything else the moment it can.
+const vectorSetupTimeout = 30 * time.Second
 
 // EnvAdminHash holds the sha256 (hex) of the admin token for `serve`.
 const EnvAdminHash = "MYSELF_ADMIN_TOKEN_SHA256"
@@ -83,7 +90,24 @@ func newServeCmd(cfg *Config) *cobra.Command {
 					}
 				}
 			}
-			srv, err := server.New(server.Config{File: cfg.File, Store: backend, Site: siteFS, Skill: myself.Skill, AdminHash: hash, LocalKey: key, Log: stderr, Version: Version})
+			// The embedding endpoint, when configured, is what lets recall answer.
+			// The vector index is ensured here for the same reason the schema is: a
+			// brain that cannot recall says so at startup, where an operator is
+			// listening, rather than on the first recall. An endpoint that is down is
+			// a warning and not a refusal to serve — every other command works
+			// without it, and a brain that will not start is the worse failure.
+			em, err := embedderFromEnv()
+			if err != nil {
+				Warnf(stderr, "recall is off: %v", err)
+			}
+			if em != nil && backend != nil {
+				ctx, cancel := context.WithTimeout(cmd.Context(), vectorSetupTimeout)
+				if err := brain.EnsureVectors(ctx, backend, em); err != nil {
+					Warnf(stderr, "recall may not work: %v", err)
+				}
+				cancel()
+			}
+			srv, err := server.New(server.Config{File: cfg.File, Store: backend, Embedder: em, Site: siteFS, Skill: myself.Skill, AdminHash: hash, LocalKey: key, Log: stderr, Version: Version})
 			if err != nil {
 				return StoreErr(err)
 			}
@@ -102,6 +126,11 @@ func newServeCmd(cfg *Config) *cobra.Command {
 			serving := cfg.File
 			if backend != nil {
 				serving = fmt.Sprint(backend)
+			}
+			// Recall is only worth naming when this brain can actually do it: an
+			// endpoint with the file as the brain answers "no vectors here".
+			if em != nil && backend != nil {
+				serving += fmt.Sprintf(" + recall with %s", em.Model())
 			}
 			fmt.Fprintf(stderr, "serving %s on %s\n", serving, ln.Addr())
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)

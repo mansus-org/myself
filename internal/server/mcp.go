@@ -31,7 +31,7 @@ func (s *Server) registerMCP() {
 // mcpInstructions is sent in the initialize result.
 const mcpInstructions = `myself is your long-term memory: a graph of facts ("subject relation object") about people, projects, tools and yourself, shared across sessions and agents. Use it, not a notes file, whenever the user says "remember...", corrects how you work, or you learn something durable.
 
-- Recall before guessing or saying "I don't know" about a person, project or tool: describe (known name), search (partial name or topic), path (how X and Y relate), log (what changed lately). Read the "myself://prime" resource, or call prime, at session start.
+- Recall before guessing or saying "I don't know" about a person, project or tool: describe (known name), search (partial name or topic), recall (what you meant, in your own words, when the exact word is not in the brain), path (how X and Y relate), log (what changed lately). Read the "myself://prime" resource, or call prime, at session start.
 - Write with remember: one fact per fact, several facts in one call. Facts are superseded, never edited; forget retracts.
 - Relations are a closed list (call relations). Type every new entity with "is" and a short type name (relay is project). Link entities by name as the object, use a sentence otherwise. Put versions and details in "has".
 - "i", "me" and "myself" all mean the entity self. Update your self-model with describe i, then remember i does '<one paragraph>' replace=true.
@@ -70,6 +70,13 @@ type searchInput struct {
 	Q  string `json:"q" jsonschema:"text to find, case-insensitive, in subject, relation or object of live facts"`
 	At string `json:"at,omitempty" jsonschema:"as of this time (RFC 3339 or YYYY-MM-DD)"`
 	N  *int   `json:"n,omitempty" jsonschema:"keep only the first N matches"`
+}
+
+type recallInput struct {
+	Q   string   `json:"q" jsonschema:"what you are looking for, in your own words; it is matched by meaning, not by the exact word"`
+	N   *int     `json:"n,omitempty" jsonschema:"keep only the N closest matches (default 10)"`
+	Min *float64 `json:"min,omitempty" jsonschema:"drop a match scoring below this (-1 to 1; 0 keeps everything the index returns)"`
+	At  string   `json:"at,omitempty" jsonschema:"as of this time (RFC 3339 or YYYY-MM-DD)"`
 }
 
 type pathInput struct {
@@ -191,6 +198,17 @@ func (s *Server) mcpServer(id Identity, cache *mcp.SchemaCache) *mcp.Server {
 				return mcpOut{}, brain.Usagef("search needs <text>")
 			}
 			res, err := brain.Search(st, in.Q, opt(in.At), in.N)
+			return linesOut(res), err
+		})
+
+	addTool(s, srv, id, add("recall", "Recall facts by meaning",
+		"Find the live facts closest in meaning to the text, best first, each with a similarity score. Use it when search finds nothing for the word you used: the brain may say the same thing differently (\"how do we ship relay\" finds \"relay deploys nightly\"). Low scores mean a stretch, so read them before treating a match as an answer. Needs a brain that keeps vectors; an error means this brain has none, and search still works.",
+		readOnly), false,
+		func(st *RequestStore, in recallInput) (mcpOut, error) {
+			if in.Q == "" {
+				return mcpOut{}, brain.Usagef("recall needs <text>")
+			}
+			res, err := brain.Recall(s.recallStoreFor(st), s.embedder, in.Q, opt(in.At), in.N, in.Min)
 			return linesOut(res), err
 		})
 

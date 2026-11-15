@@ -8,6 +8,7 @@ import (
 
 	"github.com/mansus-org/myself/internal/brain"
 	"github.com/mansus-org/myself/internal/client"
+	"github.com/mansus-org/myself/internal/embed"
 	"github.com/mansus-org/myself/internal/neo4j"
 	"github.com/mansus-org/myself/internal/store"
 )
@@ -45,6 +46,12 @@ func (c *Config) Remote() bool { return c.URL != "" }
 // backendFromEnv builds the store the environment selects, or nil for the file.
 // A misconfigured backend is an error and never a silent fall back to the file:
 // writing a belief into the wrong brain is the one failure this must not hide.
+//
+// When an embedding endpoint is configured as well, the backend gets it, so every
+// fact written through this store is embedded on the way in and the projection
+// keeps itself current without a second step. An endpoint that is configured
+// badly is a warning rather than a refusal to write: the fact is the promise, and
+// `myself index` catches up.
 func backendFromEnv() (brain.Store, error) {
 	cfg, ok, err := neo4j.FromEnv(os.Getenv)
 	if err != nil {
@@ -53,7 +60,15 @@ func backendFromEnv() (brain.Store, error) {
 	if !ok {
 		return nil, nil
 	}
-	return neo4j.New(cfg, os.Stderr), nil
+	st := neo4j.New(cfg, os.Stderr)
+	ec, ok, err := embed.FromEnv(os.Getenv)
+	switch {
+	case err != nil:
+		Warnf(os.Stderr, "embeddings are off: %v (myself index will catch up)", err)
+	case ok:
+		st.UseEmbedder(embed.New(ec))
+	}
+	return st, nil
 }
 
 // resolveFile applies the precedence --file > MYSELF_FILE > default.

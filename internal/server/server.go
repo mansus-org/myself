@@ -14,12 +14,14 @@ import (
 	"time"
 
 	"github.com/mansus-org/myself/internal/brain"
+	"github.com/mansus-org/myself/internal/embed"
 )
 
 // Config configures a Server.
 type Config struct {
 	File      string           // the brain file; tokens.json goes next to it
 	Store     brain.Store      // optional backend (e.g. Neo4j); nil reads cfg.File
+	Embedder  embed.Embedder   // the endpoint recall reads; nil turns recall and index off
 	Site      fs.FS            // served at /; nil serves nothing there
 	AdminHash string           // lowercase hex sha256 of the admin token; empty disables the API
 	LocalKey  string           // local login key, see LocalInfo; empty turns it off
@@ -34,6 +36,7 @@ type Server struct {
 	mux       *http.ServeMux
 	cache     *cache
 	backend   brain.Store // non-nil when a backend other than the file serves the brain
+	embedder  embed.Embedder
 	tokens    *Tokens
 	logins    *logins
 	adminHash string
@@ -66,6 +69,7 @@ func New(cfg Config) (*Server, error) {
 		mux:       http.NewServeMux(),
 		cache:     &cache{path: cfg.File},
 		backend:   cfg.Store,
+		embedder:  cfg.Embedder,
 		tokens:    tokens,
 		logins:    newLogins(),
 		adminHash: cfg.AdminHash,

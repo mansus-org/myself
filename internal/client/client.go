@@ -137,6 +137,32 @@ func (c *Client) Search(text string, at *string, n *int) (brain.SearchResult, er
 	return out, err
 }
 
+// Recall asks for the live facts closest in meaning to text.
+func (c *Client) Recall(text string, at *string, n *int, min *float64) (brain.RecallResult, error) {
+	q := url.Values{}
+	q.Set("q", text)
+	setOpt(q, "at", at)
+	if n != nil {
+		q.Set("n", strconv.Itoa(*n))
+	}
+	if min != nil {
+		q.Set("min", strconv.FormatFloat(*min, 'g', -1, 64))
+	}
+	var out brain.RecallResult
+	err := c.get("/api/v1/recall", q, &out)
+	return out, err
+}
+
+// Index rebuilds the vector projection on the server, where the embedding
+// endpoint is configured.
+func (c *Client) Index(rebuild bool) (brain.IndexResult, error) {
+	var out brain.IndexResult
+	err := c.post("/api/v1/index", struct {
+		Rebuild bool `json:"rebuild"`
+	}{rebuild}, &out)
+	return out, err
+}
+
 func (c *Client) Path(a, b string, maxDepth int) (brain.PathResult, error) {
 	q := url.Values{}
 	q.Set("from", a)

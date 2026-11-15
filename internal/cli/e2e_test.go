@@ -239,6 +239,16 @@ var cases = []struct {
 		run("forget", "relay", "uses"),
 		run("search", "bun"),
 	}},
+	// Recall and index need a brain that keeps vectors and an endpoint that makes
+	// them, so on the file they say what is missing instead of answering.
+	{"recall", []step{
+		run("remember", "relay", "is", "project"),
+		run("recall", "what does relay run on"),
+		run("recall", "relay", "--json"),
+		run("recall"),
+		run("index"),
+		run("index", "--rebuild", "--json"),
+	}},
 	{"path", []step{
 		run("remember", "relay", "is", "project"),
 		run("remember", "project", "is", "software"),

@@ -34,6 +34,8 @@ func (s *Server) registerAPI() {
 	api("GET /api/v1/ls", Read, s.ls)
 	api("GET /api/v1/relations", Read, s.relations)
 	api("GET /api/v1/search", Read, s.search)
+	api("GET /api/v1/recall", Read, s.recall)
+	api("POST /api/v1/index", Write, s.index)
 	api("GET /api/v1/path", Read, s.path)
 	api("GET /api/v1/log", Read, s.logRecords)
 	api("GET /api/v1/history/{subject...}", Read, s.history)
@@ -135,6 +137,19 @@ func intOr(q url.Values, name string, def int) (int, error) {
 	return *n, nil
 }
 
+// optFloat reads an optional float query parameter.
+func optFloat(q url.Values, name string) (*float64, error) {
+	if !q.Has(name) {
+		return nil, nil
+	}
+	raw := q.Get(name)
+	v, err := strconv.ParseFloat(raw, 64)
+	if err != nil {
+		return nil, brain.Usagef("invalid argument %q for %s: want a number", raw, name)
+	}
+	return &v, nil
+}
+
 func (s *Server) whoami(w http.ResponseWriter, r *http.Request) {
 	id, _ := IdentityFrom(r.Context())
 	WriteJSON(w, http.StatusOK, id, nil)
@@ -227,6 +242,48 @@ func (s *Server) search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	res, err := brain.Search(st, text, optString(q, "at"), n)
+	reply(w, st, res, err)
+}
+
+// recall answers by meaning. A brain that keeps no vectors, or a server with no
+// embedding endpoint, says so: an empty match list would read as "nothing in the
+// brain is close to this", which is a different and wrong answer.
+func (s *Server) recall(w http.ResponseWriter, r *http.Request) {
+	st := s.Store()
+	q := r.URL.Query()
+	text := q.Get("q")
+	if text == "" {
+		WriteError(w, brain.Usagef("recall needs <text>"))
+		return
+	}
+	n, err := optInt(q, "n")
+	if err != nil {
+		WriteError(w, err)
+		return
+	}
+	min, err := optFloat(q, "min")
+	if err != nil {
+		WriteError(w, err)
+		return
+	}
+	res, err := brain.Recall(s.recallStoreFor(st), s.embedder, text, optString(q, "at"), n, min)
+	reply(w, st, res, err)
+}
+
+// index rebuilds the vector projection. It is a write because it costs the same
+// as one: the endpoint is called for every fact that needs a vector.
+func (s *Server) index(w http.ResponseWriter, r *http.Request) {
+	st := s.Store()
+	var req struct {
+		Rebuild bool `json:"rebuild"`
+	}
+	if r.ContentLength > 0 {
+		if err := decode(r, w, &req); err != nil {
+			WriteError(w, err)
+			return
+		}
+	}
+	res, err := brain.Index(s.recallStoreFor(st), s.embedder, req.Rebuild)
 	reply(w, st, res, err)
 }
 
