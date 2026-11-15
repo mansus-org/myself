@@ -153,6 +153,30 @@ func (g *Graph) pick(idx []int) []model.Record {
 	return out
 }
 
+// Touching returns the records that link name in either direction: those whose
+// subject is name and those whose object is name, each once, in uuid order.
+// Out is "what it says" and In is "what says it"; Touching is both at once,
+// which is what a walk one hop wide needs, since a fact about a neighbour is
+// reached from either side. Unknown names give nil.
+func (g *Graph) Touching(name string) []model.Record {
+	id, ok := g.lookup(name)
+	if !ok {
+		return nil
+	}
+	// g.recs is in uuid order, so sorting the indices sorts the records.
+	idx := append(append([]int(nil), g.out[id]...), g.in[id]...)
+	sort.Ints(idx)
+	out := make([]model.Record, 0, len(idx))
+	last := -1
+	for _, i := range idx {
+		if i != last {
+			out = append(out, g.recs[i])
+			last = i
+		}
+	}
+	return out
+}
+
 // edge is one traversable link from the current entity: the record and the
 // entity on its other end.
 type edge struct{ rec, to int }

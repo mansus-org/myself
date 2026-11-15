@@ -128,6 +128,23 @@ func TestObjectOfNonIsIsNotAnEntityButLinksToOne(t *testing.T) {
 	eq(t, uuids(p), []string{"0001", "0002"})
 }
 
+// Touching is the one hop wide: what a thing says and what says it, in one list,
+// each fact once even when it links the entity to itself.
+func TestTouchingIsBothSidesOnce(t *testing.T) {
+	g := Build([]model.Record{
+		rec(1, "relay", "is", "project"),
+		rec(2, "relay", "uses", "bun"),
+		rec(3, "bun", "is", "runtime"),
+		rec(4, "self", "prefers", "relay"),
+		rec(5, "relay", "related", "relay"),
+	})
+	eq(t, uuids(g.Touching("relay")), []string{"0001", "0002", "0004", "0005"})
+	eq(t, uuids(g.Touching("bun")), []string{"0002", "0003"})
+	if g.Touching("nobody") != nil {
+		t.Fatal("an unknown name touches nothing")
+	}
+}
+
 func TestForgetRecordsIgnored(t *testing.T) {
 	f := model.NewForget("x", "", time.Now())
 	g := Build([]model.Record{f})
