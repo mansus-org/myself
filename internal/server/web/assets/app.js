@@ -6,6 +6,7 @@ import { glyph } from "./bitmap.js";
 import { entitiesPage } from "./screens/entities.js";
 import { entityPage } from "./screens/entity.js";
 import { searchPage } from "./screens/search.js";
+import { recallPage } from "./screens/recall.js";
 import { logPage } from "./screens/log.js";
 import { queriesPage } from "./screens/queries.js";
 import { addPage } from "./screens/add.js";
@@ -30,6 +31,7 @@ const NAV_MAIN = [
   { path: "/app/", id: "graph", label: "Graph", glyph: "graph" },
   { path: "/app/entities", id: "entities", label: "Entities", glyph: "entities" },
   { path: "/app/search", id: "search", label: "Search", glyph: "search" },
+  { path: "/app/recall", id: "recall", label: "Recall", glyph: "recall" },
   { path: "/app/log", id: "log", label: "Log", glyph: "log" },
   { path: "/app/queries", id: "queries", label: "Queries", glyph: "queries" },
   { path: "/app/dream", id: "dream", label: "Dream", glyph: "dream" },
@@ -41,6 +43,7 @@ const ROUTES = {
   "/app/": { id: "graph", title: "Graph", render: graphPage },
   "/app/entities": { id: "entities", title: "Entities", render: entitiesPage },
   "/app/search": { id: "search", title: "Search", render: searchPage },
+  "/app/recall": { id: "recall", title: "Recall", render: recallPage },
   "/app/log": { id: "log", title: "Log", render: logPage },
   "/app/queries": { id: "queries", title: "Queries", render: queriesPage },
   "/app/dream": { id: "dream", title: "Dream", render: dreamPage },

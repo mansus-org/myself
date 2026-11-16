@@ -28,6 +28,34 @@ func get(t *testing.T, e *env, method, path string, hdr map[string]string) (*htt
 	return resp, string(b)
 }
 
+// A nav item that goes nowhere is a broken link in the sidebar: every path the
+// nav offers must be a route the app knows.
+func TestNavRoutes(t *testing.T) {
+	e := newAdminEnv(t)
+	_, app := get(t, e, "GET", "/app/assets/app.js", nil)
+	navPath := regexp.MustCompile(`\{ path: "(/app/[^"]*)"`)
+	route := regexp.MustCompile(`"(/app/[^"]*)":\s*\{`)
+	routed := map[string]bool{}
+	for _, m := range route.FindAllStringSubmatch(app, -1) {
+		routed[m[1]] = true
+	}
+	if len(routed) == 0 {
+		t.Fatal("app.js: no routes found")
+	}
+	seen := map[string]bool{}
+	for _, m := range navPath.FindAllStringSubmatch(app, -1) {
+		seen[m[1]] = true
+		if !routed[m[1]] {
+			t.Fatalf("the nav offers %s but the app has no route for it", m[1])
+		}
+	}
+	for _, want := range []string{"/app/search", "/app/recall", "/app/queries"} {
+		if !seen[want] || !routed[want] {
+			t.Fatalf("the app lost %s", want)
+		}
+	}
+}
+
 func TestUI(t *testing.T) {
 	e := newAdminEnv(t)
 
