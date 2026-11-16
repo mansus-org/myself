@@ -29,7 +29,7 @@ The contract for every command, output and exit code is [SPEC.md](SPEC.md).
 - **CLI over MCP.** Every agent harness already has Bash. A binary plus a skill file needs no server, no config and no protocol support.
 - **Triples plus time.** A fact is `subject relation object` with a timestamp. The object is free text, so the how and why live in it. Facts are superseded, not overwritten: `--replace` and `forget` write new records, and the old ones stay in the log.
 
-The idea that facts are superseded rather than overwritten, and that you can ask what was true at a given time, comes from [Graphiti](https://github.com/getzep/graphiti). `myself` is much smaller: no LLM extraction (the calling agent writes the facts), no Neo4j (a JSONL file), no embeddings (substring search), no server. It has one timeline (when a record was written), not Graphiti's separate event and ingestion times.
+The idea that facts are superseded rather than overwritten, and that you can ask what was true at a given time, comes from [Graphiti](https://github.com/getzep/graphiti). `myself` is much smaller: no LLM extraction (the calling agent writes the facts), no Neo4j needed (a JSONL file), no embeddings needed (substring search, with optional semantic recall on the Neo4j backend), no server. It has one timeline (when a record was written), not Graphiti's separate event and ingestion times.
 
 ## Install
 
@@ -206,12 +206,15 @@ Arguments are positional and everything after the relation is the object, so quo
 | `ls [<type>] [--at TIME]` | entities of a type, following `is` transitively |
 | `relations` | list the allowed relations |
 | `search <text> [--at TIME] [-n N]` | case-insensitive substring match; `-n` keeps the first N |
+| `recall <text> [--at TIME] [-n N] [--min SCORE] [--graph N]` | the live facts closest in meaning, best first, each with the facts around it in the graph (Neo4j backend + an embedding endpoint) |
+| `index [--rebuild]` | build the vectors `recall` reads from the log (same requirements) |
 | `path <a> <b> [--max-depth N]` | shortest chain of facts linking two entities |
 | `log [--since TIME] [-n N]` | every record, forgets included |
 | `history <subject> [<relation>]` | every record for a subject, forgotten or not |
+| `queries [--verb VERB] [-n N]` | what the server was asked (`search`, `recall`, `describe`), newest first, with what each answer brought |
 | `prime [--budget CHARS]` | compact summary to paste into an agent context: your own facts in full, one line per other topic |
 | `dream` | report near-duplicate subjects (read-only) |
-| `serve [--addr :8080] [--site DIR]` | serve the brain over HTTP (see [Server](#server)) |
+| `serve [--addr :8080] [--site DIR] [--no-query-log]` | serve the brain over HTTP (see [Server](#server)) |
 | `graph --web [--addr ADDR] [--open]` | print a link that opens the graph in the web app, signed in (see [Web app](#web-app)) |
 | `export --obsidian <dir>` | write one Markdown note per entity |
 | `sync [--export DIR]` | back the store up with git |
@@ -287,6 +290,42 @@ curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" \
 
 `import` is admin-only and server-side on purpose: it is the one operation that can rewrite history, and it keeps every uuid so `history` and `--at` still line up afterwards.
 
+### Semantic recall (optional)
+
+`search` finds the word. `recall` finds the meaning: it reads your question with an embedding model and answers with the live facts nearest to it, so "how do we ship relay?" finds `relay deploys nightly`. It works on the Neo4j backend, where each fact carries its vector and Neo4j's own vector index answers the question.
+
+```sh
+export MYSELF_NEO4J_URL=… MYSELF_NEO4J_PASSWORD=…
+export MYSELF_EMBED_URL=http://ollama.home:11434/v1/embeddings   # any OpenAI-compatible endpoint
+export MYSELF_EMBED_MODEL=nomic-embed-text
+export MYSELF_EMBED_API_KEY=…                 # env only, like the Neo4j password; omit for Ollama
+
+myself index                                   # one embedding per live fact, once
+myself recall "how do we ship relay" --min 0.3
+0.71 01a19418-… 2026-10-31T22:33:16Z relay deploys nightly
+  01a19418-… 2026-10-31T22:31:02Z relay is project
+  01a19418-… 2026-10-31T22:33:40Z k3s is cluster
+```
+
+Each match comes with the facts **around** it, indented: one hop of the graph from the entities the match names, which is where the brain says what those things are. That part is the log's own structure, not the model's guess — it costs no call to the endpoint and cannot be wrong about meaning. `--graph 0` leaves it out, `--graph 2` reaches further (at most 6 facts per match, type facts first).
+
+| variable | meaning |
+|---|---|
+| `MYSELF_EMBED_URL` | an OpenAI-compatible `/embeddings` endpoint: Ollama, LM Studio, vLLM, OpenAI, OpenRouter, Jina… Setting it turns recall on |
+| `MYSELF_EMBED_MODEL` | required with the URL; the model's name is stored with every vector, because vectors from two models are never comparable |
+| `MYSELF_EMBED_API_KEY` | bearer token, env only (a flag would show in `ps`); empty sends no header |
+| `MYSELF_EMBED_DIMENSIONS` | optional; otherwise learned from the first reply and used to size the index |
+| `MYSELF_EMBED_TIMEOUT` | seconds or a Go duration, default 30s |
+
+What it costs, and what it can't do:
+
+- **The vectors are a projection, not the brain.** `myself index` rebuilds them from the log, so nothing is lost if the endpoint was down: a fact written while it was unreachable is still written (with a warning) and `myself index` catches up. `serve` embeds each new fact as it is written, so the projection stays current on its own.
+- **`recall` never falls back to `search`.** "Nothing is similar" and "nothing is configured" are different answers, so a brain without vectors says which variable to set instead of returning an empty list.
+- **One model at a time.** Every vector in the brain has to come from the same model: `index` re-embeds the facts whose model differs, and `--rebuild` re-embeds everything. If the new model's vectors have a different length, drop the old index (`DROP INDEX myself_embedding IF EXISTS`) first.
+- **The score is the database's cosine similarity**, higher is closer, and what counts as close depends on the model — which is why `recall --json` names the model that answered. `-n` defaults to 10; `--min` drops weak matches.
+- **The graph context is capped, on purpose.** A match on a busy entity reaches half the brain, so one hop is the default and six facts per match is the most any match brings. Ask for what you need with `describe` or `path` when the context is not enough; `--graph 0` when you only wanted the matches.
+- **The file backend keeps no vectors.** It stays what it always was: no network, one answer per input.
+
 ## Obsidian mirror
 
 `myself export --obsidian ./vault` writes one note per entity, live state only, overwriting files of the same name. Objects that match an entity become `[[wikilinks]]` and incoming links are listed under `Linked from`:
@@ -333,7 +372,7 @@ curl -H "Authorization: Bearer $TOKEN" localhost:8080/api/v1/describe/relay?dept
 
 ### MCP
 
-The same server speaks MCP at `/mcp` (streamable HTTP, stateless), so harnesses without Bash can use the brain. Tools: `remember`, `forget`, `describe`, `ls`, `relations`, `search`, `path`, `log`, `history`, `prime`, `dream`; plus the `myself://prime` resource. Results are the CLI's plain text, with the `--json` object as `structuredContent`. Authentication is the bearer token of the REST API: a `read` token can use every tool but `remember` and `forget`, which need a `write` token.
+The same server speaks MCP at `/mcp` (streamable HTTP, stateless), so harnesses without Bash can use the brain. Tools: `remember`, `forget`, `describe`, `ls`, `relations`, `search`, `recall`, `path`, `log`, `history`, `prime`, `dream`; plus the `myself://prime` resource. Results are the CLI's plain text, with the `--json` object as `structuredContent`. Authentication is the bearer token of the REST API: a `read` token can use every tool but `remember` and `forget`, which need a `write` token.
 
 Claude Code:
 
@@ -377,7 +416,9 @@ myself prime
 
 - **Entities**: every entity with its types, a name filter and type buttons (`ls`). An entity page shows its facts both ways (`describe`), a depth control, "as of" time travel (`--at`), and its history with forgotten facts struck through and their reasons. A write token gets a Forget button on each fact.
 - **Graph**: the whole graph (`/api/v1/graph`) as a force layout. Drag, zoom, hover for neighbours, click to open; Find focuses an entity, Type dithers everything else.
-- **Search**, **Log** (newest first, refreshed every 10 s with a Pause button, so you can watch agents write), **Prime** (the brief and its budget), **Dream** (near-duplicate subjects).
+- **Search**, with two ways to match: **Words** is the substring match (`search`), **Meaning** is `recall` — the facts closest in meaning, each with its score, the model that read it, and the facts around it in the graph indented underneath. A brain without vectors says so in the page instead of answering badly.
+- **Log** (newest first, refreshed every 10 s with a Pause button, so you can watch agents write), **Prime** (the brief and its budget), **Dream** (near-duplicate subjects).
+- **Queries**: what the server was asked, from any client — who, which verb, the text, how many facts came back, which ones, how long it took, and why a question failed (`myself queries`). It is the server's record of questions, not the brain's: nothing in it is a fact, and `serve --no-query-log` turns it off.
 - **Add facts**: one fact with a relation menu, or many lines in the `remember -` format; replace and warnings as in the CLI.
 - **Tokens** (admin): list, create (the plaintext is shown once, with a Copy button) and revoke.
 
@@ -390,7 +431,7 @@ Screenshots: `design/screenshots/app-*.png`.
 ## Non-goals
 
 - No server needed. `myself serve` is optional; the CLI works on a local file.
-- No embeddings (yet). Search is substring match.
+- No embeddings needed. Search is substring match and works with no network; semantic recall is an extra on the Neo4j backend, never a requirement.
 - No two-way Obsidian sync.
 - No query language. The commands above are the interface.
 

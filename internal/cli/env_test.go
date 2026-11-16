@@ -10,9 +10,14 @@ import (
 	"testing"
 )
 
-// isolatedVars are the variables that point myself at a brain. A host that
-// uses a shared brain sets them in its environment; tests must never inherit them.
-var isolatedVars = []string{"MYSELF_URL", "MYSELF_TOKEN", "MYSELF_TIMEOUT", "MYSELF_FILE"}
+// isolatedVars are the variables that point myself at a brain, or at what reads
+// it. A host that uses a shared brain sets them in its environment; tests must
+// never inherit them, or a golden file would depend on the machine running them.
+var isolatedVars = []string{
+	"MYSELF_URL", "MYSELF_TOKEN", "MYSELF_TIMEOUT", "MYSELF_FILE",
+	"MYSELF_NEO4J_URL", "MYSELF_NEO4J_USER", "MYSELF_NEO4J_PASSWORD", "MYSELF_NEO4J_DATABASE", "MYSELF_NEO4J_TIMEOUT",
+	"MYSELF_EMBED_URL", "MYSELF_EMBED_MODEL", "MYSELF_EMBED_API_KEY", "MYSELF_EMBED_DIMENSIONS", "MYSELF_EMBED_TIMEOUT",
+}
 
 // cleanEnv returns os.Environ() without the brain-selecting variables, plus extra (KEY=VALUE).
 func cleanEnv(extra ...string) []string {

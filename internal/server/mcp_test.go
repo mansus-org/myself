@@ -83,13 +83,13 @@ func TestMCPToolsAndInstructions(t *testing.T) {
 			t.Errorf("tool %s has no description", tl.Name)
 		}
 	}
-	for _, name := range strings.Fields("remember forget describe ls relations search path log history prime dream") {
+	for _, name := range strings.Fields("remember forget describe ls relations search recall path log history prime dream") {
 		if !got[name] {
 			t.Errorf("missing tool %s (have %v)", name, got)
 		}
 	}
-	if len(got) != 11 {
-		t.Errorf("%d tools, want 11", len(got))
+	if len(got) != 12 {
+		t.Errorf("%d tools, want 12", len(got))
 	}
 }
 
@@ -144,6 +144,14 @@ func TestMCPCallEveryTool(t *testing.T) {
 	text, v, _ = call(t, cs, "search", map[string]any{"q": "relay", "n": 1})
 	if !strings.Contains(text, "relay is project") || len(v["matches"].([]any)) != 1 {
 		t.Errorf("search -n: %q %v", text, v)
+	}
+
+	// Recall needs a brain that keeps vectors, and this one is the file: the tool
+	// says so instead of answering with nothing, which would read as "nothing here
+	// is close to this".
+	text, _, isErr = call(t, cs, "recall", map[string]any{"q": "what does relay run on"})
+	if !isErr || !strings.Contains(text, "vectors") {
+		t.Errorf("recall on a brain without vectors: %q %v", text, isErr)
 	}
 
 	text, v, _ = call(t, cs, "path", map[string]any{"from": "relay", "to": "language"})

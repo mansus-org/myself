@@ -27,7 +27,7 @@ func newLocalEnv(t *testing.T) (*env, string) {
 	}
 	ts := httptest.NewServer(srv)
 	t.Cleanup(ts.Close)
-	return &env{t, srv, ts, file, lb}, key
+	return &env{t, srv, ts, file, lb, nil}, key
 }
 
 // The local key mints login codes and opens nothing else: it is not a token,

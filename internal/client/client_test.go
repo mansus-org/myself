@@ -2,8 +2,10 @@ package client
 
 import (
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -79,6 +81,84 @@ func TestWarningsAndErrors(t *testing.T) {
 	_, err := (&Client{URL: ts.URL, Token: "wrong"}).Dream()
 	if brain.Code(err) != brain.ExitStore || err.Error() != "invalid or revoked token" || strings.Contains(err.Error(), "wrong") {
 		t.Fatalf("%v", err)
+	}
+}
+
+// Recall and index are the two calls whose arguments are not just a path, so
+// their query string and body are checked on the wire.
+func TestRecallAndIndexOnTheWire(t *testing.T) {
+	var query, body string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/recall":
+			query = r.URL.RawQuery
+			w.Write([]byte(`{"matches":[{"uuid":"01a1","subject":"relay","relation":"uses","object":"bun","time":"2026-01-01T00:00:00Z","score":0.81,"context":[{"uuid":"01a2","subject":"bun","relation":"is","object":"runtime","time":"2026-01-01T00:00:00Z","hop":1,"through":"01a1"}]}],"model":"m","at":"2026-01-01T00:00:00Z","graph":1}`))
+		case "/api/v1/index":
+			raw, _ := io.ReadAll(r.Body)
+			body = string(raw)
+			w.Write([]byte(`{"embedded":3,"skipped":1,"model":"m"}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer ts.Close()
+	c := &Client{URL: ts.URL}
+	at, n, min, graph := "2026-01-01T00:00:00Z", 3, 0.5, 2
+	res, err := c.Recall("what does relay run on", &at, &n, &min, &graph)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"q=what+does+relay+run+on", "at=" + url.QueryEscape(at), "n=3", "min=0.5", "graph=2"} {
+		if !strings.Contains(query, want) {
+			t.Errorf("recall query %q misses %q", query, want)
+		}
+	}
+	if len(res.Matches) != 1 || res.Matches[0].Score != 0.81 || res.Model != "m" || res.Graph != 1 {
+		t.Fatalf("recall result: %+v", res)
+	}
+	if res.Matches[0].Object != "bun" {
+		t.Fatalf("a match is still a record: %+v", res.Matches[0])
+	}
+	if c := res.Matches[0].Context; len(c) != 1 || c[0].Hop != 1 || c[0].Through != "01a1" || c[0].Object != "runtime" {
+		t.Fatalf("the context has to survive the wire: %+v", res.Matches[0].Context)
+	}
+	out, err := c.Index(true)
+	if err != nil || out.Embedded != 3 || out.Skipped != 1 {
+		t.Fatalf("index: %+v %v", out, err)
+	}
+	if body != `{"rebuild":true}` {
+		t.Fatalf("index body: %q", body)
+	}
+}
+
+// Queries is the one read whose filter is a verb, so its query string is checked
+// on the wire too.
+func TestQueriesOnTheWire(t *testing.T) {
+	var query string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/queries" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		query = r.URL.RawQuery
+		w.Write([]byte(`{"queries":[{"time":"2026-01-01T00:00:00Z","verb":"recall","text":"ship it","hits":1,"ms":12,"who":"laptop"}],"total":7,"verb":"recall"}`))
+	}))
+	defer ts.Close()
+	out, err := (&Client{URL: ts.URL}).Queries("recall", 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if query != "n=5&verb=recall" {
+		t.Fatalf("query %q", query)
+	}
+	if out.Total != 7 || out.Verb != "recall" || len(out.Queries) != 1 {
+		t.Fatalf("%+v", out)
+	}
+	if e := out.Queries[0]; e.Model != "" || e.Who != "laptop" || e.Took != 12 || e.Hits != 1 {
+		t.Fatalf("an entry survives the wire: %+v", e)
+	}
+	if _, err := (&Client{URL: ts.URL}).Queries("", 0); err != nil || query != "" {
+		t.Fatalf("no filter, no query: %q %v", query, err)
 	}
 }
 

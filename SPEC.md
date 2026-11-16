@@ -83,6 +83,7 @@ The log above is the contract; where it is kept is a separate choice. Two backen
 - **Transport:** the HTTP transaction endpoint (`POST /db/{database}/tx/commit`) with Basic auth, so no driver dependency and no second port. Every statement is parameterized; no value is ever spliced into query text.
 - **`Append` is one transaction and `MERGE`s on `uuid`**, so a batch is all-or-nothing and a retried write or an `import` is idempotent — the guarantee the append-only file gives by construction.
 - **`serve` ensures the backend's schema at startup** (`Record.uuid` unique, `Record.subject` indexed) so an unreachable or misconfigured database fails at startup instead of quietly on the first write.
+- **A vector projection is what `recall` reads, and never the source of truth.** With an embedding endpoint configured (`MYSELF_EMBED_URL` and `MYSELF_EMBED_MODEL`, optionally `MYSELF_EMBED_API_KEY`, `MYSELF_EMBED_DIMENSIONS`, `MYSELF_EMBED_TIMEOUT`), the Neo4j backend stores one embedding per live fact on the record node (`embedding`, `embeddingModel`) and keeps a Neo4j vector index over it (`myself_embedding`, cosine). `myself index` builds the projection from the log, `remember` keeps it current, and a fact whose embedding fails is written anyway with a warning: a missing vector costs `recall` a hit, never a fact. The endpoint is OpenAI-compatible by URL, so the model is configuration, not code. The file backend has no projection, and `recall` and `index` there answer with what to set rather than a worse answer.
 
 ## 5. CLI grammar
 
@@ -97,15 +98,18 @@ myself describe <entity> [--depth N] [--at TIME]
 myself ls [<type>] [--at TIME]
 myself relations
 myself search <text> [--at TIME] [-n N]
+myself recall <text> [--at TIME] [-n N] [--min SCORE] [--graph N]
+myself index [--rebuild]
 myself path <a> <b> [--max-depth N]
 myself log [--since TIME] [-n N]
 myself history <subject> [<relation>]
+myself queries [--verb VERB] [-n N]
 myself prime [--budget CHARS]
 myself dream
 myself export --obsidian <dir>
 myself sync [--export DIR]
 myself merge-driver <base> <ours> <theirs>
-myself serve [--addr ADDR] [--site DIR]
+myself serve [--addr ADDR] [--site DIR] [--no-query-log]
 myself graph --web [--addr ADDR] [--open]
 myself whoami
 ```
@@ -118,14 +122,18 @@ Global flags: `--file PATH`, `--json`, `--url URL`, `--token TOKEN` (remote mode
 - `ls <type>`: every entity that reaches `<type>` through a chain of live `is` records (transitive subtypes). `ls` with no argument lists every entity that is the object of a live `is` record. **Decision:** the original text said "either direction"; only the subtype direction is listed, since the supertypes of an entity are already visible with `describe`, and mixing both directions makes `ls software` ambiguous.
 - `path <a> <b>`: shortest chain of live records connecting `a` to `b`, edges walked in either direction; `--max-depth` defaults to 6.
 - `search <text>`: case-insensitive substring match on subject, relation or object of live records. `-n N` keeps only the first N matches.
+- `recall <text>`: the live facts closest in meaning to `text`, best first, at most `-n N` of them (default 10), none scoring below `--min SCORE` (default 0, which keeps whatever the index returns). It reads the question with an embedding model and searches the vector projection, so it finds the fact that says the same thing in other words. `--at` asks what was live then: the candidates are filtered against the brain as of that time. It needs the Neo4j backend and an embedding endpoint; without either it is a usage error naming what to set, and it never falls back to `search` — "nothing is similar" and "nothing is configured" are different answers. The score is the database's cosine similarity, higher is closer, and what counts as close depends on the model, so the reply names the model that answered.
+- `recall` also brings the facts **around** each match, because a match that names a thing is worth little until the brain says what that thing is: `--graph N` (default 1) walks N hops of the log's own graph from the entities a match names and returns what it reaches as that match's `context`, each with the `hop` it was reached at and the `through` match it came from. One hop reaches the type of every entity the match names ("bun is runtime" beside "relay uses bun") and the other facts about the same subject. It is the log's structure, not the model's guess: nothing is embedded for it, it costs no call to the endpoint, and it cannot be wrong about meaning. Within a hop, type facts come first, then the other facts about the same subject, then the rest, oldest first; a fact is given once, to the best-scoring match that reaches it, and at most 6 come per match, so a match on a busy entity is not a dump. `--graph 0` returns the matches alone. The walk uses the same `--at` snapshot as the matches, so context never comes from a time the question did not ask about.
+- `index [--rebuild]`: write the vector projection — one embedding per live fact and the index over them. Facts that already carry a vector from this model are left alone, so it is cheap to run again; `--rebuild` re-embeds every live fact, which is what a new model needs (if the new model's vectors have a different length, drop the old index first). Forgotten facts are never embedded: `recall` never returns them. Embedding and writing are batched, and the command is what fills the gaps after an endpoint was unreachable.
 - `log`: every record, forgets included, in uuid order. `--since` filters by time, `-n N` keeps the last N.
 - `history <subject> [<relation>]`: every record, forgotten or not, for that subject (and relation), plus the `forget` records pointing at them, in uuid order.
+- `queries [--verb VERB] [-n N]`: what the server was asked — `search`, `recall` and `describe`, newest first, `--verb` to keep one of them — with who asked, how many facts came back, which ones, how long it took, and why it failed when it failed. It reads `queries.jsonl` next to the store, which `serve` writes (section 10): against a local store it is what the last `serve` recorded, and empty on a brain that was never served, which is exit 0. A bad `--verb` is exit 1.
 - `prime`: a compact summary of the brain to paste into an agent context, cut at line boundaries to fit `--budget` characters (default 2000, never exceeded). It has two parts, with no blank line between them. Part A is full blocks: `self` first (if it exists), then the entities directly linked to it (one hop, breadth-first order), and no others, each rendered as `describe` at depth 0 except that incoming `is` records are folded into one line `  <- is: a, b, c` (subjects sorted, comma-separated). Part A uses at most `budget*3/5` characters when Part B has at least one entry, else the whole budget; it stops at the first line that does not fit. Part B is an index, one line per entity: the line `Also in the brain, not loaded (run `myself describe <name>` before working on any of these, or before saying you don't know about one):`, then `  <name> (<types>; <N> facts)`. It covers every remaining entity that has at least one live outgoing record (pure type nodes such as `project`, which only have records pointing at them, are left out), plus any Part A entity cut before its first line was printed. `<types>` lists the entities that its live outgoing `is` records point at, each once, sorted, comma-separated; they are entity names, normalized as everywhere else, so `relay is Project` and `relay is My Tool` give `my-tool, project`; an entity with no type gets no parentheses beyond the count. `<N>` is what `myself describe <name>` would return: live records with the entity as subject plus live records linked to it as object; the singular is `1 fact`. Lines are ordered by `<N>` descending, then name, so the topics with the most facts are listed first and the ones with the least are trimmed first. When the lines do not all fit, the last ones are dropped and replaced by `  … and <K> more (myself ls <type>, myself search <text>)`, with room always reserved for it; if not even the header and one line fit, the index is left out. `truncated` is true if anything was cut.
 - `dream`: read-only report of near-duplicate subjects (equal after removing `-` and a trailing `s`). Writes nothing.
 - `export --obsidian <dir>`: writes one `<entity>.md` per entity (live state only), overwriting existing files of the same name. Note format is shown in section 9.
 - `sync [--export DIR]`: backs the store up with git. The store directory (that of the resolved file) must be a git work tree, else it prints setup instructions on stderr and exits 1. It sets the merge driver config and the `.gitattributes` line, commits the store as `myself: N records since last sync`, then `git pull --rebase` (falling back to a merge) and `git push` if a remote exists. `--export DIR` runs `export --obsidian DIR` after pulling. Git missing or failing exits 3.
 - `merge-driver <base> <ours> <theirs>`: git merge driver (`%O %A %B`); writes the union of the complete lines of all three, sorted by `uuid`, to `<ours>`. Exit 1 on I/O errors.
-- `serve [--addr ADDR] [--site DIR]`: serves the store over HTTP (section 10) on `ADDR` (default `:8080`) until SIGINT or SIGTERM. `serve` is local only: if `--token`/`MYSELF_TOKEN` or `--url`/`MYSELF_URL` is set it prints a warning on stderr (the token is the client token, the admin token is checked against `MYSELF_ADMIN_TOKEN_SHA256`; the URL is ignored) and carries on. Exit 1 if `MYSELF_ADMIN_TOKEN_SHA256` is set but not 64 hex characters, 3 if the address cannot be bound or `tokens.json` cannot be read. While it runs it leaves a local login key next to the store (section 10, Local login key) so that `graph --web` on the same machine can be handed a link instead of failing on a taken port.
+- `serve [--addr ADDR] [--site DIR] [--no-query-log]`: serves the store over HTTP (section 10) on `ADDR` (default `:8080`) until SIGINT or SIGTERM. `serve` is local only: if `--token`/`MYSELF_TOKEN` or `--url`/`MYSELF_URL` is set it prints a warning on stderr (the token is the client token, the admin token is checked against `MYSELF_ADMIN_TOKEN_SHA256`; the URL is ignored) and carries on. Exit 1 if `MYSELF_ADMIN_TOKEN_SHA256` is set but not 64 hex characters, 3 if the address cannot be bound or `tokens.json` cannot be read. While it runs it leaves a local login key next to the store (section 10, Local login key) so that `graph --web` on the same machine can be handed a link instead of failing on a taken port. It records every `search`, `recall` and `describe` it answers in `queries.jsonl` next to the store (`GET /api/v1/queries`, `myself queries`, the Queries page); `--no-query-log` turns that off, for a server whose operator would rather not keep what people asked.
 - `graph --web [--addr ADDR] [--open]`: prints one link that opens the graph page of the web app, signed in, with no token to paste (section 10, Login links). Without `--web` it exits 1 (`graph needs --web: ...`). The link goes to stdout, everything else to stderr. `--open` (default: on when `xdg-open` or `open` exists and stdout is a terminal) opens it in the browser. Local mode (no URL): serves the store like `serve`, on `ADDR` (default `127.0.0.1:0`, a free port), with an admin token generated at startup that exists only as its hash in memory and is never printed, written or put in the environment; the link is `http://127.0.0.1:PORT/app/#login=<code>`; it runs until SIGINT or SIGTERM. **Reuse:** if `ADDR` is already taken by a myself server that serves this same store, the command starts nothing: it asks that server for a login code with its local login key (section 10), prints the link to the running server, exits 0 and leaves that server running; a warning on stderr says so. Anything else on that port is exit 1: a server of another store names both stores and how to open the other one, a server that left no record next to the store (an older `serve`, or one that serves a different store) says so, and anything that is not a myself server says the port is taken. Remote mode (`MYSELF_URL`): starts nothing, calls `POST /api/v1/login-codes` with `MYSELF_TOKEN`, prints `<url>/app/#login=<code>` and exits; a server without the endpoint is exit 3 `... does not support web login links`, a missing token is exit 1.
 - `whoami`: prints who the commands act as. Local: `local store <path>`. Remote (section 10): three lines `name <name>`, `scope <read|write>`, `admin <true|false>`.
 
@@ -143,9 +151,12 @@ Global flags: `--file PATH`, `--json`, `--url URL`, `--token TOKEN` (remote mode
 | `ls` | `{"type":"software","entities":["project","relay"]}` (`type` is null without an argument) |
 | `relations` | `{"relations":["is","are","has","uses","does","prefers","related"]}` |
 | `search` | `{"matches":[record,...]}` |
+| `recall` | `{"matches":[{"uuid","subject","relation","object","time","score":0.87,"context":[{"uuid","subject","relation","object","time","hop":1,"through":"<match uuid>"}]}],"model":"<model>","at":null,"graph":1}` (best first; `at` is the `--at` string or null; `context` is omitted when a match reached nothing or `--graph 0` was asked); plain text is one line per match — `<score, two decimals> <record line>` — with each context fact indented two spaces under the match it came from |
+| `index` | `{"embedded":12,"skipped":3,"model":"<model>"}`; plain text is one line saying the same |
 | `path` | `{"from":"relay","to":"software","path":[record,...]}` |
 | `log` | `{"records":[record,...]}` |
 | `history` | `{"records":[record,...]}` |
+| `queries` | `{"queries":[{"time":"2026-01-01T00:00:00Z","verb":"recall","text":"what does relay run on","hits":2,"facts":["relay uses bun","bun is runtime"],"ms":812,"who":"laptop","model":"<model>","at":"<--at, if any>","error":"<why it failed, if it did>"}],"total":137,"verb":"<the filter, or omitted>"}` (newest first; `total` counts the log before the filter); plain text is one line per query: `<time> <verb> "<text>" <N> facts [in <ms>ms] [with <model>] [(<the facts>)]`, or `error: <why>` |
 | `prime` | `{"budget":2000,"truncated":false,"text":"..."}` |
 | `dream` | `{"near_duplicates":[["relay","relays"],...]}` |
 | `export` | `{"dir":"./vault","entities":3,"files":["project.md",...]}` |
@@ -154,9 +165,9 @@ Global flags: `--file PATH`, `--json`, `--url URL`, `--token TOKEN` (remote mode
 
 - **Exit codes:**
   - `0` ok (including searches and listings with no results).
-  - `1` usage error: bad flags or arguments, unknown or reserved relation, empty object, bad `--at`.
+  - `1` usage error: bad flags or arguments, unknown or reserved relation, empty object, bad `--at`, `recall` or `index` on a brain that keeps no vectors or with no embedding endpoint.
   - `2` not found: `describe` or `history` on an unknown entity or subject, `ls <type>` on an unknown type, `forget` that matches nothing, `path` with no chain.
-  - `3` store error: file unreadable or unwritable, lock timeout (5 s).
+  - `3` store error: file unreadable or unwritable, lock timeout (5 s), an embedding endpoint that could not be reached or refused, a backend that cannot be talked to.
 - **Decision:** the original listed "corrupt line" under exit 3 and also said readers warn without failing. Resolved in favor of not failing: a corrupt line is skipped with a stderr warning and the exit code is unaffected.
 
 ## 7. Concurrency and robustness
@@ -303,9 +314,12 @@ Query parameters map to the CLI flags. A parameter that is present but empty cou
 | `GET /api/v1/ls?type=T&at=TIME` | read | `ls [<type>]` | as `ls --json` |
 | `GET /api/v1/relations` | read | `relations` | as `relations --json` |
 | `GET /api/v1/search?q=TEXT&at=TIME&n=N` | read | `search` | as `search --json` |
+| `GET /api/v1/recall?q=TEXT&at=TIME&n=N&min=F&graph=N` | read | `recall` | as `recall --json` |
+| `POST /api/v1/index` | write | `index` | request `{"rebuild":false}`; reply as `index --json` |
 | `GET /api/v1/path?from=A&to=B&max_depth=N` | read | `path` | as `path --json` |
 | `GET /api/v1/log?since=TIME&n=N` | read | `log` | as `log --json` |
 | `GET /api/v1/history/{subject}?relation=R` | read | `history` | as `history --json` |
+| `GET /api/v1/queries?verb=VERB&n=N` | read | `queries` | as `queries --json` (`verb` omitted means all, `n` defaults to 50 and is capped at 1000) |
 | `GET /api/v1/prime?budget=N` | read | `prime` | as `prime --json` |
 | `GET /api/v1/dream` | read | `dream` | as `dream --json` |
 | `GET /api/v1/graph?at=TIME` | read | | see below |
@@ -323,6 +337,8 @@ Details:
 - **remember** is all or nothing, like `remember -`: every fact is validated before anything is written. With one fact the error is the CLI's (`unknown relation "built-with". use one of: ...`); with several it is prefixed `fact N: ` (1-based). An empty `facts` list is `remember needs at least one fact`. Objects are JSON strings, so no quote stripping. `replace` works as `--replace`. The reply has the sentence warning in `warnings` when it applies.
 - **forget** takes either `uuid`, or `subject` and `relation` (optionally narrowed by `object`, compared normalized); both forms at once is a 400. None of them is `forget needs <uuid>, or <subject> <relation> [<object...>]`. A non-uuid `uuid` is `"x" is not a uuid`.
 - **search** with a missing or empty `q` is `search needs <text>`. **path** without `from` or `to` is `path needs <a> and <b>`. **describe** with an empty entity is `describe needs exactly one <entity>`.
+- **recall** with a missing or empty `q` is `recall needs <text>`; `min` is a float between -1 and 1 and `graph` a non-negative integer. A brain that keeps no vectors, or a server with no embedding endpoint, is a 400 with the same message the CLI gives, never an empty `matches`: an empty list would read as "nothing here is close to this". **index** is a write because it calls the endpoint for every fact that needs a vector; the endpoint is configured on the server, not by the caller.
+- **The query log** (`queries.jsonl` next to the store, `0600`) is the server's record of the three question verbs — `search`, `recall` and `describe` — from any client: the text asked, the `at` if there was one, who asked (the token's name), how many facts came back, up to 5 of them by name, the model that read a `recall`, how long it took, and the error when it failed. Writes and whole-page reads are not questions and are not recorded, and neither is a request that never became one: a missing `q` or a bad `min` is answered and forgotten. It is **not the brain**: it is never searched, recalled, exported or primed, and a fact in it says only that someone asked. It is bounded — the file keeps the last 500 entries and a write past 1000 trims it to 500 — because an account of questions grows forever and stops being useful. A failed write is reported on the request log and never fails the query, and a server started with `--no-query-log` records nothing and answers `queries` with an empty list. It is a read endpoint, not an admin one: everything it shows is a fact any read token could already read, and what it adds is only that someone asked.
 - **graph** is for drawing the graph:
 
   ```json
@@ -349,6 +365,7 @@ Details:
   | `ls` | read | `type`, `at` | `ls` |
   | `relations` | read | none | `relations` |
   | `search` | read | `q`, `at`, `n` | `search` |
+  | `recall` | read | `q`, `n`, `min`, `graph`, `at` | `recall` |
   | `path` | read | `from`, `to`, `max_depth` | `path` |
   | `log` | read | `since`, `n` | `log` |
   | `history` | read | `subject`, `relation` | `history` |
