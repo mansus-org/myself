@@ -56,6 +56,7 @@ func newRoot(stdout, stderr io.Writer) *cobra.Command {
 		newPathCmd(cfg),
 		newLogCmd(cfg),
 		newHistoryCmd(cfg),
+		newQueriesCmd(cfg),
 		newPrimeCmd(cfg),
 		newDreamCmd(cfg),
 		newExportCmd(cfg),

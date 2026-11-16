@@ -37,7 +37,7 @@ func newClockEnv(t *testing.T) (*env, *fakeClock) {
 	}
 	ts := httptest.NewServer(srv)
 	t.Cleanup(ts.Close)
-	return &env{t, srv, ts, file, &syncBuffer{}}, clk
+	return &env{t, srv, ts, file, &syncBuffer{}, nil}, clk
 }
 
 func (e *env) loginCode(token string) string {

@@ -15,6 +15,7 @@ import (
 
 	"github.com/mansus-org/myself/internal/brain"
 	"github.com/mansus-org/myself/internal/embed"
+	"github.com/mansus-org/myself/internal/querylog"
 )
 
 // Config configures a Server.
@@ -29,6 +30,7 @@ type Config struct {
 	Now       func() time.Time // nil means time.Now
 	Version   string           // reported to MCP clients; empty means "dev"
 	Skill     []byte           // served at GET /skill.md; nil serves nothing there
+	QueryLog  *querylog.Log    // what the API was asked; nil records nothing
 }
 
 // Server is the HTTP server. It is an http.Handler.
@@ -44,6 +46,7 @@ type Server struct {
 	log       *log.Logger
 	now       func() time.Time
 	version   string
+	queries   *querylog.Log
 	writeMu   sync.Mutex
 }
 
@@ -77,6 +80,7 @@ func New(cfg Config) (*Server, error) {
 		log:       log.New(out, "", log.LstdFlags|log.LUTC),
 		now:       now,
 		version:   version,
+		queries:   cfg.QueryLog,
 	}
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")

@@ -14,17 +14,19 @@ import (
 	"testing/fstest"
 	"time"
 
+	"github.com/mansus-org/myself/internal/querylog"
 	"github.com/mansus-org/myself/internal/store"
 )
 
 const adminToken = "test-admin-token"
 
 type env struct {
-	t    *testing.T
-	srv  *Server
-	ts   *httptest.Server
-	file string
-	log  *syncBuffer
+	t       *testing.T
+	srv     *Server
+	ts      *httptest.Server
+	file    string
+	log     *syncBuffer
+	queries *querylog.Log
 }
 
 type syncBuffer struct {
@@ -49,13 +51,17 @@ func newEnv(t *testing.T, adminHash string) *env {
 	file := filepath.Join(t.TempDir(), "brain.jsonl")
 	lb := &syncBuffer{}
 	site := fstest.MapFS{"index.html": {Data: []byte("<h1>myself</h1>")}}
-	srv, err := New(Config{File: file, Site: site, Skill: []byte("---\nname: myself\n---\n"), AdminHash: adminHash, Log: lb})
+	// Every test env records its queries, the way `serve` does: the log is on by
+	// default, so a test that never looks at it still proves writing one does not
+	// break a query.
+	q := querylog.Open(querylog.Path(file), nil)
+	srv, err := New(Config{File: file, Site: site, Skill: []byte("---\nname: myself\n---\n"), AdminHash: adminHash, Log: lb, QueryLog: q})
 	if err != nil {
 		t.Fatal(err)
 	}
 	ts := httptest.NewServer(srv)
 	t.Cleanup(ts.Close)
-	return &env{t, srv, ts, file, lb}
+	return &env{t, srv, ts, file, lb, q}
 }
 
 func newAdminEnv(t *testing.T) *env { return newEnv(t, HashToken(adminToken)) }

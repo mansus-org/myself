@@ -293,6 +293,17 @@ var cases = []struct {
 		run("history", "relay", "built-with"),
 		run("history"),
 	}},
+	// A brain that was never served has never been asked anything: the query log
+	// is empty, and that is exit 0, not an error. What it holds when there is
+	// something in it is covered in internal/cli and internal/server.
+	{"queries", []step{
+		run("queries"),
+		run("queries", "--json"),
+		run("queries", "--verb", "search"),
+		run("queries", "--verb", "dream"),
+		run("queries", "-n", "zero"),
+		run("queries", "extra"),
+	}},
 	{"prime", []step{
 		run("prime"),
 		run("remember", "relay", "is", "project"),

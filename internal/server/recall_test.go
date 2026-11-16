@@ -16,6 +16,7 @@ import (
 	"github.com/mansus-org/myself/internal/brain"
 	"github.com/mansus-org/myself/internal/embed"
 	"github.com/mansus-org/myself/internal/model"
+	"github.com/mansus-org/myself/internal/querylog"
 )
 
 // wordEmbedder is a deterministic stand-in for an embedding endpoint: a vector
@@ -135,21 +136,31 @@ func cosineOf(a, b []float32) float64 {
 
 // vecEnv is a server whose brain is a vector backend with an embedding endpoint.
 func vecEnv(t *testing.T, store brain.Store, em embed.Embedder) *httptest.Server {
+	ts, _ := vecEnvLog(t, store, em)
+	return ts
+}
+
+// vecEnvLog is vecEnv with the query log it records to, for the tests that read
+// what was asked.
+func vecEnvLog(t *testing.T, store brain.Store, em embed.Embedder) (*httptest.Server, *querylog.Log) {
 	t.Helper()
 	dir := t.TempDir()
+	file := filepath.Join(dir, "brain.jsonl")
+	q := querylog.Open(querylog.Path(file), nil)
 	srv, err := New(Config{
-		File:      filepath.Join(dir, "brain.jsonl"),
+		File:      file,
 		Store:     store,
 		Embedder:  em,
 		AdminHash: HashToken(adminToken),
 		Log:       &syncBuffer{},
+		QueryLog:  q,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	ts := httptest.NewServer(srv)
 	t.Cleanup(ts.Close)
-	return ts
+	return ts, q
 }
 
 // doAuth sends one request with a bearer token and returns the status and body.

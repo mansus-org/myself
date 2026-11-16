@@ -17,6 +17,7 @@ import (
 
 	"github.com/mansus-org/myself"
 	"github.com/mansus-org/myself/internal/brain"
+	"github.com/mansus-org/myself/internal/querylog"
 	"github.com/mansus-org/myself/internal/server"
 	"github.com/spf13/cobra"
 )
@@ -44,6 +45,7 @@ func warnClientSettings(cmd *cobra.Command) {
 
 func newServeCmd(cfg *Config) *cobra.Command {
 	var addr, site string
+	var noQueries bool
 	cmd := &cobra.Command{
 		Use:   "serve [--addr :8080] [--site DIR]",
 		Short: "Serve the brain over HTTP: the REST API at /api/v1 and the landing page at /",
@@ -107,7 +109,7 @@ func newServeCmd(cfg *Config) *cobra.Command {
 				}
 				cancel()
 			}
-			srv, err := server.New(server.Config{File: cfg.File, Store: backend, Embedder: em, Site: siteFS, Skill: myself.Skill, AdminHash: hash, LocalKey: key, Log: stderr, Version: Version})
+			srv, err := server.New(server.Config{File: cfg.File, Store: backend, Embedder: em, Site: siteFS, Skill: myself.Skill, AdminHash: hash, LocalKey: key, Log: stderr, Version: Version, QueryLog: queryLogFor(cfg.File, noQueries)})
 			if err != nil {
 				return StoreErr(err)
 			}
@@ -140,7 +142,18 @@ func newServeCmd(cfg *Config) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&addr, "addr", ":8080", "address to listen on")
 	cmd.Flags().StringVar(&site, "site", "", "directory served at / (default: the embedded landing page)")
+	cmd.Flags().BoolVar(&noQueries, "no-query-log", false, "do not record what the API was asked (search, recall, describe) in queries.jsonl next to the store")
 	return cmd
+}
+
+// queryLogFor opens the query log beside the store, or nil when it is turned off.
+// A directory that cannot be written is not a reason to refuse to serve: the log
+// is a convenience, and a failed write is reported when it happens.
+func queryLogFor(file string, off bool) *querylog.Log {
+	if off {
+		return nil
+	}
+	return querylog.Open(querylog.Path(file), nil)
 }
 
 // runServer serves srv on ln until ctx is done, then shuts down cleanly.

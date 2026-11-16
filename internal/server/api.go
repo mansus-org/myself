@@ -35,6 +35,7 @@ func (s *Server) registerAPI() {
 	api("GET /api/v1/relations", Read, s.relations)
 	api("GET /api/v1/search", Read, s.search)
 	api("GET /api/v1/recall", Read, s.recall)
+	api("GET /api/v1/queries", Read, s.listQueries)
 	api("POST /api/v1/index", Write, s.index)
 	api("GET /api/v1/path", Read, s.path)
 	api("GET /api/v1/log", Read, s.logRecords)
@@ -213,7 +214,9 @@ func (s *Server) describe(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, err)
 		return
 	}
+	start := s.now()
 	res, err := brain.Describe(st, entity, depth, optString(q, "at"))
+	s.logQuery(r, "describe", entity, res, err, s.now().Sub(start))
 	reply(w, st, res, err)
 }
 
@@ -241,7 +244,9 @@ func (s *Server) search(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, err)
 		return
 	}
+	start := s.now()
 	res, err := brain.Search(st, text, optString(q, "at"), n)
+	s.logQuery(r, "search", text, res, err, s.now().Sub(start))
 	reply(w, st, res, err)
 }
 
@@ -271,7 +276,9 @@ func (s *Server) recall(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, err)
 		return
 	}
+	start := s.now()
 	res, err := brain.Recall(s.recallStoreFor(st), s.embedder, text, optString(q, "at"), n, min, hops)
+	s.logQuery(r, "recall", text, res, err, s.now().Sub(start))
 	reply(w, st, res, err)
 }
 

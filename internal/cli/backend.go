@@ -7,6 +7,7 @@ import (
 	"github.com/mansus-org/myself/internal/brain"
 	"github.com/mansus-org/myself/internal/client"
 	"github.com/mansus-org/myself/internal/model"
+	"github.com/mansus-org/myself/internal/querylog"
 	"github.com/spf13/cobra"
 )
 
@@ -25,6 +26,7 @@ type backend interface {
 	Path(a, b string, maxDepth int) (brain.PathResult, error)
 	Log(since *string, n *int) (brain.RecordsResult, error)
 	History(subject string, relation *string) (brain.RecordsResult, error)
+	Queries(verb string, n int) (querylog.Result, error)
 	Prime(budget int) (brain.PrimeResult, error)
 	Dream() (brain.DreamResult, error)
 	ExportObsidian(dir string) (brain.ExportResult, error)
@@ -35,7 +37,7 @@ func backendFor(cmd *cobra.Command, cfg *Config) backend {
 	if cfg.Remote() {
 		return remoteBackend{newClient(cmd, cfg)}
 	}
-	return localBackend{storeFor(cmd, cfg)}
+	return localBackend{st: storeFor(cmd, cfg), file: cfg.File}
 }
 
 func newClient(cmd *cobra.Command, cfg *Config) *client.Client {
@@ -48,7 +50,20 @@ func newClient(cmd *cobra.Command, cfg *Config) *client.Client {
 	}
 }
 
-type localBackend struct{ st brain.Store }
+type localBackend struct {
+	st   brain.Store
+	file string // the brain file, so local mode can read the server's side files
+}
+
+// Queries reads the query log the server writes next to the store. Local mode has
+// no server of its own, so this is what the last one recorded — which is the
+// honest answer, and empty on a brain that was never served.
+func (b localBackend) Queries(verb string, n int) (querylog.Result, error) {
+	if err := querylog.CheckVerb(verb); err != nil {
+		return querylog.Result{}, Usagef("%v", err)
+	}
+	return querylog.Open(querylog.Path(b.file), nil).Read(verb, n)
+}
 
 func (b localBackend) Remember(facts []brain.Fact, replace bool) (brain.RememberResult, error) {
 	return brain.Remember(b.st, facts, replace, time.Now())

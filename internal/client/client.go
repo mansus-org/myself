@@ -21,6 +21,7 @@ import (
 
 	"github.com/mansus-org/myself/internal/brain"
 	"github.com/mansus-org/myself/internal/model"
+	"github.com/mansus-org/myself/internal/querylog"
 	"github.com/mansus-org/myself/internal/store"
 )
 
@@ -154,6 +155,21 @@ func (c *Client) Recall(text string, at *string, n *int, min *float64, hops *int
 	}
 	var out brain.RecallResult
 	err := c.get("/api/v1/recall", q, &out)
+	return out, err
+}
+
+// Queries reads what the server was asked: search, recall and describe, newest
+// first.
+func (c *Client) Queries(verb string, n int) (querylog.Result, error) {
+	q := url.Values{}
+	if verb != "" {
+		q.Set("verb", verb)
+	}
+	if n > 0 {
+		q.Set("n", strconv.Itoa(n))
+	}
+	var out querylog.Result
+	err := c.get("/api/v1/queries", q, &out)
 	return out, err
 }
 

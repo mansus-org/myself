@@ -131,6 +131,37 @@ func TestRecallAndIndexOnTheWire(t *testing.T) {
 	}
 }
 
+// Queries is the one read whose filter is a verb, so its query string is checked
+// on the wire too.
+func TestQueriesOnTheWire(t *testing.T) {
+	var query string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/queries" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		query = r.URL.RawQuery
+		w.Write([]byte(`{"queries":[{"time":"2026-01-01T00:00:00Z","verb":"recall","text":"ship it","hits":1,"ms":12,"who":"laptop"}],"total":7,"verb":"recall"}`))
+	}))
+	defer ts.Close()
+	out, err := (&Client{URL: ts.URL}).Queries("recall", 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if query != "n=5&verb=recall" {
+		t.Fatalf("query %q", query)
+	}
+	if out.Total != 7 || out.Verb != "recall" || len(out.Queries) != 1 {
+		t.Fatalf("%+v", out)
+	}
+	if e := out.Queries[0]; e.Model != "" || e.Who != "laptop" || e.Took != 12 || e.Hits != 1 {
+		t.Fatalf("an entry survives the wire: %+v", e)
+	}
+	if _, err := (&Client{URL: ts.URL}).Queries("", 0); err != nil || query != "" {
+		t.Fatalf("no filter, no query: %q %v", query, err)
+	}
+}
+
 func TestParseURL(t *testing.T) {
 	for in, want := range map[string]string{
 		"https://myself.mansus.org/":  "https://myself.mansus.org",
