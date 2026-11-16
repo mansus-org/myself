@@ -1,30 +1,6 @@
-/* Search: the bar, the two ways to match, and what recall brings with a match. */
+/* Search: the bar, and the pointer to the other way to ask. */
 
 .searchbar { max-width: 640px; margin-bottom: 8px; }
 .searchbar .row { flex-wrap: nowrap; }
 .searchbar input { flex: 1; }
-.searchbar__modes { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s4); margin-top: var(--s2); }
-.searchbar__hint { flex: 1; min-width: 16rem; margin: 0; }
-
-/* Recall: the score first, then the fact. What the fact is about is indented
-   under it and ruled on the left, because it was reached in the graph, not
-   matched by meaning — the two must not look alike. */
-.recall { margin: 0; padding: 0; list-style: none; }
-.recall__match { padding: 6px 0; border-bottom: var(--rule-dotted); }
-.recall__fact {
-  display: grid;
-  grid-template-columns: 3.5rem minmax(6rem, max-content) minmax(4.5rem, max-content) minmax(0, 1fr) auto;
-  align-items: center; gap: 4px var(--s4); min-height: var(--row-h);
-}
-.recall__score { font-family: var(--font-code); font-weight: 700; }
-.recall__context { margin: var(--s1) 0 0 var(--s2); padding-left: var(--s4); border-left: var(--rule-dotted); }
-.recall__why { margin: 0 0 var(--s1); font-weight: 700; }
-.recall__context ul { margin: 0; padding: 0; list-style: none; }
-.recall__context .fact { min-height: 28px; border-bottom: 0; }
-
-@media (max-width: 640px) {
-  .recall__fact { grid-template-columns: 3.5rem minmax(0, 1fr) auto; }
-  .recall__fact .rel { grid-column: 1; }
-  .recall__fact .obj { grid-column: 1 / -1; }
-  .recall__fact .meta { grid-column: 1; }
-}
+.searchbar__hint { margin: 0; }

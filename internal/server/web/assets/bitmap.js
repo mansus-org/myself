@@ -59,6 +59,8 @@ const GLYPHS = {
   // A clock: what was asked, and when. The Log is the lines of the brain; this
   // is the record of the questions, so it is told by its time, not its text.
   queries: ["..###..", ".#...#.", "#..#..#", "#..#..#", "#...###", ".#...#.", "..###.."],
+  // A bullseye: the closest ones, not the ones that say the same word.
+  recall: ["..###..", ".#...#.", "#.....#", "#..#..#", "#.....#", ".#...#.", "..###.."],
   dream: ["####...", "#..#...", "#..####", "####..#", "...#..#", "...#..#", "...####"],
   prime: ["#######", "#.....#", "#.###.#", "#.....#", "#.###.#", "#.....#", "#######"],
   settings: [".#.....", "#######", ".#.....", ".......", "....#..", "#######", "....#.."],
