@@ -211,9 +211,10 @@ Arguments are positional and everything after the relation is the object, so quo
 | `path <a> <b> [--max-depth N]` | shortest chain of facts linking two entities |
 | `log [--since TIME] [-n N]` | every record, forgets included |
 | `history <subject> [<relation>]` | every record for a subject, forgotten or not |
+| `queries [--verb VERB] [-n N]` | what the server was asked (`search`, `recall`, `describe`), newest first, with what each answer brought |
 | `prime [--budget CHARS]` | compact summary to paste into an agent context: your own facts in full, one line per other topic |
 | `dream` | report near-duplicate subjects (read-only) |
-| `serve [--addr :8080] [--site DIR]` | serve the brain over HTTP (see [Server](#server)) |
+| `serve [--addr :8080] [--site DIR] [--no-query-log]` | serve the brain over HTTP (see [Server](#server)) |
 | `graph --web [--addr ADDR] [--open]` | print a link that opens the graph in the web app, signed in (see [Web app](#web-app)) |
 | `export --obsidian <dir>` | write one Markdown note per entity |
 | `sync [--export DIR]` | back the store up with git |
@@ -415,7 +416,9 @@ myself prime
 
 - **Entities**: every entity with its types, a name filter and type buttons (`ls`). An entity page shows its facts both ways (`describe`), a depth control, "as of" time travel (`--at`), and its history with forgotten facts struck through and their reasons. A write token gets a Forget button on each fact.
 - **Graph**: the whole graph (`/api/v1/graph`) as a force layout. Drag, zoom, hover for neighbours, click to open; Find focuses an entity, Type dithers everything else.
-- **Search**, **Log** (newest first, refreshed every 10 s with a Pause button, so you can watch agents write), **Prime** (the brief and its budget), **Dream** (near-duplicate subjects).
+- **Search**, with two ways to match: **Words** is the substring match (`search`), **Meaning** is `recall` — the facts closest in meaning, each with its score, the model that read it, and the facts around it in the graph indented underneath. A brain without vectors says so in the page instead of answering badly.
+- **Log** (newest first, refreshed every 10 s with a Pause button, so you can watch agents write), **Prime** (the brief and its budget), **Dream** (near-duplicate subjects).
+- **Queries**: what the server was asked, from any client — who, which verb, the text, how many facts came back, which ones, how long it took, and why a question failed (`myself queries`). It is the server's record of questions, not the brain's: nothing in it is a fact, and `serve --no-query-log` turns it off.
 - **Add facts**: one fact with a relation menu, or many lines in the `remember -` format; replace and warnings as in the CLI.
 - **Tokens** (admin): list, create (the plaintext is shown once, with a Copy button) and revoke.
 

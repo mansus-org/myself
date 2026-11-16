@@ -125,6 +125,10 @@ _Avoid_: Embedding store, index (it is part of it), cache
 The OpenAI-compatible service that turns text into vectors, named by the environment. Without it recall is unavailable and everything else works as before.
 _Avoid_: Model (the endpoint has one, and the word is taken), AI
 
+**Query log**:
+The server's account of the questions it answered — `search`, `recall` and `describe` — with who asked and what came back. Not the brain: it is never searched, exported or primed, and nothing in it is a fact. `serve` writes it; `myself queries` and the Queries page read it.
+_Avoid_: History (that is one entity's records), Log (that is the brain's), audit log (it keeps no writes)
+
 ## Access
 
 **Admin token**:
